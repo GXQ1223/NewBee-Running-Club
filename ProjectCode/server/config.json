@@ -1,0 +1,9 @@
+{
+  "rds_host": "database-1.clmzag1chgdf.us-east-1.rds.amazonaws.com",
+  "rds_port": "5432",
+  "rds_user": "group12",
+  "rds_password": "7fqz-uRfAGB!_yA",
+  "rds_db": "project_db",
+  "server_host": "localhost",
+  "server_port": "8080"
+}

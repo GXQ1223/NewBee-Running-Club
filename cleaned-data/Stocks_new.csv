@@ -1,0 +1,104 @@
+StockID,Symbol,Region,Field
+1,NVDA,US,Technology
+2,AMD,US,Technology
+3,GOOGL,US,Technology
+4,MSFT,US,Technology
+5,AAPL,US,Technology
+6,TSLA,US,Technology
+7,AMZN,US,Consumer & Retail
+8,IBM,US,Technology
+9,INTC,US,Technology
+10,CRM,US,Technology
+11,META,US,Technology
+12,ORCL,US,Technology
+13,ADBE,US,Technology
+14,CSCO,US,Technology
+15,QCOM,US,Technology
+16,TXN,US,Technology
+17,AVGO,US,Technology
+18,VMW,US,Technology
+19,NFLX,US,Technology
+20,PYPL,US,Technology
+21,ASML,Europe,Technology
+22,SAP,Europe,Technology
+23,ERIC,Europe,Technology
+24,NOK,Europe,Technology
+25,STM,Europe,Technology
+26,UI,Europe,Technology
+27,SHOP,Europe,Technology
+28,TEAM,Europe,Technology
+29,6758.T,Asia,Technology
+30,6861.T,Asia,Technology
+31,6594.T,Asia,Technology
+32,4689.T,Asia,Technology
+33,6503.T,Asia,Technology
+34,JPM,US,Financial
+35,BAC,US,Financial
+36,WFC,US,Financial
+37,C,US,Financial
+38,GS,US,Financial
+39,MS,US,Financial
+40,AXP,US,Financial
+41,V,US,Financial
+42,JNJ,US,Healthcare & Biotech
+43,PFE,US,Healthcare & Biotech
+44,MRK,US,Healthcare & Biotech
+45,ABBV,US,Healthcare & Biotech
+46,BMY,US,Healthcare & Biotech
+47,LLY,US,Healthcare & Biotech
+48,AMGN,US,Healthcare & Biotech
+49,GILD,US,Healthcare & Biotech
+50,WMT,US,Consumer & Retail
+51,TGT,US,Consumer & Retail
+52,COST,US,Consumer & Retail
+53,HD,US,Consumer & Retail
+54,LOW,US,Consumer & Retail
+55,BABA,US,Consumer & Retail
+56,JD,US,Consumer & Retail
+57,GE,US,Industrial & Manufacturing
+58,HON,US,Industrial & Manufacturing
+59,MMM,US,Industrial & Manufacturing
+60,CAT,US,Industrial & Manufacturing
+61,DE,US,Industrial & Manufacturing
+62,BA,US,Industrial & Manufacturing
+63,LMT,US,Industrial & Manufacturing
+64,RTX,US,Industrial & Manufacturing
+65,XOM,US,Energy & Utilities
+66,CVX,US,Energy & Utilities
+67,COP,US,Energy & Utilities
+68,EOG,US,Energy & Utilities
+69,PXD,US,Energy & Utilities
+70,SLB,US,Energy & Utilities
+71,HAL,US,Energy & Utilities
+72,BKR,US,Energy & Utilities
+73,LIN,US,Materials & Chemicals
+74,APD,US,Materials & Chemicals
+75,SHW,US,Materials & Chemicals
+76,ECL,US,Materials & Chemicals
+77,DD,US,Materials & Chemicals
+78,PPG,US,Materials & Chemicals
+79,ALB,US,Materials & Chemicals
+80,FCX,US,Materials & Chemicals
+81,T,US,Telecommunications
+82,VZ,US,Telecommunications
+83,TMUS,US,Telecommunications
+84,CMCSA,US,Telecommunications
+85,CHTR,US,Telecommunications
+86,DIS,US,Telecommunications
+87,ROKU,US,Telecommunications
+88,PLD,US,Real Estate
+89,AMT,US,Real Estate
+90,CCI,US,Real Estate
+91,EQIX,US,Real Estate
+92,DLR,US,Real Estate
+93,O,US,Real Estate
+94,SPG,US,Real Estate
+95,WELL,US,Real Estate
+96,UPS,US,Transportation & Logistics
+97,FDX,US,Transportation & Logistics
+98,UNP,US,Transportation & Logistics
+99,CSX,US,Transportation & Logistics
+100,NSC,US,Transportation & Logistics
+101,UBER,US,Transportation & Logistics
+102,LYFT,US,Transportation & Logistics
+103,DAL,US,Transportation & Logistics

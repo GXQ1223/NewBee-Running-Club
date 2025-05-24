@@ -1,0 +1,80 @@
+CREATE TABLE Publications (
+   PublicationID INT PRIMARY KEY,
+   Title TEXT NOT NULL,
+   Year INT,
+   NumAuthors INT,
+   Abstract TEXT,
+   Field VARCHAR(100),
+   PublicationURL TEXT,
+   Type TEXT NOT NULL CHECK (Type IN ('Book', 'Paper'))
+);
+
+
+CREATE TABLE Papers (
+   PublicationID INT PRIMARY KEY,
+   DOI VARCHAR(100),
+   FOREIGN KEY (PublicationID) REFERENCES Publications(PublicationID)
+);
+
+
+CREATE TABLE Books (
+   PublicationID INT PRIMARY KEY,
+   ISBN VARCHAR(30),
+   AverageRating DECIMAL(10, 2),
+   RatingCount INT,
+   CoverURL TEXT,
+   FOREIGN KEY (PublicationID) REFERENCES Publications(PublicationID)
+);
+
+
+CREATE TABLE Authors (
+   AuthorID INT PRIMARY KEY,
+   Name VARCHAR(255) NOT NULL
+);
+
+
+CREATE TABLE PublicationAuthors (
+   PublicationID INT,
+   AuthorID INT,
+   PRIMARY KEY (PublicationID, AuthorID),
+   FOREIGN KEY (PublicationID) REFERENCES Publications(PublicationID),
+   FOREIGN KEY (AuthorID) REFERENCES Authors(AuthorID)
+);
+
+
+CREATE TABLE Fields (
+   FieldName VARCHAR(100) PRIMARY KEY
+);
+
+
+CREATE TABLE PublicationFields (
+   PublicationID INT,
+   FieldName VARCHAR(100),
+   PRIMARY KEY (PublicationID, FieldName),
+   FOREIGN KEY (PublicationID) REFERENCES Publications(PublicationID),
+   FOREIGN KEY (FieldName) REFERENCES Fields(FieldName)
+);
+
+
+CREATE TABLE Stocks (
+   StockID INT PRIMARY KEY,
+   Symbol VARCHAR(20) NOT NULL,
+   Region VARCHAR(20),
+   Field VARCHAR(30)
+);
+
+
+CREATE TABLE StockParameters (
+   StockID INT,
+   Date DATE,
+   PRIMARY KEY (StockID, Date),
+   Year INT NOT NULL,
+   MarketCap BIGINT,
+   Volume BIGINT,
+   Open DECIMAL(10, 2),
+   Close DECIMAL(10, 2),
+   High DECIMAL(10, 2),
+   Low DECIMAL(10, 2),
+   FOREIGN KEY (StockID) REFERENCES Stocks(StockID)
+);
+
