@@ -1,3 +1,6 @@
+# NewBee-Running-Club
+Main Page for NewBee Running Club
+
 ## Directory Structure
 ### SQL
 
