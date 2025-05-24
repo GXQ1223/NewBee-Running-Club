@@ -1,0 +1,137 @@
+name,organization,amount,calling,donateTime
+Dr. Wei Chen,Columbia University,500,Dr.,2024-03-15
+Ms. Sarah Johnson,NYU Medical Center,300,Ms.,2024-03-14
+Mr. David Wang,Google,1000,Mr.,2024-03-13
+Prof. Michael Brown,NYU,750,Professor,2024-03-12
+Mrs. Lisa Zhang,JP Morgan,250,Mrs.,2024-03-11
+Dr. James Wilson,Memorial Sloan Kettering,600,Dr.,2024-03-10
+Ms. Emily Liu,Goldman Sachs,400,Ms.,2024-03-09
+Mr. Robert Chen,Microsoft,800,Mr.,2024-03-08
+Prof. Jennifer Lee,Columbia University,550,Professor,2024-03-07
+Mrs. Patricia Kim,Amazon,350,Mrs.,2024-03-06
+Dr. Thomas Park,NYU Langone,450,Dr.,2024-03-05
+Ms. Rachel Wu,Facebook,300,Ms.,2024-03-04
+Mr. Kevin Zhang,Apple,900,Mr.,2024-03-03
+Prof. Susan Chen,NYU,650,Professor,2024-03-02
+Mrs. Mary Johnson,JP Morgan,400,Mrs.,2024-03-01
+Dr. Peter Wang,Columbia University,700,Dr.,2024-02-29
+Ms. Jessica Liu,Google,350,Ms.,2024-02-28
+Mr. Daniel Kim,Microsoft,850,Mr.,2024-02-27
+Prof. Richard Brown,NYU,500,Professor,2024-02-26
+Mrs. Catherine Zhang,Goldman Sachs,300,Mrs.,2024-02-25
+Dr. Andrew Chen,Memorial Sloan Kettering,600,Dr.,2024-02-24
+Ms. Michelle Lee,Amazon,400,Ms.,2024-02-23
+Mr. Steven Park,Apple,950,Mr.,2024-02-22
+Prof. Elizabeth Wu,Columbia University,550,Professor,2024-02-21
+Mrs. Nancy Johnson,JP Morgan,350,Mrs.,2024-02-20
+Dr. Christopher Wang,NYU Langone,650,Dr.,2024-02-19
+Ms. Stephanie Liu,Google,400,Ms.,2024-02-18
+Mr. Brian Kim,Microsoft,800,Mr.,2024-02-17
+Prof. Margaret Chen,NYU,500,Professor,2024-02-16
+Mrs. Barbara Zhang,Goldman Sachs,300,Mrs.,2024-02-15
+Dr. Joseph Park,Columbia University,700,Dr.,2024-02-14
+Ms. Christina Lee,Amazon,400,Ms.,2024-02-13
+Mr. Edward Wu,Apple,900,Mr.,2024-02-12
+Prof. Kathleen Brown,NYU,550,Professor,2024-02-11
+Mrs. Deborah Johnson,JP Morgan,350,Mrs.,2024-02-10
+Dr. George Wang,Memorial Sloan Kettering,600,Dr.,2024-02-09
+Ms. Laura Liu,Google,400,Ms.,2024-02-08
+Mr. Kenneth Kim,Microsoft,850,Mr.,2024-02-07
+Prof. Dorothy Chen,Columbia University,500,Professor,2024-02-06
+Mrs. Sandra Zhang,Goldman Sachs,300,Mrs.,2024-02-05
+Dr. Ronald Park,NYU Langone,650,Dr.,2024-02-04
+Ms. Betty Lee,Amazon,400,Ms.,2024-02-03
+Mr. Donald Wu,Apple,950,Mr.,2024-02-02
+Prof. Helen Brown,NYU,550,Professor,2024-02-01
+Mrs. Ruth Johnson,JP Morgan,350,Mrs.,2024-01-31
+Dr. Jason Wang,Columbia University,700,Dr.,2024-01-30
+Ms. Shirley Liu,Google,400,Ms.,2024-01-29
+Mr. Gary Kim,Microsoft,800,Mr.,2024-01-28
+Prof. Anna Chen,NYU,500,Professor,2024-01-27
+Mrs. Carol Zhang,Goldman Sachs,300,Mrs.,2024-01-26
+Dr. Eric Park,Memorial Sloan Kettering,600,Dr.,2024-01-25
+Ms. Joyce Lee,Amazon,400,Ms.,2024-01-24
+Mr. Paul Wu,Apple,900,Mr.,2024-01-23
+Prof. Virginia Brown,Columbia University,550,Professor,2024-01-22
+Mrs. Martha Johnson,JP Morgan,350,Mrs.,2024-01-21
+Dr. Frank Wang,NYU Langone,650,Dr.,2024-01-20
+Ms. Doris Liu,Google,400,Ms.,2024-01-19
+Mr. Raymond Kim,Microsoft,850,Mr.,2024-01-18
+Prof. Rebecca Chen,NYU,500,Professor,2024-01-17
+Mrs. Alice Zhang,Goldman Sachs,300,Mrs.,2024-01-16
+Dr. Samuel Park,Columbia University,700,Dr.,2024-01-15
+Ms. Frances Lee,Amazon,400,Ms.,2024-01-14
+Mr. Charles Wu,Apple,950,Mr.,2024-01-13
+Prof. Marie Brown,NYU,550,Professor,2024-01-12
+Mrs. Evelyn Johnson,JP Morgan,350,Mrs.,2024-01-11
+Dr. Thomas Wang,Memorial Sloan Kettering,600,Dr.,2024-01-10
+Ms. Elizabeth Liu,Google,400,Ms.,2024-01-09
+Mr. Joseph Kim,Microsoft,800,Mr.,2024-01-08
+Prof. Patricia Chen,Columbia University,500,Professor,2024-01-07
+Mrs. Margaret Zhang,Goldman Sachs,300,Mrs.,2024-01-06
+Dr. Robert Park,NYU Langone,650,Dr.,2024-01-05
+Ms. Susan Lee,Amazon,400,Ms.,2024-01-04
+Mr. John Wu,Apple,900,Mr.,2024-01-03
+Prof. Barbara Brown,NYU,550,Professor,2024-01-02
+Mrs. Dorothy Johnson,JP Morgan,350,Mrs.,2024-01-01
+Dr. William Wang,Columbia University,700,Dr.,2023-12-31
+Ms. Jennifer Liu,Google,400,Ms.,2023-12-30
+Mr. Richard Kim,Microsoft,850,Mr.,2023-12-29
+Prof. Linda Chen,NYU,500,Professor,2023-12-28
+Mrs. Karen Zhang,Goldman Sachs,300,Mrs.,2023-12-27
+Dr. Michael Park,Memorial Sloan Kettering,600,Dr.,2023-12-26
+Ms. Nancy Lee,Amazon,400,Ms.,2023-12-25
+Mr. David Wu,Apple,950,Mr.,2023-12-24
+Prof. Lisa Brown,Columbia University,550,Professor,2023-12-23
+Mrs. Betty Johnson,JP Morgan,350,Mrs.,2023-12-22
+Dr. James Wang,NYU Langone,650,Dr.,2023-12-21
+Ms. Sandra Liu,Google,400,Ms.,2023-12-20
+Mr. Robert Kim,Microsoft,800,Mr.,2023-12-19
+Prof. Michelle Chen,NYU,500,Professor,2023-12-18
+Mrs. Laura Zhang,Goldman Sachs,300,Mrs.,2023-12-17
+Dr. Thomas Park,Columbia University,700,Dr.,2023-12-16
+Ms. Kimberly Lee,Amazon,400,Ms.,2023-12-15
+Mr. Charles Wu,Apple,900,Mr.,2023-12-14
+Prof. Sarah Brown,NYU,550,Professor,2023-12-13
+Mrs. Elizabeth Johnson,JP Morgan,350,Mrs.,2023-12-12
+Dr. Daniel Wang,Memorial Sloan Kettering,600,Dr.,2023-12-11
+Ms. Patricia Liu,Google,400,Ms.,2023-12-10
+Mr. Paul Kim,Microsoft,850,Mr.,2023-12-09
+Prof. Margaret Chen,Columbia University,500,Professor,2023-12-08
+Mrs. Susan Zhang,Goldman Sachs,300,Mrs.,2023-12-07
+Dr. Christopher Park,NYU Langone,650,Dr.,2023-12-06
+Ms. Karen Lee,Amazon,400,Ms.,2023-12-05
+Mr. Kevin Wu,Apple,950,Mr.,2023-12-04
+Prof. Nancy Brown,NYU,550,Professor,2023-12-03
+Mrs. Lisa Johnson,JP Morgan,350,Mrs.,2023-12-02
+Dr. Steven Wang,Columbia University,700,Dr.,2023-12-01
+Ms. Betty Liu,Google,400,Ms.,2023-11-30
+Mr. Edward Kim,Microsoft,800,Mr.,2023-11-29
+Prof. Dorothy Chen,NYU,500,Professor,2023-11-28
+Mrs. Mary Zhang,Goldman Sachs,300,Mrs.,2023-11-27
+Dr. George Park,Memorial Sloan Kettering,600,Dr.,2023-11-26
+Ms. Helen Lee,Amazon,400,Ms.,2023-11-25
+Mr. Frank Wu,Apple,900,Mr.,2023-11-24
+Prof. Ruth Brown,Columbia University,550,Professor,2023-11-23
+Mrs. Anna Johnson,JP Morgan,350,Mrs.,2023-11-22
+Dr. Samuel Wang,NYU Langone,650,Dr.,2023-11-21
+Ms. Frances Liu,Google,400,Ms.,2023-11-20
+Mr. Joseph Kim,Microsoft,850,Mr.,2023-11-19
+Prof. Marie Chen,NYU,500,Professor,2023-11-18
+Mrs. Evelyn Zhang,Goldman Sachs,300,Mrs.,2023-11-17
+Dr. Thomas Park,Columbia University,700,Dr.,2023-11-16
+Ms. Elizabeth Lee,Amazon,400,Ms.,2023-11-15
+Mr. John Wu,Apple,950,Mr.,2023-11-14
+Prof. Barbara Brown,NYU,550,Professor,2023-11-13
+Mrs. Dorothy Johnson,JP Morgan,350,Mrs.,2023-11-12
+Dr. William Wang,Memorial Sloan Kettering,600,Dr.,2023-11-11
+Ms. Jennifer Liu,Google,400,Ms.,2023-11-10
+Mr. Richard Kim,Microsoft,800,Mr.,2023-11-09
+Prof. Linda Chen,Columbia University,500,Professor,2023-11-08
+Mrs. Karen Zhang,Goldman Sachs,300,Mrs.,2023-11-07
+Dr. Michael Park,NYU Langone,650,Dr.,2023-11-06
+Ms. Nancy Lee,Amazon,400,Ms.,2023-11-05
+Mr. David Wu,Apple,900,Mr.,2023-11-04
+Prof. Lisa Brown,NYU,550,Professor,2023-11-03
+Mrs. Betty Johnson,JP Morgan,350,Mrs.,2023-11-02
+Dr. James Wang,Columbia University,700,Dr.,2023-11-01 

@@ -6,6 +6,28 @@ Official website for NewBee Running Club, a running community based in New York.
 
 This is a full-stack web application built with React (frontend) and Node.js (backend) to serve the NewBee Running Club community. The website provides features for member management, event organization, and running records tracking.
 
+## Screenshots
+
+### Home Page
+![Home Page](docs/home-page.png)
+*Welcome page with club highlights and upcoming events*
+
+### Member Dashboard
+![Member Dashboard](docs/dashboard.png)
+*Personal dashboard showing running statistics and achievements*
+
+### Event Calendar
+![Event Calendar](docs/calendar.png)
+*Interactive calendar showing upcoming running events and training sessions*
+
+### Records Page
+![Records Page](docs/records.png)
+*Club records and member achievements*
+
+### Join Page
+![Join Page](docs/join.png)
+*Membership application form with club rules and requirements*
+
 ## Directory Structure
 
 ### ProjectCode/
