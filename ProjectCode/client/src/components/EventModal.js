@@ -23,6 +23,15 @@ export default function EventModal({ open, onClose, event }) {
 
   if (!event) return null;
 
+  // Check if event is in the past
+  const isPastEvent = () => {
+    if (!event?.date && !event?.event_date) return false;
+    const eventDateValue = new Date(event.date || event.event_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return eventDateValue < today;
+  };
+
   const handleSignUp = () => {
     if (event.event_signup_link || event.signup_link) {
       window.open(event.event_signup_link || event.signup_link, '_blank');
@@ -185,15 +194,30 @@ export default function EventModal({ open, onClose, event }) {
               backgroundColor: 'rgba(255, 165, 0, 0.05)',
               borderRadius: 2,
               border: '1px solid rgba(255, 165, 0, 0.2)',
+              overflow: 'hidden',
             }}
           >
             {eventDescription && (
-              <Typography variant="body1" sx={{ mb: eventChineseDescription ? 2 : 0 }}>
+              <Typography
+                variant="body1"
+                sx={{
+                  mb: eventChineseDescription ? 2 : 0,
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                }}
+              >
                 {eventDescription}
               </Typography>
             )}
             {eventChineseDescription && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                }}
+              >
                 {eventChineseDescription}
               </Typography>
             )}
@@ -208,7 +232,7 @@ export default function EventModal({ open, onClose, event }) {
             / 查看所有活动
           </Typography>
         </Button>
-        {signupLink && (
+        {signupLink && !isPastEvent() && (
           <Button
             variant="contained"
             onClick={handleSignUp}
