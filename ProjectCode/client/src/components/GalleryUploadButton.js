@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import CloseIcon from '@mui/icons-material/Close';
-import { uploadGalleryImage, compressImage, fileToBase64 } from '../api/gallery';
+import { uploadGalleryImage, compressImage } from '../api/gallery';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -129,16 +129,8 @@ const GalleryUploadButton = ({
       setUploadProgress({ current: i + 1, total: selectedFiles.length });
 
       try {
-        // Use original image without resizing to preserve full quality
-        const imageDataUrl = await fileToBase64(file);
-
-        const imageData = {
-          image_url: imageDataUrl,
-          caption: null,
-          caption_cn: null,
-        };
-
-        const result = await uploadGalleryImage(eventId, imageData, currentUser?.uid);
+        // Upload file directly to S3 (no base64 conversion needed)
+        const result = await uploadGalleryImage(eventId, file, null, null, currentUser?.uid);
         uploadedImages.push(result);
 
         // Notify parent of each successful upload

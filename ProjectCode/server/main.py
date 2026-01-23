@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -9,6 +9,89 @@ import os
 import uuid
 import base64
 from pathlib import Path
+import boto3
+from botocore.exceptions import ClientError
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+
+def must_have_env(env_var: str) -> str:
+    """Get environment variable or raise error if not set."""
+    value = os.getenv(env_var)
+    if value is None:
+        raise Exception(f"Environment variable '{env_var}' is not set")
+    return value
+
+
+# S3 Configuration (lazy-loaded to allow imports without env vars)
+_s3_bucket = None
+_s3_region = None
+_s3_client = None
+
+
+def get_s3_config():
+    """Get S3 configuration, raising error if not configured."""
+    global _s3_bucket, _s3_region
+    if _s3_bucket is None:
+        _s3_bucket = must_have_env('AWS_S3_BUCKET')
+        _s3_region = must_have_env('AWS_REGION')
+    return _s3_bucket, _s3_region
+
+
+def get_s3_client():
+    """Get or create S3 client with lazy initialization."""
+    global _s3_client
+    if _s3_client is None:
+        aws_access_key = must_have_env('AWS_ACCESS_KEY_ID')
+        aws_secret_key = must_have_env('AWS_SECRET_ACCESS_KEY')
+        _, region = get_s3_config()
+        _s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=region
+        )
+    return _s3_client
+
+
+def upload_to_s3(file_content: bytes, filename: str, event_id: int, content_type: str) -> str:
+    """Upload file to S3 and return the public URL."""
+    s3_client = get_s3_client()
+    bucket, region = get_s3_config()
+
+    # Generate unique key with event folder structure
+    file_ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg'
+    key = f"gallery/event-{event_id}/{uuid.uuid4().hex}.{file_ext}"
+
+    s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=file_content,
+        ContentType=content_type
+    )
+
+    return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+
+
+def delete_from_s3(image_url: str) -> bool:
+    """Delete file from S3 given its URL. Returns True if deleted, False if not an S3 URL."""
+    bucket, _ = get_s3_config()
+
+    if not image_url or 's3.' not in image_url or bucket not in image_url:
+        return False  # Not an S3 URL (legacy base64 or other)
+
+    s3_client = get_s3_client()
+
+    try:
+        # Extract key from URL: https://bucket.s3.region.amazonaws.com/key
+        key = image_url.split('.amazonaws.com/')[-1]
+        s3_client.delete_object(Bucket=bucket, Key=key)
+        return True
+    except ClientError as e:
+        print(f"S3 delete error for {image_url}: {e}")
+        return False
 
 from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, EventRecurrenceRule
 from models import (
@@ -2888,16 +2971,44 @@ def get_batch_gallery_preview(
 
 
 @app.post("/api/events/{event_id}/gallery", response_model=EventGalleryImageResponse)
-def upload_gallery_image(
+async def upload_gallery_image(
     event_id: int,
-    image_data: EventGalleryImageCreate,
+    file: UploadFile = File(...),
+    caption: Optional[str] = Form(None),
+    caption_cn: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    current_member: Member = Depends(get_current_member_optional)
+    x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID")
 ):
-    """Upload a new image to event gallery (authenticated users only)"""
+    """Upload a new image to event gallery (authenticated users only) - stores image in S3"""
+    # Validate event exists
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image (JPEG, PNG, GIF, WebP)"
+        )
+
+    # Read file content
+    content = await file.read()
+
+    # Validate file size (max 10MB)
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File too large. Maximum size is 10MB."
+        )
+
+    # Upload to S3
+    image_url = upload_to_s3(content, file.filename or "image.jpg", event_id, file.content_type)
+
+    # Get member info if authenticated
+    current_member = None
+    if x_firebase_uid:
+        current_member = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
 
     # Get next display order
     max_order = db.query(func.max(EventGalleryImage.display_order)).filter(
@@ -2906,10 +3017,10 @@ def upload_gallery_image(
 
     new_image = EventGalleryImage(
         event_id=event_id,
-        image_url=image_data.image_url,
-        caption=image_data.caption,
-        caption_cn=image_data.caption_cn,
-        display_order=image_data.display_order if image_data.display_order else max_order + 1,
+        image_url=image_url,
+        caption=caption,
+        caption_cn=caption_cn,
+        display_order=max_order + 1,
         uploaded_by_id=current_member.id if current_member else None,
         uploaded_by_name=current_member.display_name or current_member.username if current_member else "Anonymous"
     )
@@ -3007,6 +3118,10 @@ def delete_gallery_image(
             detail="Permission denied. Only the uploader or admins can delete this image."
         )
 
+    # Delete from S3 first (if it's an S3 URL)
+    delete_from_s3(image.image_url)
+
+    # Then delete from database
     db.delete(image)
     db.commit()
     return {"message": f"Gallery image {image_id} deleted successfully"}
