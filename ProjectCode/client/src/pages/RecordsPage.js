@@ -9,7 +9,6 @@ import { useEffect, useState } from 'react';
 import { getAvailableYears, getMenRecords, getWomenRecords } from '../api/records';
 import { getCredits, createCredit, updateCredit, deleteCredit, bulkUploadCredits } from '../api/credits';
 import ClubEntryRules from '../components/ClubEntryRules';
-import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
 import { useAdmin, useAuth } from '../context';
 
@@ -384,9 +383,6 @@ export default function RecordsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
-      {/* Logo Section */}
-      <Logo />
-      
       {/* Navigation Buttons */}
       <NavigationButtons />
 

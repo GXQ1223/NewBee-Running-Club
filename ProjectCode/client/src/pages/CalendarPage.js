@@ -10,7 +10,6 @@ import RepeatIcon from '@mui/icons-material/Repeat';
 import { useEffect, useState, useRef } from 'react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import DOMPurify from 'dompurify';
-import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
 import { useAdmin, useAuth } from '../context';
 import { useAutoFillOnTab, useTranslationAutoFill } from '../hooks';
@@ -479,9 +478,6 @@ export default function CalendarPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {/* Logo Section */}
-      <Logo />
-
       {/* Navigation Buttons */}
       <NavigationButtons />
 
