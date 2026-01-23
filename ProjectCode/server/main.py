@@ -2248,10 +2248,10 @@ async def bulk_upload_credits(
     credit_type: str = Form(...),
     mode: str = Form("merge"),
     db: Session = Depends(get_db),
-    current_admin: Member = Depends(get_current_admin)
+    current_admin: Member = Depends(get_current_committee_or_admin)
 ):
     """
-    Bulk upload credits from CSV file (admin only).
+    Bulk upload credits from CSV file (admin or committee only).
 
     - credit_type: 'activity', 'registration', or 'volunteer' (NOT 'total' - it's auto-calculated)
     - mode: 'replace' (delete all existing of that type first) or 'merge' (update existing, add new)
