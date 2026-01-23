@@ -855,12 +855,6 @@ export default function RecordsPage() {
                 <Typography variant="body2">
                   <strong>CSV格式：</strong> fullName, registration_sum, checkin_sum
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  Total credits are auto-calculated from activity + registration + volunteer.
-                </Typography>
-                <Typography variant="body2">
-                  总积分会自动计算（活动 + 比赛 + 志愿者）。
-                </Typography>
               </Alert>
 
               <FormControl fullWidth>
@@ -870,6 +864,7 @@ export default function RecordsPage() {
                   onChange={(e) => setBulkUploadType(e.target.value)}
                   label="Credit Type 积分类型"
                 >
+                  <MenuItem value="total">Total 总积分</MenuItem>
                   <MenuItem value="activity">Activity 活动积分</MenuItem>
                   <MenuItem value="registration">Registration 比赛积分</MenuItem>
                   <MenuItem value="volunteer">Volunteer 志愿者积分</MenuItem>
