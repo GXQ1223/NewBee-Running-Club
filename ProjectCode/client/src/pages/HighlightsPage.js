@@ -4,7 +4,6 @@ import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import PlaylistRemoveIcon from '@mui/icons-material/PlaylistRemove';
 import { Box, Button, Card, CardContent, CardMedia, Container, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
-import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
 import EventEngagementBar from '../components/EventEngagementBar';
 import EventGalleryPreview from '../components/EventGalleryPreview';
@@ -243,9 +242,6 @@ export default function HighlightsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {/* Logo Section */}
-      <Logo />
-      
       {/* Navigation Buttons */}
       <NavigationButtons />
       

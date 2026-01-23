@@ -59,14 +59,21 @@ export default function NavigationButtons({ variant = 'outlined' }) {
   const isFilled = variant === 'filled';
 
   return (
-    <Container maxWidth="xl" sx={{
-      py: { xs: 0.5, sm: 1 },
-      px: { xs: 1, sm: 2 },
+    <Box sx={{
+      position: 'sticky',
+      top: { xs: '48px', sm: '64px' },
+      zIndex: 1099,
+      width: '100%',
       backgroundColor: '#FFFFFF',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-      maxWidth: '1200px',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      mb: { xs: 2, sm: 3 },
     }}>
-      <Box
+      <Container maxWidth="xl" sx={{
+        py: { xs: 1, sm: 1.5 },
+        px: { xs: 1, sm: 2 },
+        maxWidth: '1200px',
+      }}>
+        <Box
         sx={{
           display: 'flex',
           flexDirection: 'row',
@@ -179,8 +186,9 @@ export default function NavigationButtons({ variant = 'outlined' }) {
             </Button>
           );
         })}
-      </Box>
-    </Container>
+        </Box>
+      </Container>
+    </Box>
   );
 }
 

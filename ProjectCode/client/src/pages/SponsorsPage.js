@@ -4,7 +4,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
 import { useEffect, useState } from 'react';
-import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
 import { useAdmin } from '../context';
 import { useAutoFillOnTab } from '../hooks';
@@ -278,9 +277,6 @@ export default function SponsorsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {/* Logo Section */}
-      <Logo />
-
       {/* Navigation Buttons */}
       <NavigationButtons />
 

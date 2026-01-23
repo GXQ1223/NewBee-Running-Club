@@ -59,7 +59,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
 import EventModal from '../components/EventModal';
 import { useAuth } from '../context/AuthContext';
@@ -137,6 +136,64 @@ function SortableSection({ section, adminModeEnabled, onEdit }) {
 
   return (
     <Box ref={setNodeRef} style={style} sx={{ mt: { xs: 2, sm: 3 } }}>
+      {/* Section Title - Above Image */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mb: { xs: 1, sm: 1.5 } }}>
+        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Drag Handle - Only for admins */}
+          {adminModeEnabled && (
+            <Tooltip title="Drag to reorder">
+              <IconButton
+                {...attributes}
+                {...listeners}
+                sx={{
+                  position: 'absolute',
+                  left: 0,
+                  cursor: 'grab',
+                  color: '#FFA500',
+                  '&:active': { cursor: 'grabbing' },
+                }}
+                size="small"
+              >
+                <DragIndicatorIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 600,
+              color: '#FFA500',
+              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
+              textAlign: 'center'
+            }}
+          >
+            {section.title_en}
+            <br />
+            {section.title_cn}
+          </Typography>
+          {/* Admin Edit Button */}
+          {adminModeEnabled && (
+            <Tooltip title="Edit Section">
+              <IconButton
+                onClick={(e) => onEdit(e, section)}
+                sx={{
+                  position: 'absolute',
+                  right: 0,
+                  backgroundColor: 'rgba(255, 165, 0, 0.9)',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#FF8C00',
+                  },
+                }}
+                size="small"
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      </Container>
+
       {/* Section Image/Link */}
       <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 } }}>
         <Box
@@ -242,64 +299,6 @@ function SortableSection({ section, adminModeEnabled, onEdit }) {
               />
             </Box>
           </Box>
-        </Box>
-      </Container>
-
-      {/* Section Title - Below Image */}
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 1, sm: 1.5 } }}>
-        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Drag Handle - Only for admins */}
-          {adminModeEnabled && (
-            <Tooltip title="Drag to reorder">
-              <IconButton
-                {...attributes}
-                {...listeners}
-                sx={{
-                  position: 'absolute',
-                  left: 0,
-                  cursor: 'grab',
-                  color: '#FFA500',
-                  '&:active': { cursor: 'grabbing' },
-                }}
-                size="small"
-              >
-                <DragIndicatorIcon />
-              </IconButton>
-            </Tooltip>
-          )}
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 600,
-              color: '#FFA500',
-              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-              textAlign: 'center'
-            }}
-          >
-            {section.title_en}
-            <br />
-            {section.title_cn}
-          </Typography>
-          {/* Admin Edit Button */}
-          {adminModeEnabled && (
-            <Tooltip title="Edit Section">
-              <IconButton
-                onClick={(e) => onEdit(e, section)}
-                sx={{
-                  position: 'absolute',
-                  right: 0,
-                  backgroundColor: 'rgba(255, 165, 0, 0.9)',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: '#FF8C00',
-                  },
-                }}
-                size="small"
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
         </Box>
       </Container>
     </Box>
@@ -727,7 +726,6 @@ export default function HomePage() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
-        <Logo />
         <NavigationButtons variant="outlined" />
         <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4, display: 'flex', justifyContent: 'center' }}>
           <CircularProgress sx={{ color: '#FFA500' }} />
@@ -738,9 +736,6 @@ export default function HomePage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
-      {/* Logo Section */}
-      <Logo />
-
       {/* Buttons Section */}
       <NavigationButtons variant="outlined" />
 
@@ -881,23 +876,9 @@ export default function HomePage() {
         </Container>
       )}
 
-      {/* Latest Events Text - Below Carousel */}
+      {/* Latest Events List - Below Carousel */}
       {carouselImages.length > 0 && (
         <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 2, sm: 3 } }}>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 600,
-              color: '#FFA500',
-              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-              textAlign: 'center',
-              mb: { xs: 1.5, sm: 2 }
-            }}
-          >
-            Latest Events
-            <br />
-            最新活动
-          </Typography>
           <Box
             sx={{
               display: 'flex',

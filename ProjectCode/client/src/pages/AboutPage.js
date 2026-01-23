@@ -10,7 +10,6 @@ import {
 } from '@mui/material';
 import { safeMarkdown } from '../utils/markdown';
 import { useEffect, useState } from 'react';
-import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
 import CommitteeMemberCard from '../components/CommitteeMemberCard';
 import { committeeMembers } from '../data/committeeMembers';
@@ -46,9 +45,6 @@ export default function AboutPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {/* Logo Section */}
-      <Logo />
-
       {/* Navigation Buttons */}
       <NavigationButtons />
 
