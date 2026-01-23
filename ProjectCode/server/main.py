@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -9,8 +9,91 @@ import os
 import uuid
 import base64
 from pathlib import Path
+import boto3
+from botocore.exceptions import ClientError
+from dotenv import load_dotenv
 
-from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, EventRecurrenceRule
+# Load environment variables
+load_dotenv()
+
+
+def must_have_env(env_var: str) -> str:
+    """Get environment variable or raise error if not set."""
+    value = os.getenv(env_var)
+    if value is None:
+        raise Exception(f"Environment variable '{env_var}' is not set")
+    return value
+
+
+# S3 Configuration (lazy-loaded to allow imports without env vars)
+_s3_bucket = None
+_s3_region = None
+_s3_client = None
+
+
+def get_s3_config():
+    """Get S3 configuration, raising error if not configured."""
+    global _s3_bucket, _s3_region
+    if _s3_bucket is None:
+        _s3_bucket = must_have_env('AWS_S3_BUCKET')
+        _s3_region = must_have_env('AWS_REGION')
+    return _s3_bucket, _s3_region
+
+
+def get_s3_client():
+    """Get or create S3 client with lazy initialization."""
+    global _s3_client
+    if _s3_client is None:
+        aws_access_key = must_have_env('AWS_ACCESS_KEY_ID')
+        aws_secret_key = must_have_env('AWS_SECRET_ACCESS_KEY')
+        _, region = get_s3_config()
+        _s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=region
+        )
+    return _s3_client
+
+
+def upload_to_s3(file_content: bytes, filename: str, event_id: int, content_type: str) -> str:
+    """Upload file to S3 and return the public URL."""
+    s3_client = get_s3_client()
+    bucket, region = get_s3_config()
+
+    # Generate unique key with event folder structure
+    file_ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg'
+    key = f"gallery/event-{event_id}/{uuid.uuid4().hex}.{file_ext}"
+
+    s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=file_content,
+        ContentType=content_type
+    )
+
+    return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+
+
+def delete_from_s3(image_url: str) -> bool:
+    """Delete file from S3 given its URL. Returns True if deleted, False if not an S3 URL."""
+    bucket, _ = get_s3_config()
+
+    if not image_url or 's3.' not in image_url or bucket not in image_url:
+        return False  # Not an S3 URL (legacy base64 or other)
+
+    s3_client = get_s3_client()
+
+    try:
+        # Extract key from URL: https://bucket.s3.region.amazonaws.com/key
+        key = image_url.split('.amazonaws.com/')[-1]
+        s3_client.delete_object(Bucket=bucket, Key=key)
+        return True
+    except ClientError as e:
+        print(f"S3 delete error for {image_url}: {e}")
+        return False
+
+from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, EventRecurrenceRule, SiteSetting
 from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest,
@@ -29,7 +112,8 @@ from models import (
     TrainingTipCreate, TrainingTipUpdate, TrainingTipResponse, TrainingTipPublicResponse, TrainingTipUpvoteResponse, TipStatus, TipCategory,
     HomepageSectionCreate, HomepageSectionUpdate, HomepageSectionResponse, SectionReorderRequest,
     EventGalleryImageCreate, EventGalleryImageUpdate, EventGalleryImageResponse, EventGalleryPreviewResponse, EventGalleryImageLikeResponse, BatchGalleryPreviewRequest, BatchGalleryPreviewResponse,
-    EventRecurrenceRuleCreate, EventRecurrenceRuleUpdate, EventRecurrenceRuleResponse, RecurrenceType, EventWithRecurrence, EventCreateWithRecurrence
+    EventRecurrenceRuleCreate, EventRecurrenceRuleUpdate, EventRecurrenceRuleResponse, RecurrenceType, EventWithRecurrence, EventCreateWithRecurrence,
+    SiteSettingCreate, SiteSettingUpdate, SiteSettingResponse, SocialLinksResponse
 )
 from email_service import EmailService
 import bcrypt
@@ -2158,6 +2242,214 @@ def delete_credit(
     return {"message": f"Credit {credit_id} deleted successfully"}
 
 
+@app.post("/api/credits/bulk-upload")
+async def bulk_upload_credits(
+    file: UploadFile = File(...),
+    credit_type: str = Form(...),
+    mode: str = Form("merge"),
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_admin)
+):
+    """
+    Bulk upload credits from CSV file (admin only).
+
+    - credit_type: 'activity', 'registration', or 'volunteer' (NOT 'total' - it's auto-calculated)
+    - mode: 'replace' (delete all existing of that type first) or 'merge' (update existing, add new)
+    - CSV columns: fullName, registration_sum, checkin_sum
+
+    After upload, total credits are automatically recalculated for all users.
+    """
+    import csv
+    import io
+    from decimal import Decimal, InvalidOperation
+
+    # Validate credit_type - only allow non-total types
+    valid_types = ['activity', 'registration', 'volunteer']
+    if credit_type not in valid_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid credit_type. Must be one of: {', '.join(valid_types)}. Total is auto-calculated."
+        )
+
+    # Validate mode
+    if mode not in ['replace', 'merge']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mode must be 'replace' or 'merge'"
+        )
+
+    # Read and parse CSV file
+    try:
+        contents = await file.read()
+        # Try to decode as UTF-8, fallback to latin-1
+        try:
+            decoded = contents.decode('utf-8')
+        except UnicodeDecodeError:
+            decoded = contents.decode('latin-1')
+
+        reader = csv.DictReader(io.StringIO(decoded))
+        rows = list(reader)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse CSV file: {str(e)}"
+        )
+
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CSV file is empty"
+        )
+
+    # Validate required columns
+    required_columns = ['fullName', 'registration_sum', 'checkin_sum']
+    # Check for columns (case-insensitive matching)
+    header_mapping = {}
+    if rows:
+        first_row_keys = list(rows[0].keys())
+        for req_col in required_columns:
+            found = False
+            for key in first_row_keys:
+                if key.lower().strip() == req_col.lower():
+                    header_mapping[req_col] = key
+                    found = True
+                    break
+            if not found:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required column: {req_col}. Required columns: {', '.join(required_columns)}"
+                )
+
+    # If replace mode, delete all existing entries of this type
+    if mode == 'replace':
+        db.query(TempClubCredit).filter(TempClubCredit.credit_type == credit_type).delete()
+        db.commit()
+
+    # Process rows
+    rows_processed = 0
+    rows_added = 0
+    rows_updated = 0
+    errors = []
+
+    for i, row in enumerate(rows, start=2):  # Start at 2 to account for header row
+        try:
+            full_name = row.get(header_mapping['fullName'], '').strip()
+            if not full_name:
+                errors.append(f"Row {i}: Empty name")
+                continue
+
+            try:
+                reg_credits = Decimal(str(row.get(header_mapping['registration_sum'], '0') or '0').strip())
+            except (InvalidOperation, ValueError):
+                errors.append(f"Row {i}: Invalid registration_sum value")
+                continue
+
+            try:
+                checkin_credits = Decimal(str(row.get(header_mapping['checkin_sum'], '0') or '0').strip())
+            except (InvalidOperation, ValueError):
+                errors.append(f"Row {i}: Invalid checkin_sum value")
+                continue
+
+            # Check if entry exists (for merge mode)
+            existing = db.query(TempClubCredit).filter(
+                TempClubCredit.full_name == full_name,
+                TempClubCredit.credit_type == credit_type
+            ).first()
+
+            if existing:
+                # Update existing
+                existing.registration_credits = reg_credits
+                existing.checkin_credits = checkin_credits
+                rows_updated += 1
+            else:
+                # Create new
+                new_credit = TempClubCredit(
+                    full_name=full_name,
+                    credit_type=credit_type,
+                    registration_credits=reg_credits,
+                    checkin_credits=checkin_credits
+                )
+                db.add(new_credit)
+                rows_added += 1
+
+            rows_processed += 1
+
+        except Exception as e:
+            errors.append(f"Row {i}: {str(e)}")
+
+    db.commit()
+
+    # Recalculate total credits for all users
+    # Get all unique names from activity, registration, and volunteer types
+    all_credits = db.query(TempClubCredit).filter(
+        TempClubCredit.credit_type.in_(['activity', 'registration', 'volunteer'])
+    ).all()
+
+    # Aggregate by name
+    totals_by_name = {}
+    for credit in all_credits:
+        if credit.full_name not in totals_by_name:
+            totals_by_name[credit.full_name] = {
+                'registration_credits': Decimal('0'),
+                'checkin_credits': Decimal('0')
+            }
+        totals_by_name[credit.full_name]['registration_credits'] += credit.registration_credits or Decimal('0')
+        totals_by_name[credit.full_name]['checkin_credits'] += credit.checkin_credits or Decimal('0')
+
+    # Update or create total entries
+    totals_updated = 0
+    totals_added = 0
+
+    # First, delete all existing total entries that are no longer needed
+    existing_total_names = set(
+        c.full_name for c in db.query(TempClubCredit).filter(
+            TempClubCredit.credit_type == 'total'
+        ).all()
+    )
+
+    # Delete totals for names no longer in the component types
+    names_to_delete = existing_total_names - set(totals_by_name.keys())
+    if names_to_delete:
+        db.query(TempClubCredit).filter(
+            TempClubCredit.credit_type == 'total',
+            TempClubCredit.full_name.in_(names_to_delete)
+        ).delete(synchronize_session=False)
+
+    for name, totals in totals_by_name.items():
+        existing_total = db.query(TempClubCredit).filter(
+            TempClubCredit.full_name == name,
+            TempClubCredit.credit_type == 'total'
+        ).first()
+
+        if existing_total:
+            existing_total.registration_credits = totals['registration_credits']
+            existing_total.checkin_credits = totals['checkin_credits']
+            totals_updated += 1
+        else:
+            new_total = TempClubCredit(
+                full_name=name,
+                credit_type='total',
+                registration_credits=totals['registration_credits'],
+                checkin_credits=totals['checkin_credits']
+            )
+            db.add(new_total)
+            totals_added += 1
+
+    db.commit()
+
+    return {
+        "message": "Bulk upload completed",
+        "credit_type": credit_type,
+        "mode": mode,
+        "rows_processed": rows_processed,
+        "rows_added": rows_added,
+        "rows_updated": rows_updated,
+        "totals_recalculated": totals_updated + totals_added,
+        "errors": errors[:10] if errors else [],  # Limit errors to first 10
+        "total_errors": len(errors)
+    }
+
+
 # BANNER IMAGE ENDPOINTS
 
 @app.get("/api/banners", response_model=List[BannerImageResponse])
@@ -2888,16 +3180,44 @@ def get_batch_gallery_preview(
 
 
 @app.post("/api/events/{event_id}/gallery", response_model=EventGalleryImageResponse)
-def upload_gallery_image(
+async def upload_gallery_image(
     event_id: int,
-    image_data: EventGalleryImageCreate,
+    file: UploadFile = File(...),
+    caption: Optional[str] = Form(None),
+    caption_cn: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    current_member: Member = Depends(get_current_member_optional)
+    x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID")
 ):
-    """Upload a new image to event gallery (authenticated users only)"""
+    """Upload a new image to event gallery (authenticated users only) - stores image in S3"""
+    # Validate event exists
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image (JPEG, PNG, GIF, WebP)"
+        )
+
+    # Read file content
+    content = await file.read()
+
+    # Validate file size (max 10MB)
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File too large. Maximum size is 10MB."
+        )
+
+    # Upload to S3
+    image_url = upload_to_s3(content, file.filename or "image.jpg", event_id, file.content_type)
+
+    # Get member info if authenticated
+    current_member = None
+    if x_firebase_uid:
+        current_member = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
 
     # Get next display order
     max_order = db.query(func.max(EventGalleryImage.display_order)).filter(
@@ -2906,10 +3226,10 @@ def upload_gallery_image(
 
     new_image = EventGalleryImage(
         event_id=event_id,
-        image_url=image_data.image_url,
-        caption=image_data.caption,
-        caption_cn=image_data.caption_cn,
-        display_order=image_data.display_order if image_data.display_order else max_order + 1,
+        image_url=image_url,
+        caption=caption,
+        caption_cn=caption_cn,
+        display_order=max_order + 1,
         uploaded_by_id=current_member.id if current_member else None,
         uploaded_by_name=current_member.display_name or current_member.username if current_member else "Anonymous"
     )
@@ -3007,6 +3327,10 @@ def delete_gallery_image(
             detail="Permission denied. Only the uploader or admins can delete this image."
         )
 
+    # Delete from S3 first (if it's an S3 URL)
+    delete_from_s3(image.image_url)
+
+    # Then delete from database
     db.delete(image)
     db.commit()
     return {"message": f"Gallery image {image_id} deleted successfully"}
@@ -3473,6 +3797,147 @@ def remove_event_from_series(
     event.parent_event_id = None
     db.commit()
     return {"message": "Event removed from series"}
+
+
+# ========== Site Settings Endpoints ==========
+
+def seed_social_links(db: Session):
+    """Seed default social media links if they don't exist."""
+    default_links = [
+        {
+            "key": "social_instagram",
+            "value": "https://www.instagram.com/newbeerunningclub/",
+            "label_en": "Instagram",
+            "label_cn": "Instagram",
+            "category": "social"
+        },
+        {
+            "key": "social_xiaohongshu",
+            "value": "https://xhslink.com/m/8znk8WTxhjd",
+            "label_en": "Xiaohongshu",
+            "label_cn": "小红书",
+            "category": "social"
+        },
+        {
+            "key": "social_heylo",
+            "value": "https://www.heylo.com/g/b7bf1310-ca40-4d4d-9da5-2b7f4f3c197e",
+            "label_en": "Heylo",
+            "label_cn": "Heylo",
+            "category": "social"
+        },
+        {
+            "key": "social_shop",
+            "value": "",
+            "label_en": "Shop",
+            "label_cn": "商店",
+            "category": "social"
+        }
+    ]
+
+    for link_data in default_links:
+        existing = db.query(SiteSetting).filter(SiteSetting.key == link_data["key"]).first()
+        if not existing:
+            new_setting = SiteSetting(**link_data)
+            db.add(new_setting)
+
+    db.commit()
+
+
+@app.on_event("startup")
+def seed_settings():
+    """Seed default site settings on startup."""
+    db = next(get_db())
+    try:
+        seed_social_links(db)
+    finally:
+        db.close()
+
+
+@app.get("/api/settings/social-links", response_model=SocialLinksResponse)
+def get_social_links(db: Session = Depends(get_db)):
+    """Get all social media links (public endpoint)."""
+    settings = db.query(SiteSetting).filter(
+        SiteSetting.category == "social",
+        SiteSetting.is_active == True
+    ).all()
+
+    result = SocialLinksResponse()
+    for setting in settings:
+        if setting.key == "social_instagram":
+            result.instagram = setting.value
+        elif setting.key == "social_xiaohongshu":
+            result.xiaohongshu = setting.value
+        elif setting.key == "social_heylo":
+            result.heylo = setting.value
+        elif setting.key == "social_shop":
+            result.shop = setting.value
+
+    return result
+
+
+@app.get("/api/settings", response_model=List[SiteSettingResponse])
+def get_all_settings(
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Get all site settings (admin/committee only)."""
+    return db.query(SiteSetting).order_by(SiteSetting.category, SiteSetting.key).all()
+
+
+@app.get("/api/settings/category/{category}", response_model=List[SiteSettingResponse])
+def get_settings_by_category(
+    category: str,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Get settings by category (admin/committee only)."""
+    return db.query(SiteSetting).filter(SiteSetting.category == category).all()
+
+
+@app.put("/api/settings/{key}", response_model=SiteSettingResponse)
+def update_setting(
+    key: str,
+    setting_update: SiteSettingUpdate,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Update a site setting by key (admin/committee only)."""
+    setting = db.query(SiteSetting).filter(SiteSetting.key == key).first()
+    if not setting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Setting with key '{key}' not found"
+        )
+
+    # Update fields if provided
+    update_data = setting_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(setting, field, value)
+
+    db.commit()
+    db.refresh(setting)
+    return setting
+
+
+@app.post("/api/settings", response_model=SiteSettingResponse)
+def create_setting(
+    setting: SiteSettingCreate,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_admin)
+):
+    """Create a new site setting (admin only)."""
+    existing = db.query(SiteSetting).filter(SiteSetting.key == setting.key).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Setting with key '{setting.key}' already exists"
+        )
+
+    new_setting = SiteSetting(**setting.model_dump())
+    db.add(new_setting)
+    db.commit()
+    db.refresh(new_setting)
+    return new_setting
 
 
 if __name__ == "__main__":

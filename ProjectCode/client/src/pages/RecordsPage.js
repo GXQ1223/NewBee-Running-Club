@@ -3,10 +3,11 @@ import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Select, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Radio, RadioGroup, Select, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { getAvailableYears, getMenRecords, getWomenRecords } from '../api/records';
-import { getCredits, createCredit, updateCredit, deleteCredit } from '../api/credits';
+import { getCredits, createCredit, updateCredit, deleteCredit, bulkUploadCredits } from '../api/credits';
 import ClubEntryRules from '../components/ClubEntryRules';
 import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
@@ -36,6 +37,7 @@ export default function RecordsPage() {
   // Admin modal state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('create'); // 'create' or 'edit'
+  const [dialogTab, setDialogTab] = useState(0); // 0 = single entry, 1 = bulk upload
   const [editingCredit, setEditingCredit] = useState(null);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -45,6 +47,13 @@ export default function RecordsPage() {
   });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [creditToDelete, setCreditToDelete] = useState(null);
+
+  // Bulk upload state
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [bulkUploadType, setBulkUploadType] = useState('activity');
+  const [bulkUploadMode, setBulkUploadMode] = useState('merge');
+  const [bulkUploadLoading, setBulkUploadLoading] = useState(false);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null);
 
   const distances = [
     { label: "1 Mile\n一英里", value: "1M" },
@@ -159,6 +168,8 @@ export default function RecordsPage() {
   // Admin CRUD handlers
   const handleOpenDialog = (mode, credit = null) => {
     setDialogMode(mode);
+    setDialogTab(0); // Reset to single entry tab
+    setBulkUploadResult(null); // Clear previous upload result
     if (mode === 'edit' && credit) {
       setEditingCredit(credit);
       setFormData({
@@ -182,12 +193,19 @@ export default function RecordsPage() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingCredit(null);
+    setDialogTab(0);
     setFormData({
       full_name: '',
       credit_type: 'total',
       registration_credits: 0,
       checkin_credits: 0
     });
+    // Reset bulk upload state
+    setBulkUploadFile(null);
+    setBulkUploadType('activity');
+    setBulkUploadMode('merge');
+    setBulkUploadLoading(false);
+    setBulkUploadResult(null);
   };
 
   const handleFormChange = (field, value) => {
@@ -223,6 +241,46 @@ export default function RecordsPage() {
     } catch (error) {
       console.error('Error deleting credit:', error);
       alert(`Error: ${error.message || 'Failed to delete credit'}`);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkUploadFile) {
+      alert('Please select a CSV file');
+      return;
+    }
+
+    setBulkUploadLoading(true);
+    setBulkUploadResult(null);
+
+    try {
+      const result = await bulkUploadCredits(
+        bulkUploadFile,
+        bulkUploadType,
+        bulkUploadMode,
+        currentUser?.uid
+      );
+      setBulkUploadResult(result);
+      // Refresh credits data after successful upload
+      await fetchCreditsData();
+    } catch (error) {
+      console.error('Bulk upload error:', error);
+      setBulkUploadResult({
+        error: true,
+        message: error.message || 'Failed to upload credits'
+      });
+    } finally {
+      setBulkUploadLoading(false);
+    }
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type === 'text/csv') {
+      setBulkUploadFile(file);
+    } else if (file) {
+      alert('Please select a CSV file');
+      event.target.value = '';
     }
   };
 
@@ -725,57 +783,198 @@ export default function RecordsPage() {
       {/* Create/Edit Credit Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {dialogMode === 'create' ? 'Add New Credit 添加新积分' : 'Edit Credit 编辑积分'}
+          {dialogMode === 'create' ? 'Add Credits 添加积分' : 'Edit Credit 编辑积分'}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              label="Full Name 姓名"
-              value={formData.full_name}
-              onChange={(e) => handleFormChange('full_name', e.target.value)}
-              fullWidth
-              required
-            />
-            <FormControl fullWidth>
-              <InputLabel>Credit Type 积分类型</InputLabel>
-              <Select
-                value={formData.credit_type}
-                onChange={(e) => handleFormChange('credit_type', e.target.value)}
-                label="Credit Type 积分类型"
+          {/* Show tabs only in create mode */}
+          {dialogMode === 'create' && (
+            <Tabs
+              value={dialogTab}
+              onChange={(e, newValue) => {
+                setDialogTab(newValue);
+                setBulkUploadResult(null);
+              }}
+              sx={{
+                mb: 2,
+                '& .MuiTab-root': {
+                  '&.Mui-selected': { color: '#FFA500' },
+                },
+                '& .MuiTabs-indicator': { backgroundColor: '#FFA500' },
+              }}
+            >
+              <Tab label="Single Entry 单条录入" />
+              <Tab label="Bulk Upload 批量上传" icon={<UploadFileIcon />} iconPosition="start" />
+            </Tabs>
+          )}
+
+          {/* Single Entry Form */}
+          {(dialogMode === 'edit' || dialogTab === 0) && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+              <TextField
+                label="Full Name 姓名"
+                value={formData.full_name}
+                onChange={(e) => handleFormChange('full_name', e.target.value)}
+                fullWidth
+                required
+              />
+              <FormControl fullWidth>
+                <InputLabel>Credit Type 积分类型</InputLabel>
+                <Select
+                  value={formData.credit_type}
+                  onChange={(e) => handleFormChange('credit_type', e.target.value)}
+                  label="Credit Type 积分类型"
+                >
+                  <MenuItem value="total">Total 总积分</MenuItem>
+                  <MenuItem value="activity">Activity 活动积分</MenuItem>
+                  <MenuItem value="registration">Registration 比赛积分</MenuItem>
+                  <MenuItem value="volunteer">Volunteer 志愿者积分</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                label="Registration Points 报名积分"
+                type="number"
+                value={formData.registration_credits}
+                onChange={(e) => handleFormChange('registration_credits', parseFloat(e.target.value) || 0)}
+                fullWidth
+                inputProps={{ step: 0.5 }}
+              />
+              <TextField
+                label="Check-in Points 签到积分"
+                type="number"
+                value={formData.checkin_credits}
+                onChange={(e) => handleFormChange('checkin_credits', parseFloat(e.target.value) || 0)}
+                fullWidth
+                inputProps={{ step: 0.5 }}
+              />
+            </Box>
+          )}
+
+          {/* Bulk Upload Form */}
+          {dialogMode === 'create' && dialogTab === 1 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+              <Alert severity="info" sx={{ mb: 1 }}>
+                <Typography variant="body2">
+                  <strong>CSV Format:</strong> fullName, registration_sum, checkin_sum
+                </Typography>
+                <Typography variant="body2">
+                  <strong>CSV格式：</strong> fullName, registration_sum, checkin_sum
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Total credits are auto-calculated from activity + registration + volunteer.
+                </Typography>
+                <Typography variant="body2">
+                  总积分会自动计算（活动 + 比赛 + 志愿者）。
+                </Typography>
+              </Alert>
+
+              <FormControl fullWidth>
+                <InputLabel>Credit Type 积分类型</InputLabel>
+                <Select
+                  value={bulkUploadType}
+                  onChange={(e) => setBulkUploadType(e.target.value)}
+                  label="Credit Type 积分类型"
+                >
+                  <MenuItem value="activity">Activity 活动积分</MenuItem>
+                  <MenuItem value="registration">Registration 比赛积分</MenuItem>
+                  <MenuItem value="volunteer">Volunteer 志愿者积分</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl component="fieldset">
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                  Upload Mode 上传模式
+                </Typography>
+                <RadioGroup
+                  value={bulkUploadMode}
+                  onChange={(e) => setBulkUploadMode(e.target.value)}
+                >
+                  <FormControlLabel
+                    value="merge"
+                    control={<Radio sx={{ '&.Mui-checked': { color: '#FFA500' } }} />}
+                    label="Merge (update existing, add new) 合并（更新已有，添加新条目）"
+                  />
+                  <FormControlLabel
+                    value="replace"
+                    control={<Radio sx={{ '&.Mui-checked': { color: '#FFA500' } }} />}
+                    label="Replace All (delete existing first) 全部替换（先删除已有）"
+                  />
+                </RadioGroup>
+              </FormControl>
+
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<UploadFileIcon />}
+                sx={{
+                  borderColor: '#FFA500',
+                  color: '#FFA500',
+                  '&:hover': { borderColor: '#e69500', backgroundColor: 'rgba(255, 165, 0, 0.1)' },
+                }}
               >
-                <MenuItem value="total">Total 总积分</MenuItem>
-                <MenuItem value="activity">Activity 活动积分</MenuItem>
-                <MenuItem value="registration">Registration 比赛积分</MenuItem>
-                <MenuItem value="volunteer">Volunteer 志愿者积分</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              label="Registration Points 报名积分"
-              type="number"
-              value={formData.registration_credits}
-              onChange={(e) => handleFormChange('registration_credits', parseFloat(e.target.value) || 0)}
-              fullWidth
-              inputProps={{ step: 0.5 }}
-            />
-            <TextField
-              label="Check-in Points 签到积分"
-              type="number"
-              value={formData.checkin_credits}
-              onChange={(e) => handleFormChange('checkin_credits', parseFloat(e.target.value) || 0)}
-              fullWidth
-              inputProps={{ step: 0.5 }}
-            />
-          </Box>
+                {bulkUploadFile ? bulkUploadFile.name : 'Select CSV File 选择CSV文件'}
+                <input
+                  type="file"
+                  accept=".csv"
+                  hidden
+                  onChange={handleFileChange}
+                />
+              </Button>
+
+              {/* Upload Result */}
+              {bulkUploadResult && (
+                <Alert severity={bulkUploadResult.error ? 'error' : 'success'} sx={{ mt: 1 }}>
+                  {bulkUploadResult.error ? (
+                    <Typography variant="body2">{bulkUploadResult.message}</Typography>
+                  ) : (
+                    <>
+                      <Typography variant="body2">
+                        <strong>Upload Complete!</strong> 上传完成！
+                      </Typography>
+                      <Typography variant="body2">
+                        Rows processed: {bulkUploadResult.rows_processed} |
+                        Added: {bulkUploadResult.rows_added} |
+                        Updated: {bulkUploadResult.rows_updated}
+                      </Typography>
+                      <Typography variant="body2">
+                        Totals recalculated: {bulkUploadResult.totals_recalculated}
+                      </Typography>
+                      {bulkUploadResult.total_errors > 0 && (
+                        <Typography variant="body2" color="error">
+                          Errors: {bulkUploadResult.total_errors}
+                          {bulkUploadResult.errors?.length > 0 && (
+                            <span> - {bulkUploadResult.errors.join('; ')}</span>
+                          )}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Alert>
+              )}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel 取消</Button>
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#e69500' } }}
-          >
-            {dialogMode === 'create' ? 'Create 创建' : 'Save 保存'}
-          </Button>
+          {(dialogMode === 'edit' || dialogTab === 0) && (
+            <Button
+              onClick={handleSubmit}
+              variant="contained"
+              sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#e69500' } }}
+            >
+              {dialogMode === 'create' ? 'Create 创建' : 'Save 保存'}
+            </Button>
+          )}
+          {dialogMode === 'create' && dialogTab === 1 && (
+            <Button
+              onClick={handleBulkUpload}
+              variant="contained"
+              disabled={!bulkUploadFile || bulkUploadLoading}
+              startIcon={bulkUploadLoading ? <CircularProgress size={20} color="inherit" /> : <UploadFileIcon />}
+              sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#e69500' } }}
+            >
+              {bulkUploadLoading ? 'Uploading...' : 'Upload 上传'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

@@ -59,3 +59,35 @@ export const deleteCredit = async (creditId, firebaseUid) => {
     'X-Firebase-UID': firebaseUid,
   });
 };
+
+/**
+ * Bulk upload credits from CSV file (admin only)
+ * @param {File} file - CSV file with columns: fullName, registration_sum, checkin_sum
+ * @param {string} creditType - 'activity', 'registration', or 'volunteer' (NOT 'total')
+ * @param {string} mode - 'replace' (delete all existing) or 'merge' (update/add)
+ * @param {string} firebaseUid - Firebase UID for authentication
+ * @returns {Promise<Object>} - Upload result with counts
+ */
+export const bulkUploadCredits = async (file, creditType, mode, firebaseUid) => {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('credit_type', creditType);
+  formData.append('mode', mode);
+
+  const response = await fetch(`${API_BASE_URL}/api/credits/bulk-upload`, {
+    method: 'POST',
+    headers: {
+      'X-Firebase-UID': firebaseUid,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.detail || `Upload failed with status ${response.status}`);
+  }
+
+  return response.json();
+};

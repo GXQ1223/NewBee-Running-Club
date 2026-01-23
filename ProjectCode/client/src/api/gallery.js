@@ -50,15 +50,44 @@ export const getBatchGalleryPreview = async (eventIds, firebaseUid = null) => {
 };
 
 /**
- * Upload a new image to event gallery
+ * Upload a new image to event gallery (uploads file to S3)
  * @param {number} eventId - Event ID
- * @param {Object} imageData - { image_url, caption?, caption_cn? }
+ * @param {File} file - Image file to upload
+ * @param {string|null} caption - Optional caption (English)
+ * @param {string|null} captionCn - Optional caption (Chinese)
  * @param {string|null} firebaseUid - User's Firebase UID (optional but recommended)
  * @returns {Promise<Object>} - Created gallery image
  */
-export const uploadGalleryImage = async (eventId, imageData, firebaseUid = null) => {
-  const headers = firebaseUid ? { 'X-Firebase-UID': firebaseUid } : {};
-  return api.post(`/api/events/${eventId}/gallery`, imageData, headers);
+export const uploadGalleryImage = async (eventId, file, caption = null, captionCn = null, firebaseUid = null) => {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+
+  const formData = new FormData();
+  formData.append('file', file);
+  if (caption) formData.append('caption', caption);
+  if (captionCn) formData.append('caption_cn', captionCn);
+
+  const headers = {};
+  if (firebaseUid) {
+    headers['X-Firebase-UID'] = firebaseUid;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/gallery`, {
+    method: 'POST',
+    headers,  // Don't set Content-Type - browser sets it with boundary for FormData
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorData = null;
+    try {
+      errorData = await response.json();
+    } catch {
+      // Response body is not JSON
+    }
+    throw new Error(errorData?.detail || `Upload failed with status ${response.status}`);
+  }
+
+  return response.json();
 };
 
 /**

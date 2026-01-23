@@ -33,7 +33,7 @@ import {
   Typography
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
-import Logo from '../components/Logo';
+import { useSearchParams } from 'react-router-dom';
 import NavigationButtons from '../components/NavigationButtons';
 import MeetingMinutesEditor from '../components/MeetingMinutesEditor';
 import { useAuth } from '../context/AuthContext';
@@ -43,8 +43,11 @@ import { getDonationSummary } from '../api/donors';
 import { getAllBanners, createBanner, updateBanner, deleteBanner } from '../api/banners';
 import { getAllSections, createSection, updateSection, deleteSection } from '../api/homepageSections';
 import { getPendingActivities, verifyActivity, getMemberActivities } from '../api/activities';
+import { getSettingsByCategory, updateSetting } from '../api/settings';
+import { useSocialLinks } from '../context';
 import { committeeMembers } from '../data/committeeMembers';
 import EditIcon from '@mui/icons-material/Edit';
+import SettingsIcon from '@mui/icons-material/Settings';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
@@ -76,7 +79,16 @@ function TabPanel({ children, value, index, ...other }) {
 
 export default function AdminPanelPage() {
   const { currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [tabValue, setTabValue] = useState(0);
+
+  // Check for tab query parameter on mount
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'settings') {
+      setTabValue(8); // Settings tab index
+    }
+  }, [searchParams]);
   const [pendingMembers, setPendingMembers] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [events, setEvents] = useState([]);
@@ -149,6 +161,17 @@ export default function AdminPanelPage() {
     display_order: 0,
     is_active: true
   });
+
+  // Site Settings state
+  const { refreshLinks } = useSocialLinks();
+  const [socialLinksForm, setSocialLinksForm] = useState({
+    instagram: '',
+    xiaohongshu: '',
+    heylo: '',
+    shop: ''
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -595,6 +618,53 @@ export default function AdminPanelPage() {
     }
   };
 
+  // Site Settings handlers
+  const loadSocialLinksSettings = async () => {
+    if (!currentUser?.uid) return;
+    try {
+      const settings = await getSettingsByCategory('social', currentUser.uid);
+      const formData = { instagram: '', xiaohongshu: '', heylo: '', shop: '' };
+      settings.forEach(setting => {
+        if (setting.key === 'social_instagram') formData.instagram = setting.value || '';
+        if (setting.key === 'social_xiaohongshu') formData.xiaohongshu = setting.value || '';
+        if (setting.key === 'social_heylo') formData.heylo = setting.value || '';
+        if (setting.key === 'social_shop') formData.shop = setting.value || '';
+      });
+      setSocialLinksForm(formData);
+    } catch (err) {
+      console.error('Error loading social links settings:', err);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!currentUser?.uid) return;
+    setSettingsLoading(true);
+    setSettingsSaved(false);
+    try {
+      await Promise.all([
+        updateSetting('social_instagram', { value: socialLinksForm.instagram }, currentUser.uid),
+        updateSetting('social_xiaohongshu', { value: socialLinksForm.xiaohongshu }, currentUser.uid),
+        updateSetting('social_heylo', { value: socialLinksForm.heylo }, currentUser.uid),
+        updateSetting('social_shop', { value: socialLinksForm.shop }, currentUser.uid)
+      ]);
+      setSettingsSaved(true);
+      refreshLinks(); // Refresh the global social links context
+      setTimeout(() => setSettingsSaved(false), 5000);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setError('Failed to save settings. Please try again.');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  // Load settings when Settings tab (index 8) is selected
+  useEffect(() => {
+    if (tabValue === 8 && currentUser?.uid && isCommittee) {
+      loadSocialLinksSettings();
+    }
+  }, [tabValue, currentUser?.uid, isCommittee]);
+
   // Analytics calculations
   const getMemberStats = () => {
     const total = allMembers.length;
@@ -626,7 +696,6 @@ export default function AdminPanelPage() {
   if (!currentUser) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Logo />
         <NavigationButtons />
         <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
           <Alert severity="warning">
@@ -642,7 +711,6 @@ export default function AdminPanelPage() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Logo />
         <NavigationButtons />
         <Container maxWidth="xl" sx={{ px: 2, mt: 4, display: 'flex', justifyContent: 'center' }}>
           <CircularProgress sx={{ color: '#FFA500' }} />
@@ -654,7 +722,6 @@ export default function AdminPanelPage() {
   if (!isCommittee) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Logo />
         <NavigationButtons />
         <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
           <Alert severity="error">
@@ -673,7 +740,6 @@ export default function AdminPanelPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      <Logo />
       <NavigationButtons />
 
       <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
@@ -735,6 +801,7 @@ export default function AdminPanelPage() {
             <Tab icon={<EmailIcon />} label="Newsletter" iconPosition="start" />
             <Tab icon={<BarChartIcon />} label="Analytics" iconPosition="start" />
             <Tab icon={<DescriptionIcon />} label="Meeting Notes" iconPosition="start" />
+            <Tab icon={<SettingsIcon />} label="Settings" iconPosition="start" />
             {isAdmin && <Tab icon={<AdminPanelSettingsIcon />} label="Committee Mgmt" iconPosition="start" />}
           </Tabs>
         </Paper>
@@ -1318,9 +1385,87 @@ export default function AdminPanelPage() {
           <MeetingMinutesEditor firebaseUid={currentUser?.uid} />
         </TabPanel>
 
-        {/* Tab 8: Committee Management (Admin Only) */}
+        {/* Tab 8: Site Settings */}
+        <TabPanel value={tabValue} index={8}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
+            Site Settings / 网站设置
+          </Typography>
+
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Configure social media links and other site settings. Changes will be reflected immediately across the site.
+            <br />
+            配置社交媒体链接和其他网站设置。更改将立即在整个网站上生效。
+          </Alert>
+
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <GroupsIcon /> Social Media Links / 社交媒体链接
+            </Typography>
+
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Instagram URL"
+                  value={socialLinksForm.instagram}
+                  onChange={(e) => setSocialLinksForm(prev => ({ ...prev, instagram: e.target.value }))}
+                  placeholder="https://www.instagram.com/newbeerunningclub/"
+                  helperText="Leave empty to disable / 留空以禁用"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Xiaohongshu URL / 小红书链接"
+                  value={socialLinksForm.xiaohongshu}
+                  onChange={(e) => setSocialLinksForm(prev => ({ ...prev, xiaohongshu: e.target.value }))}
+                  placeholder="https://xhslink.com/..."
+                  helperText="Leave empty to disable / 留空以禁用"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Heylo URL"
+                  value={socialLinksForm.heylo}
+                  onChange={(e) => setSocialLinksForm(prev => ({ ...prev, heylo: e.target.value }))}
+                  placeholder="https://www.heylo.com/g/..."
+                  helperText="Leave empty to disable / 留空以禁用"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Shop URL / 商店链接"
+                  value={socialLinksForm.shop}
+                  onChange={(e) => setSocialLinksForm(prev => ({ ...prev, shop: e.target.value }))}
+                  placeholder="https://shop.newbeerunningclub.org/"
+                  helperText="Leave empty to disable / 留空以禁用"
+                />
+              </Grid>
+            </Grid>
+
+            <Box sx={{ mt: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSaveSettings}
+                disabled={settingsLoading}
+              >
+                {settingsLoading ? <CircularProgress size={24} /> : 'Save Settings / 保存设置'}
+              </Button>
+              {settingsSaved && (
+                <Alert severity="success" sx={{ py: 0 }}>
+                  Settings saved successfully! / 设置保存成功！
+                </Alert>
+              )}
+            </Box>
+          </Paper>
+        </TabPanel>
+
+        {/* Tab 9: Committee Management (Admin Only) */}
         {isAdmin && (
-          <TabPanel value={tabValue} index={8}>
+          <TabPanel value={tabValue} index={9}>
             <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
               Committee Management
             </Typography>

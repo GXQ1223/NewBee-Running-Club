@@ -5,7 +5,7 @@ import { createTheme } from "@mui/material/styles";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import NavBar from "./components/NavBar";
-import { AuthProvider, AdminProvider } from "./context";
+import { AuthProvider, AdminProvider, SocialLinksProvider } from "./context";
 import AboutPage from "./pages/AboutPage";
 import AdminPanelPage from "./pages/AdminPanelPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -34,6 +34,7 @@ export default function App() {
       <CssBaseline />
       <AuthProvider>
         <AdminProvider>
+          <SocialLinksProvider>
           <BrowserRouter>
           <Box
             sx={{
@@ -59,6 +60,9 @@ export default function App() {
                 <Route path="/highlights" element={<HighlightsPage />} />
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/training" element={<TrainingPage />} />
+                <Route path="/training/ai" element={<TrainingPage />} />
+                <Route path="/training/community" element={<TrainingPage />} />
+                <Route path="/training/routes" element={<TrainingPage />} />
                 <Route path="/records" element={<RecordsPage />} />
                 <Route path="/join" element={<JoinPage />} />
                 <Route path="/sponsors" element={<SponsorsPage />} />
@@ -119,6 +123,7 @@ export default function App() {
             </Box>
           </Box>
           </BrowserRouter>
+          </SocialLinksProvider>
         </AdminProvider>
       </AuthProvider>
     </ThemeProvider>

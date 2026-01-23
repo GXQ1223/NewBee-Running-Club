@@ -17,26 +17,21 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Step,
   StepLabel,
   Stepper,
-  Tab,
-  Tabs,
   TextField,
   Tooltip,
   Typography
 } from '@mui/material';
 import { useState, useEffect } from 'react';
-import Logo from '../components/Logo';
+import { useNavigate, useLocation } from 'react-router-dom';
 import NavigationButtons from '../components/NavigationButtons';
 import { useAuth } from '../context/AuthContext';
 import { getApprovedTips, submitTip, toggleUpvote } from '../api/trainingTips';
-import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import GroupsIcon from '@mui/icons-material/Groups';
 import RouteIcon from '@mui/icons-material/Route';
-import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
@@ -95,20 +90,6 @@ const popularRoutes = [
   }
 ];
 
-function TabPanel({ children, value, index, ...other }) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`training-tabpanel-${index}`}
-      aria-labelledby={`training-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
-    </div>
-  );
-}
-
 const getCategoryColor = (category) => {
   const colors = {
     recovery: '#4CAF50',
@@ -162,7 +143,9 @@ const getVideoEmbedUrl = (url, platform) => {
 
 export default function TrainingPage() {
   const { currentUser } = useAuth();
-  const [tabValue, setTabValue] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
     raceType: '',
@@ -255,10 +238,6 @@ export default function TrainingPage() {
 
     fetchTips();
   }, [currentUser]);
-
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
 
   // Upvote handler
   const handleUpvote = async (tipId) => {
@@ -524,9 +503,6 @@ export default function TrainingPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
-      {/* Logo Section */}
-      <Logo />
-
       {/* Navigation Buttons */}
       <NavigationButtons />
 
@@ -550,13 +526,17 @@ export default function TrainingPage() {
         {/* Feature Cards */}
         <Grid container spacing={2} sx={{ mb: 4 }}>
           <Grid item xs={6} md={3}>
-            <Card sx={{
-              height: '100%',
-              textAlign: 'center',
-              border: '2px solid #FFA500',
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'translateY(-4px)' }
-            }}>
+            <Card
+              onClick={() => navigate('/training/ai')}
+              sx={{
+                height: '100%',
+                textAlign: 'center',
+                border: '2px solid #FFA500',
+                transition: 'transform 0.2s',
+                cursor: 'pointer',
+                '&:hover': { transform: 'translateY(-4px)' }
+              }}
+            >
               <CardContent>
                 <SmartToyIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>AI Training Partner</Typography>
@@ -565,13 +545,17 @@ export default function TrainingPage() {
             </Card>
           </Grid>
           <Grid item xs={6} md={3}>
-            <Card sx={{
-              height: '100%',
-              textAlign: 'center',
-              border: '2px solid #FFA500',
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'translateY(-4px)' }
-            }}>
+            <Card
+              onClick={() => navigate('/training/ai')}
+              sx={{
+                height: '100%',
+                textAlign: 'center',
+                border: '2px solid #FFA500',
+                transition: 'transform 0.2s',
+                cursor: 'pointer',
+                '&:hover': { transform: 'translateY(-4px)' }
+              }}
+            >
               <CardContent>
                 <CalendarMonthIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>Custom Plans</Typography>
@@ -580,13 +564,17 @@ export default function TrainingPage() {
             </Card>
           </Grid>
           <Grid item xs={6} md={3}>
-            <Card sx={{
-              height: '100%',
-              textAlign: 'center',
-              border: '2px solid #FFA500',
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'translateY(-4px)' }
-            }}>
+            <Card
+              onClick={() => navigate('/training/community')}
+              sx={{
+                height: '100%',
+                textAlign: 'center',
+                border: '2px solid #FFA500',
+                transition: 'transform 0.2s',
+                cursor: 'pointer',
+                '&:hover': { transform: 'translateY(-4px)' }
+              }}
+            >
               <CardContent>
                 <GroupsIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>Community</Typography>
@@ -595,13 +583,17 @@ export default function TrainingPage() {
             </Card>
           </Grid>
           <Grid item xs={6} md={3}>
-            <Card sx={{
-              height: '100%',
-              textAlign: 'center',
-              border: '2px solid #FFA500',
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'translateY(-4px)' }
-            }}>
+            <Card
+              onClick={() => navigate('/training/routes')}
+              sx={{
+                height: '100%',
+                textAlign: 'center',
+                border: '2px solid #FFA500',
+                transition: 'transform 0.2s',
+                cursor: 'pointer',
+                '&:hover': { transform: 'translateY(-4px)' }
+              }}
+            >
               <CardContent>
                 <RouteIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>NYC Routes</Typography>
@@ -611,37 +603,9 @@ export default function TrainingPage() {
           </Grid>
         </Grid>
 
-        {/* Tabbed Interface */}
-        <Paper sx={{ width: '100%', mb: 3 }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              borderBottom: 1,
-              borderColor: 'divider',
-              '& .MuiTab-root': {
-                minHeight: 64,
-                textTransform: 'none',
-                fontWeight: 500,
-              },
-              '& .Mui-selected': {
-                color: '#FFA500 !important',
-              },
-              '& .MuiTabs-indicator': {
-                backgroundColor: '#FFA500',
-              },
-            }}
-          >
-            <Tab icon={<FitnessCenterIcon />} label="AI Training Plan" iconPosition="start" />
-            <Tab icon={<TipsAndUpdatesIcon />} label="Community Tips" iconPosition="start" />
-            <Tab icon={<RouteIcon />} label="Routes" iconPosition="start" />
-          </Tabs>
-        </Paper>
-
-        {/* Tab 0: AI Training Plan Generator */}
-        <TabPanel value={tabValue} index={0}>
+        {/* AI Training Plan Generator */}
+        {(currentPath === '/training/ai' || currentPath === '/training') && (
+        <Box sx={{ py: 3 }}>
           <Alert severity="warning" sx={{ mb: 3 }}>
             <Typography variant="body2">
               This training plan is generated by AI. AI might make mistakes. Please consult a professional trainer for personalized advice.
@@ -800,10 +764,12 @@ export default function TrainingPage() {
               </Box>
             )}
           </Box>
-        </TabPanel>
+        </Box>
+        )}
 
-        {/* Tab 1: Community Tips */}
-        <TabPanel value={tabValue} index={1}>
+        {/* Community Tips */}
+        {currentPath === '/training/community' && (
+        <Box sx={{ py: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               Community Training Tips / 社区训练技巧
@@ -966,10 +932,12 @@ export default function TrainingPage() {
               )}
             </Grid>
           )}
-        </TabPanel>
+        </Box>
+        )}
 
-        {/* Tab 2: Routes */}
-        <TabPanel value={tabValue} index={2}>
+        {/* Routes */}
+        {currentPath === '/training/routes' && (
+        <Box sx={{ py: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
             Popular NYC Running Routes / 热门纽约跑步路线
           </Typography>
@@ -1025,7 +993,8 @@ export default function TrainingPage() {
               </Grid>
             ))}
           </Grid>
-        </TabPanel>
+        </Box>
+        )}
       </Container>
 
       {/* Submit Tip Dialog */}

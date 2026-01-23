@@ -817,3 +817,42 @@ class EventWithRecurrence(EventResponse):
 class EventCreateWithRecurrence(EventCreate):
     is_recurring: bool = False
     recurrence: Optional[EventRecurrenceRuleCreate] = None
+
+
+# ========== Site Settings Schemas ==========
+
+class SiteSettingBase(BaseModel):
+    key: str = Field(..., max_length=100)
+    value: Optional[str] = Field(None, max_length=500)
+    label_en: Optional[str] = Field(None, max_length=100)
+    label_cn: Optional[str] = Field(None, max_length=100)
+    category: str = Field(default='social', max_length=50)
+    is_active: bool = Field(default=True)
+
+
+class SiteSettingCreate(SiteSettingBase):
+    pass
+
+
+class SiteSettingUpdate(BaseModel):
+    value: Optional[str] = Field(None, max_length=500)
+    label_en: Optional[str] = Field(None, max_length=100)
+    label_cn: Optional[str] = Field(None, max_length=100)
+    is_active: Optional[bool] = None
+
+
+class SiteSettingResponse(SiteSettingBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SocialLinksResponse(BaseModel):
+    """Response containing all social media links"""
+    instagram: Optional[str] = None
+    xiaohongshu: Optional[str] = None
+    heylo: Optional[str] = None
+    shop: Optional[str] = None
