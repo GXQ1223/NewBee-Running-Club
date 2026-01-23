@@ -93,7 +93,7 @@ def delete_from_s3(image_url: str) -> bool:
         print(f"S3 delete error for {image_url}: {e}")
         return False
 
-from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, EventRecurrenceRule
+from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, EventRecurrenceRule, SiteSetting
 from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest,
@@ -112,7 +112,8 @@ from models import (
     TrainingTipCreate, TrainingTipUpdate, TrainingTipResponse, TrainingTipPublicResponse, TrainingTipUpvoteResponse, TipStatus, TipCategory,
     HomepageSectionCreate, HomepageSectionUpdate, HomepageSectionResponse, SectionReorderRequest,
     EventGalleryImageCreate, EventGalleryImageUpdate, EventGalleryImageResponse, EventGalleryPreviewResponse, EventGalleryImageLikeResponse, BatchGalleryPreviewRequest, BatchGalleryPreviewResponse,
-    EventRecurrenceRuleCreate, EventRecurrenceRuleUpdate, EventRecurrenceRuleResponse, RecurrenceType, EventWithRecurrence, EventCreateWithRecurrence
+    EventRecurrenceRuleCreate, EventRecurrenceRuleUpdate, EventRecurrenceRuleResponse, RecurrenceType, EventWithRecurrence, EventCreateWithRecurrence,
+    SiteSettingCreate, SiteSettingUpdate, SiteSettingResponse, SocialLinksResponse
 )
 from email_service import EmailService
 import bcrypt
@@ -3796,6 +3797,147 @@ def remove_event_from_series(
     event.parent_event_id = None
     db.commit()
     return {"message": "Event removed from series"}
+
+
+# ========== Site Settings Endpoints ==========
+
+def seed_social_links(db: Session):
+    """Seed default social media links if they don't exist."""
+    default_links = [
+        {
+            "key": "social_instagram",
+            "value": "https://www.instagram.com/newbeerunningclub/",
+            "label_en": "Instagram",
+            "label_cn": "Instagram",
+            "category": "social"
+        },
+        {
+            "key": "social_xiaohongshu",
+            "value": "https://xhslink.com/m/8znk8WTxhjd",
+            "label_en": "Xiaohongshu",
+            "label_cn": "小红书",
+            "category": "social"
+        },
+        {
+            "key": "social_heylo",
+            "value": "https://www.heylo.com/g/b7bf1310-ca40-4d4d-9da5-2b7f4f3c197e",
+            "label_en": "Heylo",
+            "label_cn": "Heylo",
+            "category": "social"
+        },
+        {
+            "key": "social_shop",
+            "value": "",
+            "label_en": "Shop",
+            "label_cn": "商店",
+            "category": "social"
+        }
+    ]
+
+    for link_data in default_links:
+        existing = db.query(SiteSetting).filter(SiteSetting.key == link_data["key"]).first()
+        if not existing:
+            new_setting = SiteSetting(**link_data)
+            db.add(new_setting)
+
+    db.commit()
+
+
+@app.on_event("startup")
+def seed_settings():
+    """Seed default site settings on startup."""
+    db = next(get_db())
+    try:
+        seed_social_links(db)
+    finally:
+        db.close()
+
+
+@app.get("/api/settings/social-links", response_model=SocialLinksResponse)
+def get_social_links(db: Session = Depends(get_db)):
+    """Get all social media links (public endpoint)."""
+    settings = db.query(SiteSetting).filter(
+        SiteSetting.category == "social",
+        SiteSetting.is_active == True
+    ).all()
+
+    result = SocialLinksResponse()
+    for setting in settings:
+        if setting.key == "social_instagram":
+            result.instagram = setting.value
+        elif setting.key == "social_xiaohongshu":
+            result.xiaohongshu = setting.value
+        elif setting.key == "social_heylo":
+            result.heylo = setting.value
+        elif setting.key == "social_shop":
+            result.shop = setting.value
+
+    return result
+
+
+@app.get("/api/settings", response_model=List[SiteSettingResponse])
+def get_all_settings(
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Get all site settings (admin/committee only)."""
+    return db.query(SiteSetting).order_by(SiteSetting.category, SiteSetting.key).all()
+
+
+@app.get("/api/settings/category/{category}", response_model=List[SiteSettingResponse])
+def get_settings_by_category(
+    category: str,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Get settings by category (admin/committee only)."""
+    return db.query(SiteSetting).filter(SiteSetting.category == category).all()
+
+
+@app.put("/api/settings/{key}", response_model=SiteSettingResponse)
+def update_setting(
+    key: str,
+    setting_update: SiteSettingUpdate,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Update a site setting by key (admin/committee only)."""
+    setting = db.query(SiteSetting).filter(SiteSetting.key == key).first()
+    if not setting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Setting with key '{key}' not found"
+        )
+
+    # Update fields if provided
+    update_data = setting_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(setting, field, value)
+
+    db.commit()
+    db.refresh(setting)
+    return setting
+
+
+@app.post("/api/settings", response_model=SiteSettingResponse)
+def create_setting(
+    setting: SiteSettingCreate,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_admin)
+):
+    """Create a new site setting (admin only)."""
+    existing = db.query(SiteSetting).filter(SiteSetting.key == setting.key).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Setting with key '{setting.key}' already exists"
+        )
+
+    new_setting = SiteSetting(**setting.model_dump())
+    db.add(new_setting)
+    db.commit()
+    db.refresh(new_setting)
+    return new_setting
 
 
 if __name__ == "__main__":

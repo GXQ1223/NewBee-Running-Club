@@ -68,3 +68,10 @@ export {
   downloadImage,
   shareImage
 } from './gallery';
+export {
+  getSocialLinks,
+  getAllSettings,
+  getSettingsByCategory,
+  updateSetting,
+  createSetting
+} from './settings';

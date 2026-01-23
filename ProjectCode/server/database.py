@@ -623,6 +623,26 @@ class EventRecurrenceRule(Base):
     )
 
 
+# Site Settings Model for configurable settings (social links, etc.)
+class SiteSetting(Base):
+    __tablename__ = "site_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(100), nullable=False, unique=True, index=True)
+    value = Column(String(500))
+    label_en = Column(String(100))
+    label_cn = Column(String(100))
+    category = Column(String(50), default='social')
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_setting_key', 'key'),
+        Index('idx_setting_category', 'category'),
+    )
+
+
 # Database dependency for FastAPI
 def get_db():
     db = SessionLocal()
