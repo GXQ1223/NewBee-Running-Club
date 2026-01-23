@@ -286,7 +286,6 @@ export default function RecordsPage() {
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
     setShowAll(false);
-    setSearchQuery('');
   };
 
   const handleRecordsTabChange = (event, newValue) => {
