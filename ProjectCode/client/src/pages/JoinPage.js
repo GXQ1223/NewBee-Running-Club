@@ -30,7 +30,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
 import EventIcon from '@mui/icons-material/Event';
 import React, { useEffect, useRef, useState } from 'react';
-import Logo from '../components/Logo';
 import NavigationButtons from '../components/NavigationButtons';
 import { submitJoinApplication } from '../api/members';
 import { submitActivity } from '../api/activities';
@@ -1026,7 +1025,6 @@ export default function JoinPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      <Logo />
       <NavigationButtons />
 
       <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
@@ -1044,7 +1042,20 @@ export default function JoinPage() {
           加入新蜂跑团
         </Typography>
 
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          sx={{
+            mb: 4,
+            '& .MuiStepLabel-label': {
+              fontSize: { xs: '0.65rem', sm: '0.875rem' },
+              mt: { xs: 0.5, sm: 1 }
+            },
+            '& .MuiStepIcon-root': {
+              fontSize: { xs: '1.2rem', sm: '1.5rem' }
+            }
+          }}
+        >
           {steps.map((label, index) => (
             <Step key={label} completed={index < activeStep}>
               <StepLabel>{label}</StepLabel>
