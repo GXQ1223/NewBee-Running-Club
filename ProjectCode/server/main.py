@@ -2253,22 +2253,23 @@ async def bulk_upload_credits(
     """
     Bulk upload credits from CSV file (admin or committee only).
 
-    - credit_type: 'activity', 'registration', or 'volunteer' (NOT 'total' - it's auto-calculated)
+    - credit_type: 'total', 'activity', 'registration', or 'volunteer'
     - mode: 'replace' (delete all existing of that type first) or 'merge' (update existing, add new)
     - CSV columns: fullName, registration_sum, checkin_sum
 
-    After upload, total credits are automatically recalculated for all users.
+    Note: When uploading 'activity', 'registration', or 'volunteer', total credits are automatically
+    recalculated. When uploading 'total' directly, auto-recalculation is skipped.
     """
     import csv
     import io
     from decimal import Decimal, InvalidOperation
 
-    # Validate credit_type - only allow non-total types
-    valid_types = ['activity', 'registration', 'volunteer']
+    # Validate credit_type
+    valid_types = ['total', 'activity', 'registration', 'volunteer']
     if credit_type not in valid_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid credit_type. Must be one of: {', '.join(valid_types)}. Total is auto-calculated."
+            detail=f"Invalid credit_type. Must be one of: {', '.join(valid_types)}"
         )
 
     # Validate mode
@@ -2379,7 +2380,21 @@ async def bulk_upload_credits(
 
     db.commit()
 
-    # Recalculate total credits for all users
+    # Recalculate total credits for all users (skip if uploading 'total' directly)
+    if credit_type == 'total':
+        # Skip auto-recalculation when total is uploaded directly
+        return {
+            "message": "Bulk upload completed",
+            "credit_type": credit_type,
+            "mode": mode,
+            "rows_processed": rows_processed,
+            "rows_added": rows_added,
+            "rows_updated": rows_updated,
+            "totals_recalculated": 0,
+            "errors": errors[:10] if errors else [],
+            "total_errors": len(errors)
+        }
+
     # Get all unique names from activity, registration, and volunteer types
     all_credits = db.query(TempClubCredit).filter(
         TempClubCredit.credit_type.in_(['activity', 'registration', 'volunteer'])

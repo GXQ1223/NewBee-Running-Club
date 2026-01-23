@@ -61,9 +61,9 @@ export const deleteCredit = async (creditId, firebaseUid) => {
 };
 
 /**
- * Bulk upload credits from CSV file (admin only)
+ * Bulk upload credits from CSV file (admin or committee only)
  * @param {File} file - CSV file with columns: fullName, registration_sum, checkin_sum
- * @param {string} creditType - 'activity', 'registration', or 'volunteer' (NOT 'total')
+ * @param {string} creditType - 'total', 'activity', 'registration', or 'volunteer'
  * @param {string} mode - 'replace' (delete all existing) or 'merge' (update/add)
  * @param {string} firebaseUid - Firebase UID for authentication
  * @returns {Promise<Object>} - Upload result with counts
