@@ -25,7 +25,12 @@ export {
   addEventToSeries,
   toggleSeriesParent,
   dissolveSeries,
-  removeEventFromSeries
+  removeEventFromSeries,
+  mergeEventsToGroup,
+  removeEventFromGroup,
+  getHighlightsGrouped,
+  updateGroupName,
+  undoGroupMerge
 } from './events';
 export {
   getAllMeetingMinutes,
@@ -63,7 +68,6 @@ export {
   updateGalleryImage,
   deleteGalleryImage,
   toggleGalleryImageLike,
-  fileToBase64,
   compressImage,
   downloadImage,
   shareImage
