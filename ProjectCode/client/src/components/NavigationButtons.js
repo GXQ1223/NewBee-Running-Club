@@ -15,13 +15,13 @@ export const navigationButtons = [
     path: '/about'
   },
   {
-    english: 'Events Calendar',
-    chinese: '年度活动日历',
+    english: 'Upcoming',
+    chinese: '即将到来',
     path: '/calendar'
   },
   {
-    english: 'Highlights',
-    chinese: '活动高光',
+    english: 'Memories',
+    chinese: '回忆',
     path: '/highlights'
   },
   {

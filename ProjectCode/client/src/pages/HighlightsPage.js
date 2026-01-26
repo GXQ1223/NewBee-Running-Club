@@ -455,6 +455,8 @@ export default function HighlightsPage() {
         case 'last-three-months':
           if (event.parsedDate < lastThreeMonths) return false;
           break;
+        default:
+          break;
       }
     }
 
@@ -486,9 +488,9 @@ export default function HighlightsPage() {
             textAlign: 'center'
           }}
         >
-          Featured Highlights
+          Featured Memories
           <br />
-          精选回顾
+          精选回忆
         </Typography>
         
         <Grid container spacing={3}>
@@ -574,9 +576,9 @@ export default function HighlightsPage() {
             textAlign: 'center'
           }}
         >
-          Past Events
+          Memories
           <br />
-          历史活动
+          回忆
         </Typography>
 
         {/* Filters */}
