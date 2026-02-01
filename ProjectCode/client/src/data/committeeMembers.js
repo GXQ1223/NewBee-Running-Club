@@ -88,6 +88,6 @@ export const committeeMembers = [
       en: "Committee Observer",
       zh: "创始人，观察员"
     },
-    image: "/Committee 8.png"
+    image: "/Ruicong Ni.png"
   }
 ];
