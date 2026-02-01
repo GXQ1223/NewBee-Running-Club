@@ -274,7 +274,11 @@ class Event(Base):
     event_type = Column(String(20), default='standard')  # 'standard', 'heylo', 'race'
     heylo_embed = Column(Text)  # Stores Heylo embed code snippet for heylo event type
 
-    # Recurrence fields
+    # Event group fields (for iOS-style folder grouping)
+    group_name = Column(String(255))      # Auto-detected common name (e.g., "Brooklyn Half Marathon")
+    group_name_cn = Column(String(255))   # Chinese version
+
+    # Recurrence fields (repurposed for group mechanism)
     is_recurring = Column(Boolean, default=False)
     parent_event_id = Column(Integer, ForeignKey('events.id', ondelete='SET NULL'))
     next_occurrence_date = Column(Date)  # For scheduler efficiency
@@ -292,6 +296,7 @@ class Event(Base):
         Index('idx_event_type', 'event_type'),
         Index('idx_event_is_recurring', 'is_recurring'),
         Index('idx_event_parent_id', 'parent_event_id'),
+        Index('idx_event_group_name', 'group_name'),
     )
 
 

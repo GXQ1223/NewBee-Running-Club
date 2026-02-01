@@ -98,10 +98,10 @@ const fallbackCarouselImages = [
   {
     id: 2,
     image_url: '/master-image-3.jpg',
-    alt_text: 'NewBee Running Club - Events Calendar',
+    alt_text: 'NewBee Running Club - Upcoming Events',
     link_path: '/calendar',
-    label_en: 'Events',
-    label_cn: '活动日历',
+    label_en: 'Upcoming',
+    label_cn: '即将到来',
     source_type: 'manual'
   }
 ];
@@ -109,8 +109,8 @@ const fallbackCarouselImages = [
 // Fallback sections if API fails
 const fallbackSections = [
   { id: 1, title_en: 'Event Registration', title_cn: '活动报名', link_path: '/event-registration', image_url: '/EventRegistration.png' },
-  { id: 2, title_en: 'Event Highlights', title_cn: '活动高光', link_path: '/Highlights', image_url: '/Highlights.png' },
-  { id: 3, title_en: 'Events Calendar', title_cn: '年度活动日历', link_path: '/calendar', image_url: null },
+  { id: 2, title_en: 'Memories', title_cn: '回忆', link_path: '/Highlights', image_url: '/Highlights.png' },
+  { id: 3, title_en: 'Upcoming', title_cn: '即将到来', link_path: '/calendar', image_url: null },
   { id: 4, title_en: 'Club Credits/Records', title_cn: '俱乐部积分/记录', link_path: '/records', image_url: null },
   { id: 5, title_en: 'Join NewBee', title_cn: '加入新蜂', link_path: '/join', image_url: null },
   { id: 6, title_en: 'Training With Us', title_cn: '与我们训练', link_path: '/training', image_url: null }

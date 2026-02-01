@@ -657,9 +657,9 @@ export default function CalendarPage() {
             textAlign: 'center'
           }}
         >
-          Event Calendar
+          Upcoming
           <br />
-          活动日历
+          即将到来
         </Typography>
 
         {/* Filters */}

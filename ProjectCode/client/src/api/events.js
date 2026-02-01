@@ -127,3 +127,72 @@ export const removeEventFromSeries = async (eventId, firebaseUid) => {
     'X-Firebase-UID': firebaseUid,
   });
 };
+
+
+// ========== Event Group Functions (iOS-style folder grouping) ==========
+
+/**
+ * Merge two events into a group (admin/committee only)
+ * @param {number} eventAId - Event being dragged
+ * @param {number} eventBId - Event being dropped onto
+ * @param {string} firebaseUid - Admin's Firebase UID for authentication
+ * @returns {Promise<Object>} - Merge result with group info
+ */
+export const mergeEventsToGroup = async (eventAId, eventBId, firebaseUid) => {
+  return api.post('/api/events/groups/merge', {
+    event_a_id: eventAId,
+    event_b_id: eventBId,
+  }, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
+/**
+ * Remove an event from its group (admin/committee only)
+ * @param {number} eventId - Event ID to remove
+ * @param {string} firebaseUid - Admin's Firebase UID for authentication
+ * @returns {Promise<Object>} - Result with group_dissolved flag
+ */
+export const removeEventFromGroup = async (eventId, firebaseUid) => {
+  return api.post(`/api/events/${eventId}/remove-from-group`, {}, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
+/**
+ * Get highlight events organized by groups
+ * @returns {Promise<Object>} - { groups, standalone_events }
+ */
+export const getHighlightsGrouped = async () => {
+  return api.get('/api/events/highlights/grouped');
+};
+
+/**
+ * Update the display name of an event group
+ * @param {number} parentId - Parent event ID
+ * @param {string} groupName - New group name (English)
+ * @param {string} groupNameCn - New group name (Chinese)
+ * @param {string} firebaseUid - Admin's Firebase UID
+ * @returns {Promise<Object>} - Updated group info
+ */
+export const updateGroupName = async (parentId, groupName, groupNameCn, firebaseUid) => {
+  return api.put(`/api/events/groups/${parentId}/name`, {
+    group_name: groupName,
+    group_name_cn: groupNameCn,
+  }, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
+/**
+ * Undo a recent merge operation
+ * @param {number} parentId - Parent event ID
+ * @param {number} eventId - Event that was just added
+ * @param {string} firebaseUid - Admin's Firebase UID
+ * @returns {Promise<Object>} - Result with group_dissolved flag
+ */
+export const undoGroupMerge = async (parentId, eventId, firebaseUid) => {
+  return api.post(`/api/events/groups/${parentId}/undo-merge?event_id=${eventId}`, {}, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};

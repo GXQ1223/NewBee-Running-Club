@@ -96,7 +96,7 @@ export default function EventDetailModal({ event, onClose }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000
+        zIndex: 9999  // Highest z-index to overlay on top of everything including nav bar and modals
       }}
       onClick={onClose}
     >

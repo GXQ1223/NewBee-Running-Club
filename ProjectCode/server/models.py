@@ -335,7 +335,10 @@ class EventResponse(EventBase):
     id: int
     event_type: str = "standard"
     heylo_embed: Optional[str] = None
-    # Recurrence fields
+    # Event group fields
+    group_name: Optional[str] = None
+    group_name_cn: Optional[str] = None
+    # Recurrence/group fields
     is_recurring: bool = False
     parent_event_id: Optional[int] = None
     next_occurrence_date: Optional[dt.date] = None
@@ -856,3 +859,60 @@ class SocialLinksResponse(BaseModel):
     xiaohongshu: Optional[str] = None
     heylo: Optional[str] = None
     shop: Optional[str] = None
+
+
+# ========== Event Group Schemas (iOS-style folder grouping) ==========
+
+class EventGroupMergeRequest(BaseModel):
+    """Request to merge two events into a group"""
+    event_a_id: int  # Event being dragged
+    event_b_id: int  # Event being dropped onto
+
+
+class EventGroupMergeResponse(BaseModel):
+    """Response after merging events"""
+    parent_event_id: int
+    group_name: str
+    group_name_cn: Optional[str] = None
+    event_count: int
+    message: str
+
+
+class EventGroupUpdateNameRequest(BaseModel):
+    """Request to update group name"""
+    group_name: str = Field(..., max_length=255)
+    group_name_cn: Optional[str] = Field(None, max_length=255)
+
+
+class EventInGroup(BaseModel):
+    """Event data within a group"""
+    id: int
+    name: str
+    chinese_name: Optional[str] = None
+    date: dt.date
+    time: Optional[str] = None
+    location: Optional[str] = None
+    chinese_location: Optional[str] = None
+    image: Optional[str] = None
+    status: str
+
+    class Config:
+        from_attributes = True
+
+
+class EventGroup(BaseModel):
+    """A group of related events"""
+    parent_event_id: int
+    group_name: str
+    group_name_cn: Optional[str] = None
+    event_count: int
+    events: List[EventInGroup]
+    # Cover info from most recent event
+    cover_image: Optional[str] = None
+    most_recent_date: dt.date
+
+
+class HighlightsGroupedResponse(BaseModel):
+    """Response for grouped highlights"""
+    groups: List[EventGroup]
+    standalone_events: List[EventResponse]
