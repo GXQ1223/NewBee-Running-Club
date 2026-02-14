@@ -9,8 +9,13 @@ import os
 import uuid
 import base64
 from pathlib import Path
-import boto3
-from botocore.exceptions import ClientError
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+    HAS_BOTO3 = True
+except ImportError:
+    HAS_BOTO3 = False
+    print("Warning: boto3 not installed. S3 functionality will be disabled.")
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -43,6 +48,8 @@ def get_s3_config():
 def get_s3_client():
     """Get or create S3 client with lazy initialization."""
     global _s3_client
+    if not HAS_BOTO3:
+        raise HTTPException(status_code=501, detail="S3 functionality not available (boto3 not installed)")
     if _s3_client is None:
         aws_access_key = must_have_env('AWS_ACCESS_KEY_ID')
         aws_secret_key = must_have_env('AWS_SECRET_ACCESS_KEY')
