@@ -15,11 +15,23 @@ load_dotenv()
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
+def must_have_env(env_var: str) -> str:
+    """Get environment variable or raise error if not set."""
+    value = os.getenv(env_var)
+    if value is None:
+        raise Exception(f"Environment variable '{env_var}' is not set")
+    return value
+
+
 # Gmail SMTP Configuration
-GMAIL_USER = os.getenv("GMAIL_USER", "newbeerunningclub@gmail.com")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
+GMAIL_USER = must_have_env("GMAIL_USER")
+GMAIL_APP_PASSWORD = must_have_env("GMAIL_APP_PASSWORD")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
+
+# Website URL for email templates
+WEBSITE_URL = must_have_env("WEBSITE_URL")
 
 # Log configuration status on module load
 if GMAIL_APP_PASSWORD:
@@ -142,7 +154,7 @@ class EmailService:
 
                     <p style="margin-top: 30px;">
                         <strong>NewBee Running Club</strong><br>
-                        <a href="https://newbeerunningclub.org" style="color: #FFA500;">newbeerunningclub.org</a>
+                        <a href="{WEBSITE_URL}" style="color: #FFA500;">newbeerunning.org</a>
                     </p>
                 </div>
             </body>
@@ -162,7 +174,7 @@ class EmailService:
         您的申请审核完成后将收到通知。通常需要1-3个工作日。
 
         NewBee Running Club
-        newbeerunningclub.org
+        newbeerunning.org
         """
 
         logger.info(f"[EMAIL] Sending join confirmation to {applicant_email} ({applicant_name})")
@@ -220,7 +232,7 @@ class EmailService:
 
                     <p style="margin-top: 30px;">
                         Please review this application in the admin panel:<br>
-                        <a href="https://newbeerunningclub.org/admin" style="color: #FFA500; text-decoration: none; background-color: #FFA500; color: white; padding: 10px 20px; display: inline-block; margin-top: 10px; border-radius: 5px;">Go to Admin Panel</a>
+                        <a href="{WEBSITE_URL}/admin" style="color: #FFA500; text-decoration: none; background-color: #FFA500; color: white; padding: 10px 20px; display: inline-block; margin-top: 10px; border-radius: 5px;">Go to Admin Panel</a>
                     </p>
                 </div>
             </body>
@@ -237,7 +249,7 @@ class EmailService:
 
         {chr(10).join([f'{k}: {v}' for k, v in form_data.items() if v])}
 
-        Please review this application in the admin panel at https://newbeerunningclub.org/admin
+        Please review this application in the admin panel at {WEBSITE_URL}/admin
         """
 
         logger.info(f"[EMAIL] Sending committee notification for applicant: {applicant_name} ({applicant_email})")
@@ -283,12 +295,12 @@ class EmailService:
                     <p style="color: #666;">我们很高兴您成为我们跑步社区的一员！</p>
 
                     <p style="margin-top: 30px;">
-                        <a href="https://newbeerunningclub.org" style="color: #FFA500; text-decoration: none; background-color: #FFA500; color: white; padding: 10px 20px; display: inline-block; border-radius: 5px;">Visit Website</a>
+                        <a href="{WEBSITE_URL}" style="color: #FFA500; text-decoration: none; background-color: #FFA500; color: white; padding: 10px 20px; display: inline-block; border-radius: 5px;">Visit Website</a>
                     </p>
 
                     <p style="margin-top: 30px;">
                         <strong>NewBee Running Club</strong><br>
-                        <a href="https://newbeerunningclub.org" style="color: #FFA500;">newbeerunningclub.org</a>
+                        <a href="{WEBSITE_URL}" style="color: #FFA500;">newbeerunning.org</a>
                     </p>
                 </div>
             </body>
@@ -311,7 +323,7 @@ class EmailService:
         我们很高兴您成为我们跑步社区的一员！
 
         NewBee Running Club
-        newbeerunningclub.org
+        newbeerunning.org
         """
 
         logger.info(f"[EMAIL] Sending approval notification to {member_email} ({member_name})")
@@ -357,7 +369,7 @@ class EmailService:
 
                     <p style="margin-top: 30px;">
                         <strong>NewBee Running Club</strong><br>
-                        <a href="https://newbeerunningclub.org" style="color: #FFA500;">newbeerunningclub.org</a>
+                        <a href="{WEBSITE_URL}" style="color: #FFA500;">newbeerunning.org</a>
                     </p>
                 </div>
             </body>
@@ -382,7 +394,7 @@ class EmailService:
         如果您认为这是一个错误或有任何疑问，请通过 newbeerunningclub@gmail.com 联系我们。
 
         NewBee Running Club
-        newbeerunningclub.org
+        newbeerunning.org
         """
 
         logger.info(f"[EMAIL] Sending rejection notification to {member_email} ({member_name})")

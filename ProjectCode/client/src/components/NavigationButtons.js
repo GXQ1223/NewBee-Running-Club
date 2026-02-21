@@ -21,7 +21,7 @@ export const navigationButtons = [
   },
   {
     english: 'Memories',
-    chinese: '回忆',
+    chinese: '活动回忆',
     path: '/highlights'
   },
   {
