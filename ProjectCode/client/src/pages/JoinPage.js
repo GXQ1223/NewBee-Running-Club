@@ -90,11 +90,9 @@ const validateIntroduction = (text) => {
 
 export default function JoinPage() {
   const [activeStep, setActiveStep] = useState(0);
-  const [, setAgreed] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [introValidation, setIntroValidation] = useState({ valid: true, message: '', count: 0 });
   const [locationSelect, setLocationSelect] = useState('');
@@ -146,12 +144,7 @@ export default function JoinPage() {
     setActiveStep((prevStep) => prevStep + 1);
   };
 
-  // const handleBack = () => {
-  //   setActiveStep((prevStep) => prevStep - 1);
-  // };
-
   const handleAgree = () => {
-    setAgreed(true);
     setOpenDialog(false);
     handleNext();
   };
@@ -262,8 +255,6 @@ export default function JoinPage() {
     setLocationSelect('');
     setShowOtherLocation(false);
     setActiveStep(0);
-    setAgreed(false);
-    setSubmitSuccess(false);
     setSubmitError('');
     setIntroValidation({ valid: true, message: '', count: 0 });
     // Reset activity state
@@ -325,7 +316,6 @@ export default function JoinPage() {
   };
 
   const handleFinishActivities = () => {
-    setSubmitSuccess(true);
     setActiveStep(3);
   };
 

@@ -166,10 +166,3 @@ export async function demoteFromCommittee(memberId, firebaseUid) {
   return api.put(`/api/members/${memberId}/demote-from-committee`, {}, getAdminHeaders(firebaseUid));
 }
 
-/**
- * Get all committee members and admins
- * @returns {Promise<Array>} List of committee/admin members
- */
-export async function getAllCommitteeAndAdmins() {
-  return api.get('/api/members/committee/all');
-}
