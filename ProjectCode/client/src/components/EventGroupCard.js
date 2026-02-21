@@ -81,6 +81,7 @@ const EventGroupCard = ({
       >
         <CardMedia
           component="img"
+          loading="lazy"
           sx={{
             height: '100%',
             width: '100%',
@@ -158,6 +159,7 @@ const EventGroupCard = ({
       >
         <CardMedia
           component="img"
+          loading="lazy"
           sx={{
             height: '100%',
             width: '100%',

@@ -590,18 +590,30 @@ export default function CalendarPage() {
                   height="200"
                   image={event.image}
                   alt={event.title}
+                  loading="lazy"
                   onError={handleImageError}
                   sx={{
                     objectFit: 'cover',
                     backgroundColor: '#f5f5f5'
                   }}
                 />
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography gutterBottom variant="h6" component="div">
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Typography gutterBottom variant="h6" component="div" sx={{
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                  }}>
                     {event.title}
                   </Typography>
-                  <Typography gutterBottom variant="subtitle1" color="text.secondary">
-                    {event.chineseTitle}
+                  <Typography gutterBottom variant="subtitle1" color="text.secondary" sx={{
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                    minHeight: '1.75em',
+                  }}>
+                    {event.chineseTitle || '\u00A0'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{
                     mb: 2,
@@ -609,7 +621,7 @@ export default function CalendarPage() {
                     display: '-webkit-box',
                     WebkitLineClamp: 3,
                     WebkitBoxOrient: 'vertical',
-                    flexGrow: 1
+                    minHeight: '3.6em',
                   }}>
                     {event.description}
                   </Typography>
@@ -624,7 +636,7 @@ export default function CalendarPage() {
                       py: 1.5,
                       borderRadius: '12px',
                       border: '2px solid #FFB84D',
-                      mt: 2,
+                      mt: 'auto',
                       '&:hover': {
                         backgroundColor: '#FFA833',
                         boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
@@ -794,6 +806,7 @@ export default function CalendarPage() {
               >
                 <CardMedia
                   component="img"
+                  loading="lazy"
                   sx={{
                     height: '100%',
                     width: '100%',
@@ -839,6 +852,7 @@ export default function CalendarPage() {
               >
                 <CardMedia
                   component="img"
+                  loading="lazy"
                   sx={{
                     height: '100%',
                     width: '100%',

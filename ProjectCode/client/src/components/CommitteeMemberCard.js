@@ -39,6 +39,7 @@ export default function CommitteeMemberCard({ member, onImageClick }) {
           component="img"
           src={member.image}
           alt={`Committee Member ${member.name}`}
+          loading="lazy"
           onClick={() => onImageClick(member.image)}
           onError={handleImageError}
           sx={{
