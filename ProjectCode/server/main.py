@@ -1,6 +1,6 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
@@ -123,14 +123,41 @@ from models import (
     SiteSettingCreate, SiteSettingUpdate, SiteSettingResponse, SocialLinksResponse,
     EventGroupMergeRequest, EventGroupMergeResponse, EventGroupUpdateNameRequest, EventInGroup, EventGroup, HighlightsGroupedResponse
 )
-from utils.name_detector import detect_common_name, detect_common_name_cn, detect_group_name_from_events
+from utils.name_detector import detect_group_name_from_events
 from email_service import EmailService
 import bcrypt
+
+# Import scheduler for recurring events
+from scheduler import start_scheduler, shutdown_scheduler
+
+
+# Forward declaration for seed_social_links (defined later in the file)
+def _seed_settings_on_startup():
+    """Seed default site settings on startup."""
+    db = next(get_db())
+    try:
+        seed_social_links(db)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler for startup and shutdown events."""
+    # Startup
+    create_tables()
+    start_scheduler()
+    _seed_settings_on_startup()
+    yield
+    # Shutdown
+    shutdown_scheduler()
+
 
 app = FastAPI(
     title="NewBee Running Club Donors API",
     description="API for managing donors - replacing CSV files with AWS MySQL database",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware for frontend connection
@@ -147,22 +174,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Import scheduler for recurring events
-from scheduler import start_scheduler, shutdown_scheduler
-
-# Create database tables on startup and start scheduler
-@app.on_event("startup")
-def startup_event():
-    create_tables()
-    # Start the background scheduler for recurring events
-    start_scheduler()
-
-
-@app.on_event("shutdown")
-def shutdown_event():
-    # Gracefully shutdown the scheduler
-    shutdown_scheduler()
 
 
 # Authorization dependency for admin-only endpoints
@@ -4207,16 +4218,6 @@ def seed_social_links(db: Session):
             db.add(new_setting)
 
     db.commit()
-
-
-@app.on_event("startup")
-def seed_settings():
-    """Seed default site settings on startup."""
-    db = next(get_db())
-    try:
-        seed_social_links(db)
-    finally:
-        db.close()
 
 
 @app.get("/api/settings/social-links", response_model=SocialLinksResponse)

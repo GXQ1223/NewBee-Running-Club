@@ -1,20 +1,19 @@
-// List of meeting files - this will be updated as new files are added
-// Note: Meeting minutes are now stored in the database. This is kept for legacy compatibility.
-const meetingFiles = [];
+// Note: Meeting minutes are now stored in the database.
+// Legacy file-based functions have been removed.
 
+/**
+ * @deprecated Meeting files are no longer used. Use meetingMinutes API instead.
+ * @returns {Array} Empty array for backwards compatibility
+ */
 export const getMeetingFiles = () => {
-  return meetingFiles;
+  return [];
 };
 
-export const getMeetingContent = async (filename) => {
-  try {
-    const response = await fetch(`/data/meetings/${filename}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${filename}`);
-    }
-    return await response.text();
-  } catch (error) {
-    console.error(`Error fetching ${filename}:`, error);
-    throw error;
-  }
+/**
+ * @deprecated Meeting content is now fetched from the database.
+ * Use getMeetingMinutesById from meetingMinutes.js instead.
+ */
+export const getMeetingContent = async () => {
+  console.warn('getMeetingContent is deprecated. Use getMeetingMinutesById instead.');
+  return '';
 }; 

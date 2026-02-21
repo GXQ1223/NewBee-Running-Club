@@ -321,259 +321,6 @@ export default function AboutPage() {
       {/* Navigation Buttons */}
       <NavigationButtons />
 
-      {/* Meeting Minutes Section */}
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 3, sm: 4 } }}>
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: 2,
-            fontSize: { xs: '1rem', sm: '1.25rem' }
-          }}
-        >
-          Meeting Minutes 会议纪要
-        </Typography>
-
-        {adminModeEnabled && !isMeetingEditing && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: { xs: 2, sm: 3 } }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleStartNewMeeting}
-              sx={{
-                backgroundColor: '#FFB84D',
-                color: 'white',
-                textTransform: 'none',
-                '&:hover': {
-                  backgroundColor: '#FFA833',
-                }
-              }}
-            >
-              Add Meeting Minutes
-            </Button>
-          </Box>
-        )}
-
-        {!adminModeEnabled && <Box sx={{ mb: { xs: 2, sm: 3 } }} />}
-
-        {/* Success/Error Messages */}
-        {meetingsSuccess && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setMeetingsSuccess('')}>
-            {meetingsSuccess}
-          </Alert>
-        )}
-        {meetingsError && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setMeetingsError('')}>
-            {meetingsError}
-          </Alert>
-        )}
-
-        {/* Editor Form */}
-        {isMeetingEditing && (
-          <Box sx={{
-            mb: 3,
-            p: { xs: 2, sm: 3 },
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-            border: '2px solid #FFA500'
-          }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#333' }}>
-              {editingMeetingId ? 'Edit Meeting Minutes / 编辑会议纪要' : 'New Meeting Minutes / 新会议纪要'}
-            </Typography>
-
-            <TextField
-              name="title"
-              fullWidth
-              label="Title / 标题"
-              value={meetingFormData.title}
-              onChange={(e) => setMeetingFormData({ ...meetingFormData, title: e.target.value })}
-              onKeyDown={handleMeetingAutoFill}
-              sx={{ mb: 2 }}
-              placeholder={meetingDefaultValues.title}
-            />
-
-            <TextField
-              fullWidth
-              type="date"
-              label="Meeting Date / 会议日期"
-              value={meetingFormData.meeting_date}
-              onChange={(e) => setMeetingFormData({ ...meetingFormData, meeting_date: e.target.value })}
-              sx={{ mb: 2 }}
-              InputLabelProps={{ shrink: true }}
-            />
-
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Content / 内容 (supports bold, lists, and formatting)
-            </Typography>
-            <Box sx={{ mb: 2, '.ql-container': { minHeight: '200px' }, backgroundColor: 'white' }}>
-              <ReactQuill
-                theme="snow"
-                value={meetingFormData.content}
-                onChange={(content) => setMeetingFormData({ ...meetingFormData, content })}
-                modules={quillModules}
-                formats={quillFormats}
-                placeholder="Enter meeting minutes here... / 在此输入会议纪要..."
-              />
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-              <Button
-                startIcon={<CancelIcon />}
-                onClick={handleCancelMeeting}
-                disabled={meetingSaving}
-              >
-                Cancel / 取消
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={meetingSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
-                onClick={handleSaveMeeting}
-                disabled={meetingSaving}
-                sx={{
-                  backgroundColor: '#FFA500',
-                  '&:hover': { backgroundColor: '#FF8C00' }
-                }}
-              >
-                {meetingSaving ? 'Saving...' : 'Save / 保存'}
-              </Button>
-            </Box>
-          </Box>
-        )}
-
-        {meetingsLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress sx={{ color: '#FFA500' }} />
-          </Box>
-        ) : meetings.length === 0 ? (
-          <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center' }}>
-            No meeting minutes available.
-          </Typography>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {meetings.map((meeting) => (
-              <Accordion
-                key={meeting.id || meeting.filename}
-                defaultExpanded={false}
-                sx={{
-                  backgroundColor: 'white',
-                  borderRadius: '12px !important',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                  '&:before': {
-                    display: 'none',
-                  },
-                  '&.Mui-expanded': {
-                    margin: '0',
-                  }
-                }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  sx={{
-                    '& .MuiAccordionSummary-content': {
-                      margin: '12px 0',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      pr: 1
-                    },
-                    '& .MuiAccordionSummary-expandIconWrapper': {
-                      color: '#FFA500',
-                    }
-                  }}
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        fontWeight: 600,
-                        color: '#333',
-                        fontSize: { xs: '1rem', sm: '1.25rem' }
-                      }}
-                    >
-                      {meeting.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatMeetingDate(meeting.meeting_date)}
-                      {meeting.isLocal && ' (Local file)'}
-                    </Typography>
-                  </Box>
-
-                  {adminModeEnabled && !meeting.isLocal && (
-                    <Box sx={{ display: 'flex', gap: 0.5, ml: 2 }} onClick={(e) => e.stopPropagation()}>
-                      <Tooltip title="Edit / 编辑">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEditMeeting(meeting);
-                          }}
-                          disabled={isMeetingEditing}
-                          sx={{ color: 'primary.main' }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete / 删除">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteMeetingClick(meeting);
-                          }}
-                          disabled={isMeetingEditing}
-                          sx={{ color: 'error.main' }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  )}
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Box
-                    dangerouslySetInnerHTML={{
-                      __html: meeting.isLocal ? safeMarkdown(meeting.content) : sanitizeMeetingHtml(meeting.content)
-                    }}
-                    sx={{
-                      '& h1': {
-                        fontSize: '1.8rem',
-                        fontWeight: 600,
-                        color: '#333',
-                        marginBottom: '1rem'
-                      },
-                      '& h2': {
-                        fontSize: '1.5rem',
-                        fontWeight: 600,
-                        color: '#444',
-                        marginBottom: '0.8rem'
-                      },
-                      '& h3': {
-                        fontSize: '1.2rem',
-                        fontWeight: 600,
-                        color: '#555',
-                        marginBottom: '0.6rem'
-                      },
-                      '& p': {
-                        marginBottom: '0.5rem'
-                      },
-                      '& ul, & ol': {
-                        paddingLeft: '1.5rem',
-                        marginBottom: '1rem'
-                      },
-                      '& li': {
-                        marginBottom: '0.5rem'
-                      }
-                    }}
-                  />
-                </AccordionDetails>
-              </Accordion>
-            ))}
-          </Box>
-        )}
-      </Container>
-
       {/* History Text */}
       <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
         <Typography
@@ -890,6 +637,259 @@ export default function AboutPage() {
             )}
           </AccordionDetails>
         </Accordion>
+      </Container>
+
+      {/* Meeting Minutes Section */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 3, sm: 4 } }}>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 600,
+            color: '#FFA500',
+            mb: 2,
+            fontSize: { xs: '1rem', sm: '1.25rem' }
+          }}
+        >
+          Meeting Minutes 会议纪要
+        </Typography>
+
+        {adminModeEnabled && !isMeetingEditing && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: { xs: 2, sm: 3 } }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleStartNewMeeting}
+              sx={{
+                backgroundColor: '#FFB84D',
+                color: 'white',
+                textTransform: 'none',
+                '&:hover': {
+                  backgroundColor: '#FFA833',
+                }
+              }}
+            >
+              Add Meeting Minutes
+            </Button>
+          </Box>
+        )}
+
+        {!adminModeEnabled && <Box sx={{ mb: { xs: 2, sm: 3 } }} />}
+
+        {/* Success/Error Messages */}
+        {meetingsSuccess && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setMeetingsSuccess('')}>
+            {meetingsSuccess}
+          </Alert>
+        )}
+        {meetingsError && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setMeetingsError('')}>
+            {meetingsError}
+          </Alert>
+        )}
+
+        {/* Editor Form */}
+        {isMeetingEditing && (
+          <Box sx={{
+            mb: 3,
+            p: { xs: 2, sm: 3 },
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            border: '2px solid #FFA500'
+          }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#333' }}>
+              {editingMeetingId ? 'Edit Meeting Minutes / 编辑会议纪要' : 'New Meeting Minutes / 新会议纪要'}
+            </Typography>
+
+            <TextField
+              name="title"
+              fullWidth
+              label="Title / 标题"
+              value={meetingFormData.title}
+              onChange={(e) => setMeetingFormData({ ...meetingFormData, title: e.target.value })}
+              onKeyDown={handleMeetingAutoFill}
+              sx={{ mb: 2 }}
+              placeholder={meetingDefaultValues.title}
+            />
+
+            <TextField
+              fullWidth
+              type="date"
+              label="Meeting Date / 会议日期"
+              value={meetingFormData.meeting_date}
+              onChange={(e) => setMeetingFormData({ ...meetingFormData, meeting_date: e.target.value })}
+              sx={{ mb: 2 }}
+              InputLabelProps={{ shrink: true }}
+            />
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Content / 内容 (supports bold, lists, and formatting)
+            </Typography>
+            <Box sx={{ mb: 2, '.ql-container': { minHeight: '200px' }, backgroundColor: 'white' }}>
+              <ReactQuill
+                theme="snow"
+                value={meetingFormData.content}
+                onChange={(content) => setMeetingFormData({ ...meetingFormData, content })}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="Enter meeting minutes here... / 在此输入会议纪要..."
+              />
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+              <Button
+                startIcon={<CancelIcon />}
+                onClick={handleCancelMeeting}
+                disabled={meetingSaving}
+              >
+                Cancel / 取消
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={meetingSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                onClick={handleSaveMeeting}
+                disabled={meetingSaving}
+                sx={{
+                  backgroundColor: '#FFA500',
+                  '&:hover': { backgroundColor: '#FF8C00' }
+                }}
+              >
+                {meetingSaving ? 'Saving...' : 'Save / 保存'}
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {meetingsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress sx={{ color: '#FFA500' }} />
+          </Box>
+        ) : meetings.length === 0 ? (
+          <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center' }}>
+            No meeting minutes available.
+          </Typography>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {meetings.map((meeting) => (
+              <Accordion
+                key={meeting.id || meeting.filename}
+                defaultExpanded={false}
+                sx={{
+                  backgroundColor: 'white',
+                  borderRadius: '12px !important',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  '&:before': {
+                    display: 'none',
+                  },
+                  '&.Mui-expanded': {
+                    margin: '0',
+                  }
+                }}
+              >
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  sx={{
+                    '& .MuiAccordionSummary-content': {
+                      margin: '12px 0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      pr: 1
+                    },
+                    '& .MuiAccordionSummary-expandIconWrapper': {
+                      color: '#FFA500',
+                    }
+                  }}
+                >
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        color: '#333',
+                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                      }}
+                    >
+                      {meeting.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatMeetingDate(meeting.meeting_date)}
+                      {meeting.isLocal && ' (Local file)'}
+                    </Typography>
+                  </Box>
+
+                  {adminModeEnabled && !meeting.isLocal && (
+                    <Box sx={{ display: 'flex', gap: 0.5, ml: 2 }} onClick={(e) => e.stopPropagation()}>
+                      <Tooltip title="Edit / 编辑">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEditMeeting(meeting);
+                          }}
+                          disabled={isMeetingEditing}
+                          sx={{ color: 'primary.main' }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete / 删除">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMeetingClick(meeting);
+                          }}
+                          disabled={isMeetingEditing}
+                          sx={{ color: 'error.main' }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  )}
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Box
+                    dangerouslySetInnerHTML={{
+                      __html: meeting.isLocal ? safeMarkdown(meeting.content) : sanitizeMeetingHtml(meeting.content)
+                    }}
+                    sx={{
+                      '& h1': {
+                        fontSize: '1.8rem',
+                        fontWeight: 600,
+                        color: '#333',
+                        marginBottom: '1rem'
+                      },
+                      '& h2': {
+                        fontSize: '1.5rem',
+                        fontWeight: 600,
+                        color: '#444',
+                        marginBottom: '0.8rem'
+                      },
+                      '& h3': {
+                        fontSize: '1.2rem',
+                        fontWeight: 600,
+                        color: '#555',
+                        marginBottom: '0.6rem'
+                      },
+                      '& p': {
+                        marginBottom: '0.5rem'
+                      },
+                      '& ul, & ol': {
+                        paddingLeft: '1.5rem',
+                        marginBottom: '1rem'
+                      },
+                      '& li': {
+                        marginBottom: '0.5rem'
+                      }
+                    }}
+                  />
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Box>
+        )}
       </Container>
 
       {/* Delete Meeting Confirmation Dialog */}

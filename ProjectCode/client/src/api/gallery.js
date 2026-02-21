@@ -130,20 +130,6 @@ export const toggleGalleryImageLike = async (imageId, firebaseUid = null) => {
 // UTILITY FUNCTIONS
 
 /**
- * Convert a File to base64 data URL
- * @param {File} file - Image file
- * @returns {Promise<string>} - Base64 data URL
- */
-export const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (error) => reject(error);
-  });
-};
-
-/**
  * Compress an image file before upload
  * @param {File} file - Original image file
  * @param {number} maxWidth - Maximum width (default 1200px)

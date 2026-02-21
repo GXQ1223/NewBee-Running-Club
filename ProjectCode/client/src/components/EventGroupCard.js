@@ -26,8 +26,6 @@ const EventGroupCard = ({
     e.target.src = '/images/2025/20250517_bk_half.jpg';
   };
 
-  // Get the most recent event for display
-  const coverEvent = group.events[0];
   const eventCount = group.event_count;
 
   return (

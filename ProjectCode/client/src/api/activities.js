@@ -53,12 +53,3 @@ export async function verifyActivity(activityId, approved, rejectionReason, fire
   }, { 'X-Firebase-UID': firebaseUid });
 }
 
-/**
- * Delete an activity (committee or admin only)
- * @param {number} activityId - Activity ID
- * @param {string} firebaseUid - Firebase UID of the admin/committee member
- * @returns {Promise<Object>} Deletion result
- */
-export async function deleteActivity(activityId, firebaseUid) {
-  return api.delete(`/api/activities/${activityId}`, { 'X-Firebase-UID': firebaseUid });
-}
