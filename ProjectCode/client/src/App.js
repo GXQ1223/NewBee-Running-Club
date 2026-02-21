@@ -1,24 +1,27 @@
 // src/App.js
-import { Box, Container, CssBaseline, ThemeProvider, Typography } from "@mui/material";
+import React, { Suspense } from "react";
+import { Box, CircularProgress, Container, CssBaseline, ThemeProvider, Typography } from "@mui/material";
 import { amber, indigo } from "@mui/material/colors";
 import { createTheme } from "@mui/material/styles";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import NavBar from "./components/NavBar";
 import { AuthProvider, AdminProvider, SocialLinksProvider } from "./context";
-import AboutPage from "./pages/AboutPage";
-import AdminPanelPage from "./pages/AdminPanelPage";
-import CalendarPage from "./pages/CalendarPage";
-import GalleryPage from "./pages/GalleryPage";
-import HighlightsPage from "./pages/HighlightsPage";
 import HomePage from "./pages/HomePage";
-import JoinPage from "./pages/JoinPage";
-import LoginPage from "./pages/LoginPage";
-import ProfilePage from "./pages/ProfilePage";
-import RecordsPage from "./pages/RecordsPage";
-import RegisterPage from "./pages/RegisterPage";
-import SponsorsPage from "./pages/SponsorsPage";
-import TrainingPage from "./pages/TrainingPage";
+
+// Lazy-loaded pages — only downloaded when the user navigates to them
+const AboutPage = React.lazy(() => import("./pages/AboutPage"));
+const AdminPanelPage = React.lazy(() => import("./pages/AdminPanelPage"));
+const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
+const GalleryPage = React.lazy(() => import("./pages/GalleryPage"));
+const HighlightsPage = React.lazy(() => import("./pages/HighlightsPage"));
+const JoinPage = React.lazy(() => import("./pages/JoinPage"));
+const LoginPage = React.lazy(() => import("./pages/LoginPage"));
+const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
+const RecordsPage = React.lazy(() => import("./pages/RecordsPage"));
+const RegisterPage = React.lazy(() => import("./pages/RegisterPage"));
+const SponsorsPage = React.lazy(() => import("./pages/SponsorsPage"));
+const TrainingPage = React.lazy(() => import("./pages/TrainingPage"));
 
 // Create the theme
 export const theme = createTheme({
@@ -54,26 +57,32 @@ export default function App() {
                 mb: 4,
               }}
             >
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/highlights" element={<HighlightsPage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/training" element={<TrainingPage />} />
-                <Route path="/training/ai" element={<TrainingPage />} />
-                <Route path="/training/community" element={<TrainingPage />} />
-                <Route path="/training/routes" element={<TrainingPage />} />
-                <Route path="/records" element={<RecordsPage />} />
-                <Route path="/join" element={<JoinPage />} />
-                <Route path="/sponsors" element={<SponsorsPage />} />
-                {/* Auth Routes */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/admin" element={<AdminPanelPage />} />
-                {/* Gallery Route */}
-                <Route path="/events/:eventId/gallery" element={<GalleryPage />} />
-              </Routes>
+              <Suspense fallback={
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+                  <CircularProgress sx={{ color: '#FFA500' }} />
+                </Box>
+              }>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/highlights" element={<HighlightsPage />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/training" element={<TrainingPage />} />
+                  <Route path="/training/ai" element={<TrainingPage />} />
+                  <Route path="/training/community" element={<TrainingPage />} />
+                  <Route path="/training/routes" element={<TrainingPage />} />
+                  <Route path="/records" element={<RecordsPage />} />
+                  <Route path="/join" element={<JoinPage />} />
+                  <Route path="/sponsors" element={<SponsorsPage />} />
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/admin" element={<AdminPanelPage />} />
+                  {/* Gallery Route */}
+                  <Route path="/events/:eventId/gallery" element={<GalleryPage />} />
+                </Routes>
+              </Suspense>
             </Box>
 
             {/* Footer */}

@@ -2,7 +2,7 @@
  * API functions for club credits management
  */
 
-import { api } from './client';
+import { api, clearApiCache } from './client';
 
 /**
  * Get all credits, optionally filtered by type
@@ -89,5 +89,7 @@ export const bulkUploadCredits = async (file, creditType, mode, firebaseUid) => 
     throw new Error(errorData?.detail || `Upload failed with status ${response.status}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  clearApiCache('/api/credits');
+  return result;
 };

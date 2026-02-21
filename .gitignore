@@ -28,6 +28,10 @@ yarn-error.log*
 *.swp
 *.swo
 
+# Python
+__pycache__/
+*.pyc
+
 # Database
 *.sqlite
 *.sqlite3

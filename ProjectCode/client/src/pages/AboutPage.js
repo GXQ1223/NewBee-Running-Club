@@ -395,6 +395,7 @@ export default function AboutPage() {
               component="img"
               src="/History - 1.png"
               alt="NewBee History 1"
+              loading="lazy"
               sx={{
                 width: '100%',
                 height: '300px',
@@ -428,6 +429,7 @@ export default function AboutPage() {
               component="img"
               src="/History - 2.png"
               alt="NewBee History 2"
+              loading="lazy"
               sx={{
                 width: '100%',
                 height: '300px',
@@ -461,6 +463,7 @@ export default function AboutPage() {
               component="img"
               src="/History - 3.png"
               alt="NewBee History 3"
+              loading="lazy"
               sx={{
                 width: '100%',
                 height: '300px',

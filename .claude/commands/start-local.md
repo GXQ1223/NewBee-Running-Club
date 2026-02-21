@@ -1,3 +1,7 @@
+---
+description: Start both the backend and frontend servers for local development and testing
+---
+
 Start both the backend and frontend servers for local development and testing.
 
 1. Kill any existing processes on ports 8000 and 3000

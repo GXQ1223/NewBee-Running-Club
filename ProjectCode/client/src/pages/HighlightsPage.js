@@ -514,47 +514,35 @@ export default function HighlightsPage() {
                   height="200"
                   image={event.image}
                   alt={event.title}
+                  loading="lazy"
                   onError={handleImageError}
                   sx={{
                     objectFit: 'cover',
                     backgroundColor: '#f5f5f5'
                   }}
                 />
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography
-                    gutterBottom
-                    variant="h6"
-                    component="div"
-                    sx={{
-                      overflow: 'hidden',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      minHeight: '3.6em',
-                      lineHeight: 1.8
-                    }}
-                  >
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Typography gutterBottom variant="h6" component="div" sx={{
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                  }}>
                     {event.title}
                   </Typography>
-                  <Typography
-                    gutterBottom
-                    variant="subtitle1"
-                    color="text.secondary"
-                    sx={{
-                      overflow: 'hidden',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 1,
-                      WebkitBoxOrient: 'vertical',
-                      minHeight: '1.75em',
-                      lineHeight: 1.75
-                    }}
-                  >
-                    {event.chineseTitle}
+                  <Typography gutterBottom variant="subtitle1" color="text.secondary" sx={{
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                    minHeight: '1.75em',
+                  }}>
+                    {event.chineseTitle || '\u00A0'}
                   </Typography>
-                  <Box sx={{ minHeight: 60, mb: 1 }}>
+                  <Box sx={{ mb: 1 }}>
                     <EventGalleryPreview eventId={event.id} maxImages={4} size={40} />
                   </Box>
-                  <Box sx={{ minHeight: 50, mb: 1 }}>
+                  <Box sx={{ mb: 1 }}>
                     <EventEngagementBar
                       eventId={event.id}
                       initialData={engagementData[event.id]}
@@ -563,7 +551,7 @@ export default function HighlightsPage() {
                   <Button
                     variant="contained"
                     sx={{
-                      mt: 2,
+                      mt: 'auto',
                       backgroundColor: '#FFB84D',
                       color: 'white',
                       textTransform: 'none',
@@ -733,6 +721,7 @@ export default function HighlightsPage() {
                       >
                         <CardMedia
                           component="img"
+                          loading="lazy"
                           sx={{
                             height: '100%',
                             width: '100%',
@@ -831,6 +820,7 @@ export default function HighlightsPage() {
               >
                 <CardMedia
                   component="img"
+                  loading="lazy"
                   sx={{
                     height: '100%',
                     width: '100%',

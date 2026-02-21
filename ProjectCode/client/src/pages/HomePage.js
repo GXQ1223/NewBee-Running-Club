@@ -187,6 +187,7 @@ function SortableSection({ section, adminModeEnabled, onEdit }) {
               component="img"
               src={section.image_url}
               alt={section.title_en}
+              loading="lazy"
               sx={{
                 width: '100%',
                 height: '100%',
@@ -272,7 +273,8 @@ export default function HomePage() {
   const [isHovered, setIsHovered] = useState(false);
   const [carouselImages, setCarouselImages] = useState([]);
   const [sections, setSections] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [carouselLoading, setCarouselLoading] = useState(true);
+  const [sectionsLoading, setSectionsLoading] = useState(true);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -298,27 +300,17 @@ export default function HomePage() {
     })
   );
 
-  // Fetch carousel banners and sections
+  // Fetch carousel banners and sections independently
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [carouselData, sectionsData] = await Promise.all([
-          getCarouselBanners().catch(() => fallbackCarouselImages),
-          getActiveSections().catch(() => fallbackSections)
-        ]);
+    getCarouselBanners()
+      .then(data => setCarouselImages(data.length > 0 ? data : fallbackCarouselImages))
+      .catch(() => setCarouselImages(fallbackCarouselImages))
+      .finally(() => setCarouselLoading(false));
 
-        setCarouselImages(carouselData.length > 0 ? carouselData : fallbackCarouselImages);
-        setSections(sectionsData.length > 0 ? sectionsData : fallbackSections);
-      } catch (error) {
-        console.error('Error fetching homepage data:', error);
-        setCarouselImages(fallbackCarouselImages);
-        setSections(fallbackSections);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    getActiveSections()
+      .then(data => setSections(data.length > 0 ? data : fallbackSections))
+      .catch(() => setSections(fallbackSections))
+      .finally(() => setSectionsLoading(false));
   }, []);
 
   // Auto-rotate carousel
@@ -458,24 +450,27 @@ export default function HomePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
-        <NavigationButtons variant="outlined" />
-        <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4, display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress sx={{ color: '#FFA500' }} />
-        </Container>
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
       {/* Buttons Section */}
       <NavigationButtons variant="outlined" />
 
-      {/* Master Image Section - Clickable Banner Carousel */}
-      {carouselImages.length > 0 && (
+      {/* Carousel loading placeholder */}
+      {carouselLoading ? (
+        <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0 }}>
+          <Box sx={{
+            width: '100%',
+            height: { xs: '200px', sm: '350px', md: '500px' },
+            borderRadius: { xs: '8px', sm: '12px' },
+            backgroundColor: '#e0e0e0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <CircularProgress sx={{ color: '#FFA500' }} />
+          </Box>
+        </Container>
+      ) : carouselImages.length > 0 && (
         <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0 }}>
           <Box
             onClick={handleBannerClick}
@@ -663,7 +658,24 @@ export default function HomePage() {
       )}
 
       {/* Dynamic Homepage Sections with Drag-and-Drop for Admins */}
-      {adminModeEnabled ? (
+      {sectionsLoading ? (
+        /* Placeholder boxes while sections load */
+        [0, 1, 2].map((i) => (
+          <Box key={i} sx={{ mt: { xs: 2, sm: 3 } }}>
+            <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mb: { xs: 1, sm: 1.5 } }}>
+              <Box sx={{ height: '2rem', width: '40%', mx: 'auto', borderRadius: 1, backgroundColor: '#e0e0e0' }} />
+            </Container>
+            <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 } }}>
+              <Box sx={{
+                width: '100%',
+                height: { xs: '200px', sm: '350px', md: '500px' },
+                borderRadius: { xs: '8px', sm: '12px' },
+                backgroundColor: '#e0e0e0',
+              }} />
+            </Container>
+          </Box>
+        ))
+      ) : adminModeEnabled ? (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

@@ -23,6 +23,7 @@ class DonorBase(BaseModel):
     message: Optional[str] = None  # Public message from donor
     member_id: Optional[int] = None  # Link to member account for privacy control
     hide_amount: bool = Field(default=False)  # User can hide their donation amount
+    hide_name: bool = Field(default=False)  # Admin can mark donor as anonymous
 
 class DonorCreate(DonorBase):
     pass
@@ -39,11 +40,13 @@ class DonorUpdate(BaseModel):
     message: Optional[str] = None
     member_id: Optional[int] = None
     hide_amount: Optional[bool] = None
+    hide_name: Optional[bool] = None
 
 class DonorResponse(DonorBase):
     donation_id: int
     member_id: Optional[int] = None
     hide_amount: bool = False
+    hide_name: bool = False
     created_at: datetime
     updated_at: datetime
 

@@ -298,6 +298,7 @@ const GalleryPage = () => {
                     component="img"
                     src={image.image_url}
                     alt={image.caption || 'Gallery image'}
+                    loading="lazy"
                     sx={{
                       position: 'absolute',
                       top: 0,
