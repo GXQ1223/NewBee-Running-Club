@@ -15,14 +15,23 @@ load_dotenv()
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
+def must_have_env(env_var: str) -> str:
+    """Get environment variable or raise error if not set."""
+    value = os.getenv(env_var)
+    if value is None:
+        raise Exception(f"Environment variable '{env_var}' is not set")
+    return value
+
+
 # Gmail SMTP Configuration
-GMAIL_USER = os.getenv("GMAIL_USER", "newbeerunningclub@gmail.com")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
+GMAIL_USER = must_have_env("GMAIL_USER")
+GMAIL_APP_PASSWORD = must_have_env("GMAIL_APP_PASSWORD")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
 # Website URL for email templates
-WEBSITE_URL = os.getenv("WEBSITE_URL", "https://newbeerunning.org")
+WEBSITE_URL = must_have_env("WEBSITE_URL")
 
 # Log configuration status on module load
 if GMAIL_APP_PASSWORD:
