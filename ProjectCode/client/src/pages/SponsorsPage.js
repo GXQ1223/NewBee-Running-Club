@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, IconButton, Switch, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -27,7 +27,8 @@ export default function SponsorsPage() {
     amount: '',
     donation_date: '',
     message: '',
-    notes: ''
+    notes: '',
+    hide_name: false
   });
 
   // Default values for Tab auto-fill
@@ -82,7 +83,8 @@ export default function SponsorsPage() {
       amount: donor.amount || '',
       donation_date: donor.donation_date || '',
       message: donor.message || '',
-      notes: donor.notes || ''
+      notes: donor.notes || '',
+      hide_name: donor.hide_name || false
     });
     setEditDialogOpen(true);
   };
@@ -94,7 +96,8 @@ export default function SponsorsPage() {
       amount: '',
       donation_date: new Date().toISOString().split('T')[0],
       message: '',
-      notes: ''
+      notes: '',
+      hide_name: false
     });
     setEditDialogOpen(true);
   };
@@ -102,7 +105,7 @@ export default function SponsorsPage() {
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setEditingDonor(null);
-    setDonorFormData({ name: '', amount: '', donation_date: '', message: '', notes: '' });
+    setDonorFormData({ name: '', amount: '', donation_date: '', message: '', notes: '', hide_name: false });
   };
 
   const handleSaveDonor = async () => {
@@ -115,7 +118,8 @@ export default function SponsorsPage() {
           amount: parseFloat(donorFormData.amount),
           donation_date: donorFormData.donation_date || null,
           message: donorFormData.message || null,
-          notes: donorFormData.notes || null
+          notes: donorFormData.notes || null,
+          hide_name: donorFormData.hide_name
         });
       } else {
         // Create new donor
@@ -130,7 +134,8 @@ export default function SponsorsPage() {
           donation_date: donorFormData.donation_date || null,
           donation_event: 'General Support',
           message: donorFormData.message || null,
-          notes: donorFormData.notes || null
+          notes: donorFormData.notes || null,
+          hide_name: donorFormData.hide_name
         });
       }
       handleCloseEditDialog();
@@ -221,7 +226,7 @@ export default function SponsorsPage() {
               <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                   <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
-                    {donor.name}
+                    {donor.hide_name ? 'Anonymous Donor / 匿名捐赠者' : donor.name}
                   </Typography>
                   {adminModeEnabled && (
                     <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
@@ -239,10 +244,10 @@ export default function SponsorsPage() {
                   )}
                 </Box>
 
-                {/* Show amount only for enterprise donors or in admin mode */}
-                {(donor.amount || adminModeEnabled) && (
+                {/* Show amount only in admin mode */}
+                {adminModeEnabled && (
                   <Typography variant="h5" sx={{ color: '#FFA500', fontWeight: 600, mb: 1 }}>
-                    {donor.amount ? formatAmount(donor.amount) : (adminModeEnabled ? formatAmount(0) : null)}
+                    {donor.amount ? formatAmount(donor.amount) : formatAmount(0)}
                   </Typography>
                 )}
 
@@ -262,7 +267,7 @@ export default function SponsorsPage() {
                   </Typography>
                 )}
 
-                {donor.message && (
+                {donor.message && !donor.hide_name && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
                     "{donor.message}"
                   </Typography>
@@ -506,6 +511,17 @@ export default function SponsorsPage() {
             margin="normal"
             multiline
             rows={2}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={donorFormData.hide_name}
+                onChange={(e) => setDonorFormData({ ...donorFormData, hide_name: e.target.checked })}
+                color="warning"
+              />
+            }
+            label="Anonymous Donor / 匿名捐赠者"
+            sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>

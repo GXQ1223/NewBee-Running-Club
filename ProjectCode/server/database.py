@@ -68,6 +68,7 @@ class Donor(Base):
     # Privacy and member linking fields
     member_id = Column(Integer, ForeignKey('members.id', ondelete='SET NULL'), nullable=True)
     hide_amount = Column(Boolean, default=False)  # User can choose to hide their donation amount
+    hide_name = Column(Boolean, default=False)  # Admin can mark donor as anonymous
 
     # Indexes for better query performance
     __table_args__ = (

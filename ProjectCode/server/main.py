@@ -529,17 +529,18 @@ def get_public_donors(db: Session = Depends(get_db)):
 
         # Apply privacy rules: hide amount for individual donors
         show_amount = donor.donor_type == 'enterprise' and not donor.hide_amount
+        display_name = "Anonymous Donor" if donor.hide_name else donor.name
 
         public_donors.append(DonorPublicResponse(
             donation_id=donor.donation_id,
             donor_id=donor.donor_id,
-            name=donor.name,
+            name=display_name,
             donor_type=donor.donor_type,
             donation_event=donor.donation_event,
             amount=donor.amount if show_amount else None,
             quantity=donor.quantity,
             donation_date=donor.donation_date,
-            message=donor.message
+            message=donor.message if not donor.hide_name else None
         ))
 
     return public_donors
