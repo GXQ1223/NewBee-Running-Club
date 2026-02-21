@@ -521,17 +521,45 @@ export default function HighlightsPage() {
                   }}
                 />
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography gutterBottom variant="h6" component="div">
+                  <Typography
+                    gutterBottom
+                    variant="h6"
+                    component="div"
+                    sx={{
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      minHeight: '3.6em',
+                      lineHeight: 1.8
+                    }}
+                  >
                     {event.title}
                   </Typography>
-                  <Typography gutterBottom variant="subtitle1" color="text.secondary">
+                  <Typography
+                    gutterBottom
+                    variant="subtitle1"
+                    color="text.secondary"
+                    sx={{
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 1,
+                      WebkitBoxOrient: 'vertical',
+                      minHeight: '1.75em',
+                      lineHeight: 1.75
+                    }}
+                  >
                     {event.chineseTitle}
                   </Typography>
-                  <EventGalleryPreview eventId={event.id} maxImages={4} size={40} />
-                  <EventEngagementBar
-                    eventId={event.id}
-                    initialData={engagementData[event.id]}
-                  />
+                  <Box sx={{ minHeight: 60, mb: 1 }}>
+                    <EventGalleryPreview eventId={event.id} maxImages={4} size={40} />
+                  </Box>
+                  <Box sx={{ minHeight: 50, mb: 1 }}>
+                    <EventEngagementBar
+                      eventId={event.id}
+                      initialData={engagementData[event.id]}
+                    />
+                  </Box>
                   <Button
                     variant="contained"
                     sx={{
