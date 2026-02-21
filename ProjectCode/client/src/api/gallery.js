@@ -3,7 +3,7 @@
  * Handles all gallery-related API calls (event photo galleries)
  */
 
-import { api } from './client';
+import { api, clearApiCache } from './client';
 import { getAnonymousId } from './engagement';
 
 // GALLERY IMAGE ENDPOINTS
@@ -87,7 +87,9 @@ export const uploadGalleryImage = async (eventId, file, caption = null, captionC
     throw new Error(errorData?.detail || `Upload failed with status ${response.status}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  clearApiCache('/api/events', '/api/gallery');
+  return result;
 };
 
 /**

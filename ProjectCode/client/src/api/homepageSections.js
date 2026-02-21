@@ -3,7 +3,7 @@
  * Handles all section-related API calls for homepage management
  */
 
-import { api } from './client';
+import { api, clearApiCache } from './client';
 
 /**
  * Get all active sections (public)
@@ -106,5 +106,7 @@ export const uploadImage = async (file, firebaseUid) => {
     throw new Error(error.detail || 'Failed to upload image');
   }
 
-  return response.json();
+  const result = await response.json();
+  clearApiCache('/api/homepage-sections');
+  return result;
 };
