@@ -148,6 +148,13 @@ API_HOST=0.0.0.0
 API_PORT=8000
 DEBUG=True          # Set False for production
 USE_SQLITE=True     # Set False for MySQL
+GMAIL_USER=<gmail-address>
+GMAIL_APP_PASSWORD=<gmail-app-password>
+AWS_ACCESS_KEY_ID=<aws-access-key>
+AWS_SECRET_ACCESS_KEY=<aws-secret-key>
+AWS_REGION=<aws-region>
+AWS_S3_BUCKET=<s3-bucket-name>
+WEBSITE_URL=<website-url>
 ```
 
 ## Git Workflow
@@ -228,6 +235,43 @@ npm start
 | Frontend | http://localhost:3000 |
 | Backend API | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
+
+## Production Server (EC2)
+
+### SSH Access
+```bash
+ssh -i /Users/xiaoqingguo/Documents/secrets/newbee-key.pem ubuntu@52.14.44.243
+```
+
+**Key file:** `~/Documents/secrets/newbee-key.pem`
+**OS:** Ubuntu
+**Username:** `ubuntu`
+**Public IP:** `52.14.44.243`
+
+If permission is denied due to key file permissions:
+```bash
+chmod 400 /Users/xiaoqingguo/Documents/secrets/newbee-key.pem
+```
+
+### Application Location
+- **Backend `.env`:** `/var/www/newbeerunning/backend/.env`
+
+### Common Server Tasks
+
+**Edit production `.env`:**
+```bash
+sudo nano /var/www/newbeerunning/backend/.env
+```
+
+**Restart backend service after config changes:**
+```bash
+sudo systemctl restart newbeerunning
+```
+
+**Check service status:**
+```bash
+sudo systemctl status newbeerunning
+```
 
 ## Notes
 
