@@ -399,3 +399,69 @@ class EmailService:
 
         logger.info(f"[EMAIL] Sending rejection notification to {member_email} ({member_name})")
         return EmailService.send_email(member_email, subject, body_html, body_text)
+
+    @staticmethod
+    def send_existing_member_account_notification(member_name: str, member_email: str) -> bool:
+        """
+        Send notification to committee that an existing club member has created a website account
+        and is requesting approval.
+
+        Args:
+            member_name: Member's name
+            member_email: Member's email
+
+        Returns:
+            True if email sent successfully
+        """
+        subject = f"Existing Member Account Request: {member_name}"
+
+        body_html = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #FFA500;">Existing Member Account Request</h2>
+                    <h3 style="color: #666;">现有成员账号申请</h3>
+
+                    <p>An existing club member has created a website account and is requesting approval:</p>
+                    <p style="color: #666;">一位现有俱乐部成员已创建网站账号并请求审批：</p>
+
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Name 姓名</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">{member_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Email 邮箱</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><a href="mailto:{member_email}">{member_email}</a></td>
+                        </tr>
+                    </table>
+
+                    <div style="background-color: #fff3e0; border-left: 4px solid #FFA500; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; font-weight: bold;">Action Required 需要操作:</p>
+                        <p style="margin: 10px 0 0 0;">Please verify this person is an existing member and approve or reject their account in the admin panel.</p>
+                        <p style="margin: 5px 0 0 0; color: #666;">请确认此人是否为现有成员，并在管理面板中批准或拒绝其账号。</p>
+                    </div>
+
+                    <p style="margin-top: 30px;">
+                        <a href="{WEBSITE_URL}/admin" style="color: white; text-decoration: none; background-color: #FFA500; padding: 10px 20px; display: inline-block; margin-top: 10px; border-radius: 5px;">Go to Admin Panel 前往管理面板</a>
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+
+        body_text = f"""
+        Existing Member Account Request
+        现有成员账号申请
+
+        An existing club member has created a website account and is requesting approval:
+        一位现有俱乐部成员已创建网站账号并请求审批：
+
+        Name: {member_name}
+        Email: {member_email}
+
+        Please verify this person is an existing member and approve or reject their account in the admin panel at {WEBSITE_URL}/admin
+        """
+
+        logger.info(f"[EMAIL] Sending existing member account notification for: {member_name} ({member_email})")
+        return EmailService.send_email(GMAIL_USER, subject, body_html, body_text)
