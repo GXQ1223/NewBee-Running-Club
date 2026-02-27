@@ -105,7 +105,7 @@ from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest,
     MemberCreate, MemberUpdate, MemberResponse, MemberPublicResponse, MemberStatus,
-    FirebaseUserSync, JoinApplicationRequest, JoinApplicationWithActivities,
+    FirebaseUserSync, JoinApplicationRequest, JoinApplicationWithActivities, ExistingMemberAccountRequest,
     MemberActivityCreate, MemberActivityUpdate, MemberActivityResponse, ActivityVerifyRequest, ActivityStatus,
     EventCreate, EventUpdate, EventResponse, EventStatus, EventType,
     MeetingMinutesCreate, MeetingMinutesUpdate, MeetingMinutesResponse,
@@ -1097,6 +1097,27 @@ def submit_join_application(application: JoinApplicationRequest, db: Session = D
     return {
         "message": "Application submitted successfully! You will receive a confirmation email shortly.",
         "member_id": new_member.id,
+        "status": "pending"
+    }
+
+
+@app.post("/api/members/existing-member-account-request")
+def existing_member_account_request(request: ExistingMemberAccountRequest):
+    """
+    Notify committee that an existing club member has created a website account
+    and is requesting approval. Sends an email to the club email for committee review.
+    """
+    try:
+        EmailService.send_existing_member_account_notification(
+            request.name,
+            request.email
+        )
+    except Exception as e:
+        print(f"Error sending existing member account notification email: {str(e)}")
+        # Don't fail the request if email fails
+
+    return {
+        "message": "Account request notification sent to committee.",
         "status": "pending"
     }
 

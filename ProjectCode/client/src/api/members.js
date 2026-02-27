@@ -105,6 +105,18 @@ export async function submitJoinApplication(applicationData) {
 }
 
 /**
+ * Submit existing member account request
+ * Sends a notification to the committee for approval
+ * @param {Object} data - Request data
+ * @param {string} data.name - Member's name
+ * @param {string} data.email - Member's email
+ * @returns {Promise<Object>} Response
+ */
+export async function submitExistingMemberAccountRequest(data) {
+  return api.post('/api/members/existing-member-account-request', data);
+}
+
+/**
  * Helper to create auth headers for admin endpoints
  * @param {string} firebaseUid - Firebase UID of the admin user
  * @returns {Object} Headers object

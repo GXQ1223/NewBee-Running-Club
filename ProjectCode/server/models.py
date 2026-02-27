@@ -228,6 +228,12 @@ class JoinApplicationRequest(BaseModel):
     introduction: str
 
 
+class ExistingMemberAccountRequest(BaseModel):
+    """Request from an existing club member to create a website account"""
+    name: str = Field(..., max_length=100)
+    email: str = Field(..., max_length=255)
+
+
 # Activity Status Enum for join workflow
 class ActivityStatus(str, Enum):
     pending = "pending"

@@ -1,12 +1,11 @@
-import GitHubIcon from '@mui/icons-material/GitHub';
 import GoogleIcon from '@mui/icons-material/Google';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import {
   Alert,
   Box,
   Button,
   Container,
   Divider,
-  Grid,
   Paper,
   TextField,
   Typography
@@ -15,9 +14,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   registerWithEmailAndPassword,
-  signInWithGithub,
   signInWithGoogle
 } from '../firebase/auth';
+import { submitExistingMemberAccountRequest } from '../api/members';
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -26,80 +25,142 @@ const RegisterPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
-      return setError('Passwords do not match');
+      return setError('Passwords do not match / 密码不匹配');
     }
-    
+
     setError('');
     setLoading(true);
-    
+
     try {
       const { user, error } = await registerWithEmailAndPassword(email, password, name);
       if (error) {
-        setError(error);
+        // If pending approval, send committee notification and show success
+        if (error.includes('pending')) {
+          try {
+            await submitExistingMemberAccountRequest({ name, email });
+          } catch (notifyErr) {
+            // Don't fail if notification fails - account is still created
+            console.error('Failed to send committee notification:', notifyErr);
+          }
+          setSubmitted(true);
+        } else {
+          setError(error);
+        }
       } else {
         navigate('/');
       }
     } catch (err) {
-      setError('Failed to create an account');
+      setError('Failed to create an account / 创建账号失败');
     }
-    
+
     setLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
-    
+
     try {
       const { user, error } = await signInWithGoogle();
       if (error) {
-        setError(error);
+        if (error.includes('pending')) {
+          try {
+            const googleName = user?.displayName || name || 'Google User';
+            const googleEmail = user?.email || email;
+            await submitExistingMemberAccountRequest({ name: googleName, email: googleEmail });
+          } catch (notifyErr) {
+            console.error('Failed to send committee notification:', notifyErr);
+          }
+          setSubmitted(true);
+        } else {
+          setError(error);
+        }
       } else {
         navigate('/');
       }
     } catch (err) {
-      setError('Failed to sign up with Google');
+      setError('Failed to sign up with Google / Google 注册失败');
     }
-    
+
     setLoading(false);
   };
 
-  const handleGithubSignIn = async () => {
-    setError('');
-    setLoading(true);
-    
-    try {
-      const { user, error } = await signInWithGithub();
-      if (error) {
-        setError(error);
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
-      setError('Failed to sign up with GitHub');
-    }
-    
-    setLoading(false);
-  };
+  // Success state after registration
+  if (submitted) {
+    return (
+      <Container maxWidth="sm" sx={{ mt: 8 }}>
+        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+          <CheckCircleOutlineIcon sx={{ fontSize: 64, color: '#4CAF50', mb: 2 }} />
+          <Typography variant="h5" gutterBottom sx={{ color: 'black' }}>
+            Account Created! 账号已创建！
+          </Typography>
+          <Typography sx={{ color: '#666', mb: 2 }}>
+            Your account request has been sent to the NewBee Running Club committee for approval.
+          </Typography>
+          <Typography sx={{ color: '#666', mb: 3 }}>
+            您的账号申请已发送给新蜂跑团委员会审核。
+          </Typography>
+          <Typography sx={{ color: '#999', fontSize: '0.9rem', mb: 3 }}>
+            You will be able to log in once your account has been approved. This typically takes 1-3 business days.
+            <br />
+            账号审核通过后即可登录，通常需要1-3个工作日。
+          </Typography>
+          <Button
+            component={Link}
+            to="/login"
+            variant="contained"
+            sx={{
+              backgroundColor: '#FFB84D',
+              color: 'white',
+              textTransform: 'none',
+              fontSize: '16px',
+              px: 3,
+              py: 1.2,
+              borderRadius: '12px',
+              '&:hover': {
+                backgroundColor: '#FFA833',
+              }
+            }}
+          >
+            Back to Login 返回登录
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" align="center" gutterBottom sx={{ color: 'black' }}>
-          Create Account
+          Create Account 创建账号
         </Typography>
-        
+
+        <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(255, 184, 77, 0.1)', border: '1px solid #FFB84D', '& .MuiAlert-icon': { color: '#FFB84D' } }}>
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            For existing NewBee Running Club members only.
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#666' }}>
+            仅限新蜂跑团现有成员使用。
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5, fontSize: '0.8rem', color: '#999' }}>
+            Your request will be sent to the committee for verification. /
+            您的请求将发送给委员会验证。
+          </Typography>
+        </Alert>
+
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        
+
         <form onSubmit={handleRegister}>
           <TextField
-            label="Name"
+            label="Name 姓名"
             type="text"
             variant="outlined"
             fullWidth
@@ -109,7 +170,7 @@ const RegisterPage = () => {
             required
           />
           <TextField
-            label="Email"
+            label="Email 邮箱"
             type="email"
             variant="outlined"
             fullWidth
@@ -119,7 +180,7 @@ const RegisterPage = () => {
             required
           />
           <TextField
-            label="Password"
+            label="Password 密码"
             type="password"
             variant="outlined"
             fullWidth
@@ -129,7 +190,7 @@ const RegisterPage = () => {
             required
           />
           <TextField
-            label="Confirm Password"
+            label="Confirm Password 确认密码"
             type="password"
             variant="outlined"
             fullWidth
@@ -138,14 +199,14 @@ const RegisterPage = () => {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
-          
-          <Button 
-            type="submit" 
-            variant="contained" 
-            fullWidth 
+
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
             size="large"
             disabled={loading}
-            sx={{ 
+            sx={{
               mt: 2,
               backgroundColor: '#FFB84D',
               color: 'white',
@@ -166,85 +227,56 @@ const RegisterPage = () => {
               }
             }}
           >
-            Register 注册
+            Create Account 创建账号
           </Button>
         </form>
-        
+
         <Box sx={{ mt: 2, mb: 2 }}>
           <Divider sx={{ '&::before, &::after': { borderColor: '#FFB84D' } }}>
             <Typography sx={{ color: '#FFB84D' }}>OR</Typography>
           </Divider>
         </Box>
-        
-        <Grid container spacing={2}>
-          <Grid item xs={6}>
-            <Button 
-              variant="outlined" 
-              startIcon={<GoogleIcon />}
-              fullWidth
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              sx={{
-                borderColor: '#FFB84D',
-                color: '#FFB84D',
-                textTransform: 'none',
-                fontSize: '17.5px',
-                px: 2.75,
-                py: 1.85,
-                borderRadius: '12px',
-                '&:hover': {
-                  borderColor: '#FFA833',
-                  backgroundColor: 'rgba(255, 184, 77, 0.04)',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                  transform: 'translateY(-2px)',
-                },
-                '&:active': {
-                  transform: 'translateY(1px) scale(0.98)',
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-                }
-              }}
-            >
-              Google
-            </Button>
-          </Grid>
-          <Grid item xs={6}>
-            <Button 
-              variant="outlined" 
-              startIcon={<GitHubIcon />}
-              fullWidth
-              onClick={handleGithubSignIn}
-              disabled={loading}
-              sx={{
-                borderColor: '#FFB84D',
-                color: '#FFB84D',
-                textTransform: 'none',
-                fontSize: '17.5px',
-                px: 2.75,
-                py: 1.85,
-                borderRadius: '12px',
-                '&:hover': {
-                  borderColor: '#FFA833',
-                  backgroundColor: 'rgba(255, 184, 77, 0.04)',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                  transform: 'translateY(-2px)',
-                },
-                '&:active': {
-                  transform: 'translateY(1px) scale(0.98)',
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-                }
-              }}
-            >
-              GitHub
-            </Button>
-          </Grid>
-        </Grid>
-        
-        <Typography align="center" sx={{ mt: 3 }}>
-          Already have an account? <Link to="/login" style={{ color: '#FFB84D', textDecoration: 'none', '&:hover': { color: '#FFA833' } }}>Sign In</Link>
-        </Typography>
+
+        <Button
+          variant="outlined"
+          startIcon={<GoogleIcon />}
+          fullWidth
+          onClick={handleGoogleSignIn}
+          disabled={loading}
+          sx={{
+            borderColor: '#FFB84D',
+            color: '#FFB84D',
+            textTransform: 'none',
+            fontSize: '17.5px',
+            px: 2.75,
+            py: 1.85,
+            borderRadius: '12px',
+            '&:hover': {
+              borderColor: '#FFA833',
+              backgroundColor: 'rgba(255, 184, 77, 0.04)',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+              transform: 'translateY(-2px)',
+            },
+            '&:active': {
+              transform: 'translateY(1px) scale(0.98)',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+            }
+          }}
+        >
+          Google
+        </Button>
+
+        <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          <Typography sx={{ fontSize: '0.9rem' }}>
+            Already have an account? <Link to="/login" style={{ color: '#FFB84D', textDecoration: 'none' }}>Sign In 登录</Link>
+          </Typography>
+          <Typography sx={{ fontSize: '0.9rem' }}>
+            New to the club? <Link to="/join" style={{ color: '#4CAF50', textDecoration: 'none' }}>Apply to join 申请加入</Link>
+          </Typography>
+        </Box>
       </Paper>
     </Container>
   );
 };
 
-export default RegisterPage; 
+export default RegisterPage;
