@@ -1,9 +1,11 @@
 """
-Event Recurrence Scheduler
+Event Scheduler
 
-This module handles the automated generation of recurring event instances
-using APScheduler. The scheduler runs a daily job at 2 AM to check for
-events with active recurrence rules and generates upcoming instances.
+This module handles scheduled background jobs using APScheduler:
+1. Daily (2 AM): Generate recurring event instances from active recurrence rules
+2. Weekly (Monday 3 AM): Transition past Upcoming events to Highlight (Memories)
+
+The past events transition also runs once on startup to catch any stale events.
 """
 
 import os
@@ -317,6 +319,34 @@ def generate_recurring_events():
         logger.info(f"Recurring events generation complete. Created {total_generated} instances.")
 
 
+def transition_past_events():
+    """
+    Weekly job to transition past Upcoming events to Highlight (Memories).
+
+    Scans all events with status='Upcoming' and moves any with a past date
+    to 'Highlight' so they appear on the Memories page instead of Upcoming.
+    """
+    logger.info("Starting past events transition job...")
+    today = date.today()
+
+    with get_db_session() as db:
+        past_upcoming = db.query(Event).filter(
+            Event.status == 'Upcoming',
+            Event.date < today
+        ).all()
+
+        count = len(past_upcoming)
+        for event in past_upcoming:
+            logger.info(
+                f"Transitioning event '{event.name}' (date: {event.date}) "
+                f"from Upcoming to Highlight"
+            )
+            event.status = 'Highlight'
+
+        db.commit()
+        logger.info(f"Past events transition complete. Transitioned {count} event(s).")
+
+
 def start_scheduler():
     """
     Start the APScheduler with configured jobs.
@@ -335,9 +365,22 @@ def start_scheduler():
         max_instances=1
     )
 
+    # Add weekly job to transition past Upcoming events to Highlight (Memories)
+    # Runs every Monday at 3 AM
+    scheduler.add_job(
+        transition_past_events,
+        CronTrigger(day_of_week='mon', hour=3, minute=0),
+        id='transition_past_events',
+        replace_existing=True,
+        max_instances=1
+    )
+
     # Start the scheduler
     scheduler.start()
-    logger.info("Scheduler started - recurring events job scheduled for 2 AM daily")
+    logger.info("Scheduler started - recurring events job (daily 2 AM), past events transition (weekly Mon 3 AM)")
+
+    # Run transition immediately on startup to catch any stale events
+    transition_past_events()
 
 
 def shutdown_scheduler():
@@ -358,8 +401,19 @@ def run_recurring_job_now():
     generate_recurring_events()
 
 
+def run_transition_job_now():
+    """
+    Manually trigger the past events transition job.
+    Useful for testing or administrative purposes.
+    """
+    logger.info("Manually triggering past events transition...")
+    transition_past_events()
+
+
 if __name__ == "__main__":
     # For testing the scheduler independently
     print("Running recurring events generation manually...")
     run_recurring_job_now()
+    print("Running past events transition manually...")
+    run_transition_job_now()
     print("Done!")
