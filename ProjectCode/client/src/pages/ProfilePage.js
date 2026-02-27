@@ -538,10 +538,20 @@ const ProfilePage = () => {
                   {memberData.gender === 'M' ? 'Male / 男' :
                    memberData.gender === 'F' ? 'Female / 女' : '-'}
                 </Typography>
+                {!memberData.gender && (
+                  <Typography variant="caption" sx={{ color: '#FFB84D', fontSize: '0.7rem' }}>
+                    Fill in to see your NYRR records / 填写后可查看NYRR比赛记录
+                  </Typography>
+                )}
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <Typography variant="caption" color="text.secondary">Birth Year / 出生年份</Typography>
                 <Typography variant="body1">{memberData.birth_year || '-'}</Typography>
+                {!memberData.birth_year && (
+                  <Typography variant="caption" sx={{ color: '#FFB84D', fontSize: '0.7rem' }}>
+                    Fill in to see your NYRR records / 填写后可查看NYRR比赛记录
+                  </Typography>
+                )}
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <Typography variant="caption" color="text.secondary">Join Date / 加入日期</Typography>
