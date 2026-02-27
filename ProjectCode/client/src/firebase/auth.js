@@ -4,7 +4,6 @@ import {
     signInWithPopup,
     GoogleAuthProvider,
     FacebookAuthProvider,
-    GithubAuthProvider,
     updateProfile,
     sendPasswordResetEmail,
     signOut
@@ -115,22 +114,6 @@ import {
   export const signInWithFacebook = async () => {
     try {
       const provider = new FacebookAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      // Sync user to MySQL database and check status
-      const { error: statusError } = await syncUserToDatabase(userCredential.user);
-      if (statusError) {
-        return { user: null, error: statusError };
-      }
-      return { user: userCredential.user, error: null };
-    } catch (error) {
-      return { user: null, error: error.message };
-    }
-  };
-  
-  // GitHub sign in
-  export const signInWithGithub = async () => {
-    try {
-      const provider = new GithubAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       // Sync user to MySQL database and check status
       const { error: statusError } = await syncUserToDatabase(userCredential.user);
