@@ -132,7 +132,7 @@ export const toggleGalleryImageLike = async (imageId, firebaseUid = null) => {
 // UTILITY FUNCTIONS
 
 /**
- * Compress an image file before upload
+ * Compress an image file and return a data URL (for previews)
  * @param {File} file - Original image file
  * @param {number} maxWidth - Maximum width (default 1200px)
  * @param {number} quality - JPEG quality 0-1 (default 0.8)
@@ -167,6 +167,72 @@ export const compressImage = (file, maxWidth = 1200, quality = 0.8) => {
       img.onerror = reject;
     };
     reader.onerror = reject;
+  });
+};
+
+/**
+ * Compress an image file and return a File object (for uploading)
+ * Resizes to max 2048px on longest side and compresses to JPEG.
+ * @param {File} file - Original image file
+ * @param {number} maxDimension - Maximum width or height (default 2048px)
+ * @param {number} quality - JPEG quality 0-1 (default 0.85)
+ * @returns {Promise<File>} - Compressed File object
+ */
+export const compressImageForUpload = (file, maxDimension = 2048, quality = 0.85) => {
+  return new Promise((resolve, reject) => {
+    // Skip compression for small files (<2MB) and non-raster types
+    if (file.size < 2 * 1024 * 1024 && !file.type.includes('heic')) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Scale down if either dimension exceeds max
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file); // Fallback to original
+              return;
+            }
+            const compressedFile = new File(
+              [blob],
+              file.name.replace(/\.[^.]+$/, '.jpg'),
+              { type: 'image/jpeg' }
+            );
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file); // Fallback to original on error
+    };
+    reader.onerror = () => resolve(file); // Fallback to original on error
   });
 };
 
