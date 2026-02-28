@@ -52,6 +52,7 @@ const GalleryUploadButton = ({
     setOpen(false);
     setSelectedFiles([]);
     setPreviews([]);
+    setUploading(false);
     setError(null);
     setUploadProgress({ current: 0, total: 0 });
   };
