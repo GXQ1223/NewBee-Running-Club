@@ -3262,11 +3262,11 @@ async def upload_gallery_image(
     # Read file content
     content = await file.read()
 
-    # Validate file size (max 10MB)
-    if len(content) > 10 * 1024 * 1024:
+    # Validate file size (max 25MB - frontend compresses before upload)
+    if len(content) > 25 * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File too large. Maximum size is 10MB."
+            detail="File too large. Maximum size is 25MB."
         )
 
     # Upload to S3

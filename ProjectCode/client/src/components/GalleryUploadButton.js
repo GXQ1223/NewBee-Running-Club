@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import CloseIcon from '@mui/icons-material/Close';
-import { uploadGalleryImage, compressImage } from '../api/gallery';
+import { uploadGalleryImage, compressImage, compressImageForUpload } from '../api/gallery';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -72,9 +72,9 @@ const GalleryUploadButton = ({
         continue;
       }
 
-      // Validate file size (max 10MB per file)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('Some images exceed 10MB and were skipped / 部分图片超过10MB，已跳过');
+      // Validate file size (max 50MB per file - will be compressed before upload)
+      if (file.size > 50 * 1024 * 1024) {
+        setError('Some images exceed 50MB and were skipped / 部分图片超过50MB，已跳过');
         hasError = true;
         continue;
       }
@@ -129,8 +129,9 @@ const GalleryUploadButton = ({
       setUploadProgress({ current: i + 1, total: selectedFiles.length });
 
       try {
-        // Upload file directly to S3 (no base64 conversion needed)
-        const result = await uploadGalleryImage(eventId, file, null, null, currentUser?.uid);
+        // Compress image before upload (resize + JPEG compression)
+        const compressedFile = await compressImageForUpload(file);
+        const result = await uploadGalleryImage(eventId, compressedFile, null, null, currentUser?.uid);
         uploadedImages.push(result);
 
         // Notify parent of each successful upload
@@ -356,7 +357,7 @@ const GalleryUploadButton = ({
                 点击选择图片
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                Max 10MB per image, JPEG/PNG/GIF • Select multiple
+                JPEG/PNG/GIF • Select multiple • Images auto-compressed
               </Typography>
             </Box>
           )}
