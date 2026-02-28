@@ -8,24 +8,32 @@ import {
   CardMedia,
   Typography,
   Divider,
-  CircularProgress
+  CircularProgress,
+  TextField,
+  IconButton
 } from '@mui/material';
 import CollectionsIcon from '@mui/icons-material/Collections';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CloseIcon from '@mui/icons-material/Close';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
-import { getEventEngagement } from '../api';
+import { getEventEngagement, updateEvent } from '../api';
 import LikeButton from './LikeButton';
 import ReactionPicker from './ReactionPicker';
 import CommentSection from './CommentSection';
 import AdminModerationPanel from './AdminModerationPanel';
 import EventGalleryPreview from './EventGalleryPreview';
 
-export default function EventDetailModal({ event, onClose }) {
+export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { adminModeEnabled } = useAdmin();
   const [engagement, setEngagement] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionText, setDescriptionText] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (event?.id) {
@@ -65,6 +73,20 @@ export default function EventDetailModal({ event, onClose }) {
         ...engagement,
         reactions,
       });
+    }
+  };
+
+  const handleDescriptionSave = async () => {
+    setSaving(true);
+    try {
+      await updateEvent(event.id, { description: descriptionText }, currentUser.uid);
+      event.description = descriptionText;
+      setEditingDescription(false);
+      if (onEventUpdate) onEventUpdate({ ...event, description: descriptionText });
+    } catch (error) {
+      console.error('Error updating description:', error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -151,28 +173,77 @@ export default function EventDetailModal({ event, onClose }) {
             )}
           </Box>
 
-          {event.description && (
-            <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-line' }}>
-              {event.description.split(/(@?https?:\/\/[^\s]+)/g).map((part, index) => {
-                if (part.match(/^@?https?:\/\//)) {
-                  return (
-                    <a
-                      key={index}
-                      href={part.startsWith('@') ? part.substring(1) : part}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: '#FFB84D',
-                        textDecoration: 'none',
-                      }}
+          {(event.description || (adminModeEnabled && event.id)) && (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                {adminModeEnabled && event.id && !editingDescription && (
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setDescriptionText(event.description || '');
+                      setEditingDescription(true);
+                    }}
+                    sx={{ color: '#FFB84D' }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+              {editingDescription ? (
+                <Box>
+                  <TextField
+                    multiline
+                    minRows={3}
+                    fullWidth
+                    value={descriptionText}
+                    onChange={(e) => setDescriptionText(e.target.value)}
+                    variant="outlined"
+                    size="small"
+                    sx={{ mb: 1 }}
+                  />
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <IconButton
+                      size="small"
+                      onClick={handleDescriptionSave}
+                      disabled={saving}
+                      sx={{ color: '#4caf50' }}
                     >
-                      {part}
-                    </a>
-                  );
-                }
-                return part;
-              })}
-            </Typography>
+                      {saving ? <CircularProgress size={20} /> : <SaveIcon fontSize="small" />}
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => setEditingDescription(false)}
+                      disabled={saving}
+                      sx={{ color: '#f44336' }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+              ) : event.description ? (
+                <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-line' }}>
+                  {event.description.split(/(@?https?:\/\/[^\s]+)/g).map((part, index) => {
+                    if (part.match(/^@?https?:\/\//)) {
+                      return (
+                        <a
+                          key={index}
+                          href={part.startsWith('@') ? part.substring(1) : part}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: '#FFB84D',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          {part}
+                        </a>
+                      );
+                    }
+                    return part;
+                  })}
+                </Typography>
+              ) : null}
+            </Box>
           )}
 
           <Divider sx={{ my: 2 }} />
