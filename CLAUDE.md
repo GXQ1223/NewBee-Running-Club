@@ -265,12 +265,12 @@ sudo nano /var/www/newbeerunning/backend/.env
 
 **Restart backend service after config changes:**
 ```bash
-sudo systemctl restart newbeerunning
+sudo systemctl restart newbeerunning-api
 ```
 
 **Check service status:**
 ```bash
-sudo systemctl status newbeerunning
+sudo systemctl status newbeerunning-api
 ```
 
 ## Notes
