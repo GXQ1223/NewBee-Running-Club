@@ -101,7 +101,7 @@ def delete_from_s3(image_url: str) -> bool:
         print(f"S3 delete error for {image_url}: {e}")
         return False
 
-from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, EventRecurrenceRule, SiteSetting
+from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, GalleryDeletionRequest, EventRecurrenceRule, SiteSetting
 from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest,
@@ -119,7 +119,7 @@ from models import (
     BannerImageCreate, BannerImageUpdate, BannerImageResponse, CarouselBannerResponse,
     TrainingTipCreate, TrainingTipUpdate, TrainingTipResponse, TrainingTipPublicResponse, TrainingTipUpvoteResponse, TipStatus, TipCategory,
     HomepageSectionCreate, HomepageSectionUpdate, HomepageSectionResponse, SectionReorderRequest,
-    EventGalleryImageCreate, EventGalleryImageUpdate, EventGalleryImageResponse, EventGalleryPreviewResponse, EventGalleryImageLikeResponse, BatchGalleryPreviewRequest, BatchGalleryPreviewResponse,
+    EventGalleryImageCreate, EventGalleryImageUpdate, EventGalleryImageResponse, EventGalleryPreviewResponse, EventGalleryImageLikeResponse, BatchGalleryPreviewRequest, BatchGalleryPreviewResponse, GalleryDeletionRequestCreate, GalleryDeletionRequestResolve, GalleryDeletionRequestResponse,
     EventRecurrenceRuleCreate, EventRecurrenceRuleUpdate, EventRecurrenceRuleResponse, RecurrenceType, EventWithRecurrence, EventCreateWithRecurrence,
     SiteSettingCreate, SiteSettingUpdate, SiteSettingResponse, SocialLinksResponse,
     EventGroupMergeRequest, EventGroupMergeResponse, EventGroupUpdateNameRequest, EventInGroup, EventGroup, HighlightsGroupedResponse
@@ -3079,7 +3079,33 @@ def get_event_gallery(
         ).all()
         user_liked_ids = {like.image_id for like in user_likes}
 
-    # Build response with user_liked info
+    # Check pending deletion requests
+    image_ids = [img.id for img in images]
+    pending_requests = {}  # image_id -> GalleryDeletionRequestResponse
+    user_requested_ids = set()
+    if image_ids:
+        pending_reqs = db.query(GalleryDeletionRequest).filter(
+            GalleryDeletionRequest.image_id.in_(image_ids),
+            GalleryDeletionRequest.status == 'pending'
+        ).all()
+        for req in pending_reqs:
+            if req.image_id not in pending_requests:
+                requester = db.query(Member).filter(Member.id == req.requested_by_id).first()
+                pending_requests[req.image_id] = GalleryDeletionRequestResponse(
+                    id=req.id,
+                    image_id=req.image_id,
+                    requested_by_id=req.requested_by_id,
+                    requested_by_name=requester.display_name or requester.username if requester else None,
+                    reason=req.reason,
+                    status=req.status,
+                    created_at=req.created_at
+                )
+            if current_member and req.requested_by_id == current_member.id:
+                user_requested_ids.add(req.image_id)
+
+    is_admin = current_member and current_member.status in ['admin', 'committee']
+
+    # Build response with user_liked and deletion request info
     result = []
     for img in images:
         img_response = EventGalleryImageResponse(
@@ -3094,6 +3120,9 @@ def get_event_gallery(
             uploaded_by_name=img.uploaded_by_name,
             like_count=img.like_count,
             user_liked=img.id in user_liked_ids,
+            has_pending_deletion_request=img.id in pending_requests,
+            user_requested_deletion=img.id in user_requested_ids,
+            deletion_request=pending_requests.get(img.id) if is_admin else None,
             created_at=img.created_at,
             updated_at=img.updated_at
         )
@@ -3448,6 +3477,112 @@ def toggle_gallery_image_like(
         image_id=image_id,
         like_count=image.like_count,
         user_liked=user_liked
+    )
+
+
+# GALLERY DELETION REQUEST ENDPOINTS
+
+@app.post("/api/gallery/{image_id}/deletion-request", response_model=GalleryDeletionRequestResponse)
+def request_gallery_image_deletion(
+    image_id: int,
+    request_data: GalleryDeletionRequestCreate,
+    db: Session = Depends(get_db),
+    x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID")
+):
+    """Submit a deletion request for a gallery image (any logged-in user)"""
+    if not x_firebase_uid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    member = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
+    if not member:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Member not found")
+
+    image = db.query(EventGalleryImage).filter(EventGalleryImage.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+
+    # Check for existing pending request from this user
+    existing = db.query(GalleryDeletionRequest).filter(
+        GalleryDeletionRequest.image_id == image_id,
+        GalleryDeletionRequest.requested_by_id == member.id,
+        GalleryDeletionRequest.status == 'pending'
+    ).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You have already submitted a deletion request for this image")
+
+    new_request = GalleryDeletionRequest(
+        image_id=image_id,
+        requested_by_id=member.id,
+        reason=request_data.reason,
+        status='pending'
+    )
+    db.add(new_request)
+    db.commit()
+    db.refresh(new_request)
+
+    return GalleryDeletionRequestResponse(
+        id=new_request.id,
+        image_id=new_request.image_id,
+        requested_by_id=new_request.requested_by_id,
+        requested_by_name=member.display_name or member.username,
+        reason=new_request.reason,
+        status=new_request.status,
+        created_at=new_request.created_at
+    )
+
+
+@app.put("/api/gallery/deletion-request/{request_id}", response_model=GalleryDeletionRequestResponse)
+def resolve_gallery_deletion_request(
+    request_id: int,
+    resolve_data: GalleryDeletionRequestResolve,
+    db: Session = Depends(get_db),
+    x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID")
+):
+    """Approve or reject a gallery deletion request (admin only)"""
+    if not x_firebase_uid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    member = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
+    if not member or member.status not in ['admin', 'committee']:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    del_request = db.query(GalleryDeletionRequest).filter(
+        GalleryDeletionRequest.id == request_id
+    ).first()
+    if not del_request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deletion request not found")
+
+    if del_request.status != 'pending':
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This request has already been resolved")
+
+    requester = db.query(Member).filter(Member.id == del_request.requested_by_id).first()
+
+    if resolve_data.approved:
+        # Delete the image from S3 and DB
+        image = db.query(EventGalleryImage).filter(EventGalleryImage.id == del_request.image_id).first()
+        if image:
+            delete_from_s3(image.image_url)
+            db.delete(image)  # CASCADE cleans up likes and deletion requests
+
+        del_request.status = 'approved'
+    else:
+        del_request.status = 'rejected'
+
+    del_request.resolved_by_id = member.id
+    del_request.resolved_at = func.now()
+    db.commit()
+    db.refresh(del_request)
+
+    return GalleryDeletionRequestResponse(
+        id=del_request.id,
+        image_id=del_request.image_id,
+        requested_by_id=del_request.requested_by_id,
+        requested_by_name=requester.display_name or requester.username if requester else None,
+        reason=del_request.reason,
+        status=del_request.status,
+        resolved_by_id=del_request.resolved_by_id,
+        resolved_at=del_request.resolved_at,
+        created_at=del_request.created_at
     )
 
 

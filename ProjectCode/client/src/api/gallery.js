@@ -129,6 +129,34 @@ export const toggleGalleryImageLike = async (imageId, firebaseUid = null) => {
   return api.post(`/api/gallery/${imageId}/likes?${new URLSearchParams(params)}`, {}, headers);
 };
 
+// GALLERY DELETION REQUEST ENDPOINTS
+
+/**
+ * Submit a deletion request for a gallery image
+ * @param {number} imageId - Gallery image ID
+ * @param {string} reason - Reason for requesting deletion
+ * @param {string} firebaseUid - User's Firebase UID
+ * @returns {Promise<Object>} - Created deletion request
+ */
+export const requestGalleryImageDeletion = async (imageId, reason, firebaseUid) => {
+  return api.post(`/api/gallery/${imageId}/deletion-request`, { reason }, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
+/**
+ * Resolve (approve/reject) a gallery deletion request (admin only)
+ * @param {number} requestId - Deletion request ID
+ * @param {boolean} approved - Whether to approve the deletion
+ * @param {string} firebaseUid - Admin's Firebase UID
+ * @returns {Promise<Object>} - Updated deletion request
+ */
+export const resolveGalleryDeletionRequest = async (requestId, approved, firebaseUid) => {
+  return api.put(`/api/gallery/deletion-request/${requestId}`, { approved }, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
 // UTILITY FUNCTIONS
 
 /**

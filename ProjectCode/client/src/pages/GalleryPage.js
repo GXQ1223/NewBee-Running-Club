@@ -19,13 +19,17 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  TextField,
+  CircularProgress,
 } from '@mui/material';
 import { useParams, useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { getEventGallery, toggleGalleryImageLike, deleteGalleryImage } from '../api/gallery';
+import FlagIcon from '@mui/icons-material/Flag';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import { getEventGallery, toggleGalleryImageLike, deleteGalleryImage, requestGalleryImageDeletion, resolveGalleryDeletionRequest } from '../api/gallery';
 import { getEventById } from '../api/events';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
@@ -50,6 +54,17 @@ const GalleryPage = () => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [imageToDelete, setImageToDelete] = useState(null);
+
+  // Deletion request state
+  const [requestDeleteDialogOpen, setRequestDeleteDialogOpen] = useState(false);
+  const [imageToRequestDelete, setImageToRequestDelete] = useState(null);
+  const [deletionReason, setDeletionReason] = useState('');
+  const [requestLoading, setRequestLoading] = useState(false);
+
+  // Admin review state
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [requestToReview, setRequestToReview] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   // Permission check: admin OR uploader can delete
   const canDelete = (image) => {
@@ -150,6 +165,71 @@ const GalleryPage = () => {
       setImageToDelete(null);
     } catch (error) {
       console.error('Failed to delete image:', error);
+    }
+  };
+
+  // --- Request Deletion (any logged-in user) ---
+  const handleRequestDeleteClick = (e, image) => {
+    e.stopPropagation();
+    setImageToRequestDelete(image);
+    setDeletionReason('');
+    setRequestDeleteDialogOpen(true);
+  };
+
+  const openRequestDeleteDialog = (image) => {
+    setImageToRequestDelete(image);
+    setDeletionReason('');
+    setRequestDeleteDialogOpen(true);
+  };
+
+  const handleRequestDeleteSubmit = async () => {
+    if (!imageToRequestDelete || !deletionReason.trim()) return;
+    setRequestLoading(true);
+    try {
+      await requestGalleryImageDeletion(imageToRequestDelete.id, deletionReason.trim(), currentUser.uid);
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === imageToRequestDelete.id
+            ? { ...img, user_requested_deletion: true, has_pending_deletion_request: true }
+            : img
+        )
+      );
+      setRequestDeleteDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to submit deletion request:', err);
+    } finally {
+      setRequestLoading(false);
+    }
+  };
+
+  // --- Admin Review ---
+  const handleReviewClick = (e, image) => {
+    e.stopPropagation();
+    setRequestToReview({ image, deletionRequest: image.deletion_request });
+    setReviewDialogOpen(true);
+  };
+
+  const handleReviewResolve = async (approved) => {
+    if (!requestToReview?.deletionRequest) return;
+    setReviewLoading(true);
+    try {
+      await resolveGalleryDeletionRequest(requestToReview.deletionRequest.id, approved, currentUser.uid);
+      if (approved) {
+        setImages((prev) => prev.filter((img) => img.id !== requestToReview.image.id));
+      } else {
+        setImages((prev) =>
+          prev.map((img) =>
+            img.id === requestToReview.image.id
+              ? { ...img, has_pending_deletion_request: false, deletion_request: null }
+              : img
+          )
+        );
+      }
+      setReviewDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to resolve deletion request:', err);
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -347,6 +427,62 @@ const GalleryPage = () => {
                     </IconButton>
                   )}
 
+                  {/* Request deletion button - bottom left (logged-in non-admin/non-uploader) */}
+                  {currentUser && !canDelete(image) && !image.user_requested_deletion && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleRequestDeleteClick(e, image)}
+                      sx={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: 8,
+                        backgroundColor: 'rgba(255,255,255,0.85)',
+                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.95)' },
+                        color: 'text.secondary',
+                      }}
+                    >
+                      <FlagIcon fontSize="small" />
+                    </IconButton>
+                  )}
+
+                  {/* "Requested" indicator - bottom left */}
+                  {currentUser && image.user_requested_deletion && !canDelete(image) && (
+                    <Chip
+                      size="small"
+                      label="Requested"
+                      sx={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: 8,
+                        backgroundColor: 'rgba(255,152,0,0.9)',
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        height: 22,
+                      }}
+                    />
+                  )}
+
+                  {/* Admin: red "Delete Request" chip */}
+                  {adminModeEnabled && image.has_pending_deletion_request && (
+                    <Chip
+                      size="small"
+                      icon={<ReportProblemIcon sx={{ fontSize: 14, color: 'white !important' }} />}
+                      label="Delete Request"
+                      onClick={(e) => handleReviewClick(e, image)}
+                      sx={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: 8,
+                        backgroundColor: 'rgba(211,47,47,0.9)',
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        height: 22,
+                        cursor: 'pointer',
+                        '&:hover': { backgroundColor: 'rgba(211,47,47,1)' },
+                      }}
+                    />
+                  )}
+
                   {/* Like count badge - top left */}
                   {image.like_count > 0 && (
                     <Box
@@ -410,6 +546,8 @@ const GalleryPage = () => {
         images={images}
         initialIndex={lightboxIndex}
         onImageUpdate={handleImageUpdate}
+        eventId={eventId}
+        onRequestDelete={openRequestDeleteDialog}
       />
 
       {/* Delete confirmation dialog */}
@@ -427,6 +565,92 @@ const GalleryPage = () => {
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleDeleteConfirm} color="error">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Request Deletion Dialog */}
+      <Dialog
+        open={requestDeleteDialogOpen}
+        onClose={() => setRequestDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Request Image Deletion / 申请删除图片</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 1 }}>
+            Please provide a reason for requesting this image to be removed. A committee member will review your request.
+          </DialogContentText>
+          <DialogContentText sx={{ mb: 2, color: 'text.secondary' }}>
+            请提供申请删除此图片的原因。委员会成员将审核您的请求。
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={3}
+            label="Reason / 原因"
+            value={deletionReason}
+            onChange={(e) => setDeletionReason(e.target.value)}
+            placeholder="Why should this image be removed?"
+            required
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRequestDeleteDialogOpen(false)}>Cancel / 取消</Button>
+          <Button
+            onClick={handleRequestDeleteSubmit}
+            variant="contained"
+            color="warning"
+            disabled={!deletionReason.trim() || requestLoading}
+          >
+            {requestLoading ? <CircularProgress size={20} /> : 'Submit Request / 提交申请'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Admin: Review Deletion Request Dialog */}
+      <Dialog
+        open={reviewDialogOpen}
+        onClose={() => setReviewDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Review Deletion Request / 审核删除请求</DialogTitle>
+        <DialogContent>
+          {requestToReview?.deletionRequest && (
+            <>
+              <DialogContentText sx={{ mb: 1 }}>
+                <strong>Requested by / 申请人:</strong> {requestToReview.deletionRequest.requested_by_name}
+              </DialogContentText>
+              <DialogContentText sx={{ mb: 2 }}>
+                <strong>Reason / 原因:</strong> {requestToReview.deletionRequest.reason}
+              </DialogContentText>
+              <DialogContentText sx={{ color: 'text.secondary' }}>
+                Approving will permanently delete this image. Rejecting will dismiss the request.
+              </DialogContentText>
+              <DialogContentText sx={{ color: 'text.secondary' }}>
+                批准将永久删除此图片。拒绝将驳回此请求。
+              </DialogContentText>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setReviewDialogOpen(false)}>Cancel / 取消</Button>
+          <Button
+            onClick={() => handleReviewResolve(false)}
+            variant="outlined"
+            disabled={reviewLoading}
+          >
+            Reject / 拒绝
+          </Button>
+          <Button
+            onClick={() => handleReviewResolve(true)}
+            variant="contained"
+            color="error"
+            disabled={reviewLoading}
+          >
+            {reviewLoading ? <CircularProgress size={20} /> : 'Approve Delete / 批准删除'}
           </Button>
         </DialogActions>
       </Dialog>

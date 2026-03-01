@@ -18,8 +18,12 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import DownloadIcon from '@mui/icons-material/Download';
 import ShareIcon from '@mui/icons-material/Share';
+import WallpaperIcon from '@mui/icons-material/Wallpaper';
+import FlagIcon from '@mui/icons-material/Flag';
 import { toggleGalleryImageLike, downloadImage, shareImage } from '../api/gallery';
+import { updateEvent } from '../api/events';
 import { useAuth } from '../context/AuthContext';
+import { useAdmin } from '../context/AdminContext';
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -34,13 +38,17 @@ const GalleryLightbox = ({
   images,
   initialIndex = 0,
   onImageUpdate,
+  eventId,
+  onRequestDelete,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [liking, setLiking] = useState(false);
+  const [settingCover, setSettingCover] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { currentUser } = useAuth();
+  const { adminModeEnabled } = useAdmin();
 
   // Reset index when opening with new initialIndex
   useEffect(() => {
@@ -130,6 +138,28 @@ const GalleryLightbox = ({
         : 'Failed to share',
       severity: success ? 'success' : 'error',
     });
+  };
+
+  const handleSetCover = async () => {
+    if (settingCover || !currentImage || !eventId) return;
+    setSettingCover(true);
+
+    try {
+      await updateEvent(eventId, { image: currentImage.image_url }, currentUser.uid);
+      setSnackbar({
+        open: true,
+        message: 'Cover image updated / 封面已更新',
+        severity: 'success',
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to set cover image / 设置封面失败',
+        severity: 'error',
+      });
+    } finally {
+      setSettingCover(false);
+    }
   };
 
   if (!currentImage) return null;
@@ -309,6 +339,41 @@ const GalleryLightbox = ({
                   Share
                 </Typography>
               </Box>
+
+              {/* Set as Cover button - admin only */}
+              {adminModeEnabled && eventId && (
+                <Box sx={{ textAlign: 'center' }}>
+                  <IconButton
+                    onClick={handleSetCover}
+                    disabled={settingCover}
+                    sx={{ color: 'white' }}
+                  >
+                    <WallpaperIcon />
+                  </IconButton>
+                  <Typography variant="caption" sx={{ color: 'white', display: 'block' }}>
+                    Set Cover
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Request Delete button - logged-in non-admin users */}
+              {currentUser && !adminModeEnabled && onRequestDelete && (
+                <Box sx={{ textAlign: 'center' }}>
+                  <IconButton
+                    onClick={() => {
+                      onClose();
+                      onRequestDelete(currentImage);
+                    }}
+                    disabled={currentImage.user_requested_deletion}
+                    sx={{ color: currentImage.user_requested_deletion ? 'grey.500' : 'white' }}
+                  >
+                    <FlagIcon />
+                  </IconButton>
+                  <Typography variant="caption" sx={{ color: 'white', display: 'block' }}>
+                    {currentImage.user_requested_deletion ? 'Requested' : 'Report'}
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
             {/* Uploader info */}

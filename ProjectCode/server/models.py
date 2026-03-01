@@ -730,6 +730,21 @@ class EventGalleryImageUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class GalleryDeletionRequestResponse(BaseModel):
+    id: int
+    image_id: int
+    requested_by_id: int
+    requested_by_name: Optional[str] = None
+    reason: str
+    status: str
+    resolved_by_id: Optional[int] = None
+    resolved_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class EventGalleryImageResponse(EventGalleryImageBase):
     id: int
     event_id: int
@@ -739,6 +754,9 @@ class EventGalleryImageResponse(EventGalleryImageBase):
     uploaded_by_name: Optional[str] = None
     like_count: int = 0
     user_liked: bool = False  # Populated based on requesting user
+    has_pending_deletion_request: bool = False
+    user_requested_deletion: bool = False
+    deletion_request: Optional[GalleryDeletionRequestResponse] = None  # Populated for admins only
     created_at: datetime
     updated_at: datetime
 
@@ -766,6 +784,14 @@ class BatchGalleryPreviewRequest(BaseModel):
 
 class BatchGalleryPreviewResponse(BaseModel):
     previews: Dict[int, EventGalleryPreviewResponse]
+
+
+class GalleryDeletionRequestCreate(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=1000)
+
+
+class GalleryDeletionRequestResolve(BaseModel):
+    approved: bool
 
 
 # ========== Event Recurrence Schemas ==========

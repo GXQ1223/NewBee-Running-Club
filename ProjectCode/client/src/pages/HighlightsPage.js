@@ -1,8 +1,10 @@
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import { Box, Button, Card, CardContent, CardMedia, Chip, Container, Grid, IconButton, Menu, MenuItem, TextField, Typography } from '@mui/material';
+import ShareIcon from '@mui/icons-material/Share';
+import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, Container, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, useSensor, useSensors, TouchSensor, MouseSensor, closestCenter } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import NavigationButtons from '../components/NavigationButtons';
@@ -60,7 +62,9 @@ function DroppableEventCard({ id, children, disabled }) {
 export default function HighlightsPage() {
   const { currentUser } = useAuth();
   const { adminModeEnabled } = useAdmin();
+  const [searchParams] = useSearchParams();
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [pastEvents, setPastEvents] = useState([]);
   const [eventGroups, setEventGroups] = useState([]);
   const [standaloneEvents, setStandaloneEvents] = useState([]);
@@ -372,6 +376,66 @@ export default function HighlightsPage() {
     e.target.src = '/images/2025/20250517_bk_half.jpg';
   };
 
+  const handleShare = async (e, eventId, eventName) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/highlights?event=${eventId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setSnackbar({
+        open: true,
+        message: 'Copied to clipboard / 已复制到剪贴板',
+        severity: 'success',
+      });
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      setSnackbar({
+        open: true,
+        message: 'Failed to copy / 复制失败',
+        severity: 'error',
+      });
+    }
+  };
+
+  // Deep-link: auto-open event modal from ?event= query param
+  useEffect(() => {
+    const eventIdParam = searchParams.get('event');
+    if (!eventIdParam) return;
+    const eventId = parseInt(eventIdParam, 10);
+    if (isNaN(eventId)) return;
+
+    // Search in standalone events
+    const found = standaloneEvents.find(e => e.id === eventId);
+    if (found) {
+      setSelectedEvent(found);
+      return;
+    }
+
+    // Search in featured events
+    const featuredFound = featuredEvents.find(e => e.id === eventId);
+    if (featuredFound) {
+      setSelectedEvent(featuredFound);
+      return;
+    }
+
+    // Search in event groups
+    for (const group of eventGroups) {
+      const groupEvent = group.events?.find(e => e.id === eventId);
+      if (groupEvent) {
+        setSelectedEvent({
+          id: groupEvent.id,
+          name: groupEvent.name,
+          chineseName: groupEvent.chinese_name,
+          date: groupEvent.date,
+          time: groupEvent.time,
+          location: groupEvent.location,
+          chineseLocation: groupEvent.chinese_location,
+          image: groupEvent.image,
+        });
+        return;
+      }
+    }
+  }, [searchParams, standaloneEvents, featuredEvents, eventGroups]);
+
   useEffect(() => {
     const fetchEvents = async () => {
       await refreshEvents();
@@ -509,18 +573,33 @@ export default function HighlightsPage() {
                 }}
                 onClick={() => handleEventClick(event)}
               >
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={event.image}
-                  alt={event.title}
-                  loading="lazy"
-                  onError={handleImageError}
-                  sx={{
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                />
+                <Box sx={{ position: 'relative' }}>
+                  <CardMedia
+                    component="img"
+                    height="200"
+                    image={event.image}
+                    alt={event.title}
+                    loading="lazy"
+                    onError={handleImageError}
+                    sx={{
+                      objectFit: 'cover',
+                      backgroundColor: '#f5f5f5'
+                    }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleShare(e, event.id, event.title)}
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
+                    }}
+                  >
+                    <ShareIcon fontSize="small" />
+                  </IconButton>
+                </Box>
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                   <Typography gutterBottom variant="h6" component="div" sx={{
                     overflow: 'hidden',
@@ -843,23 +922,31 @@ export default function HighlightsPage() {
                   position: 'relative'
                 }}
               >
-                {/* Admin menu button */}
-                {adminModeEnabled && (
+                {/* Share and admin buttons */}
+                <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', gap: 0.5 }}>
                   <IconButton
                     size="small"
-                    onClick={(e) => handleMenuOpen(e, event.id)}
+                    onClick={(e) => handleShare(e, event.id, event.name)}
                     sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      zIndex: 10,
                       backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      '&:hover': { backgroundColor: 'rgba(255, 165, 0, 0.2)' }
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
                     }}
                   >
-                    <MoreVertIcon fontSize="small" />
+                    <ShareIcon fontSize="small" />
                   </IconButton>
-                )}
+                  {adminModeEnabled && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleMenuOpen(e, event.id)}
+                      sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '&:hover': { backgroundColor: 'rgba(255, 165, 0, 0.2)' }
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
                 {/* Mobile: Show date/time at top of content */}
                 <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: '#FFA500' }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -1006,6 +1093,22 @@ export default function HighlightsPage() {
         onRemoveFromGroup={handleRemoveFromGroup}
         adminModeEnabled={adminModeEnabled}
       />
+
+      {/* Share Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 } 

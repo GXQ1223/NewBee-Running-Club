@@ -593,6 +593,31 @@ class EventGalleryImageLike(Base):
     )
 
 
+# Gallery Deletion Request Model for moderated image deletion
+class GalleryDeletionRequest(Base):
+    __tablename__ = "gallery_deletion_requests"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    image_id = Column(Integer, ForeignKey('event_gallery_images.id', ondelete='CASCADE'), nullable=False)
+    requested_by_id = Column(Integer, ForeignKey('members.id', ondelete='CASCADE'), nullable=False)
+    reason = Column(Text, nullable=False)
+    status = Column(String(20), default='pending')  # 'pending', 'approved', 'rejected'
+    resolved_by_id = Column(Integer, ForeignKey('members.id', ondelete='SET NULL'))
+    resolved_at = Column(DateTime)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    image = relationship("EventGalleryImage", backref="deletion_requests")
+    requested_by = relationship("Member", foreign_keys=[requested_by_id])
+    resolved_by = relationship("Member", foreign_keys=[resolved_by_id])
+
+    __table_args__ = (
+        Index('idx_deletion_req_image_id', 'image_id'),
+        Index('idx_deletion_req_status', 'status'),
+    )
+
+
 # Event Recurrence Rule Model for recurring events
 class EventRecurrenceRule(Base):
     __tablename__ = "event_recurrence_rules"
