@@ -320,15 +320,17 @@ const GalleryLightbox = ({
                 </Typography>
               </Box>
 
-              {/* Download button */}
-              <Box sx={{ textAlign: 'center' }}>
-                <IconButton onClick={handleDownload} sx={{ color: 'white' }}>
-                  <DownloadIcon />
-                </IconButton>
-                <Typography variant="caption" sx={{ color: 'white', display: 'block' }}>
-                  Download
-                </Typography>
-              </Box>
+              {/* Download button - only for logged-in members */}
+              {currentUser && (
+                <Box sx={{ textAlign: 'center' }}>
+                  <IconButton onClick={handleDownload} sx={{ color: 'white' }}>
+                    <DownloadIcon />
+                  </IconButton>
+                  <Typography variant="caption" sx={{ color: 'white', display: 'block' }}>
+                    Download
+                  </Typography>
+                </Box>
+              )}
 
               {/* Share button */}
               <Box sx={{ textAlign: 'center' }}>
