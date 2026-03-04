@@ -3088,6 +3088,7 @@ def get_event_gallery(
             image_url=img.image_url,
             caption=img.caption,
             caption_cn=img.caption_cn,
+            photographer_credit=img.photographer_credit,
             display_order=img.display_order,
             is_active=img.is_active,
             uploaded_by_id=img.uploaded_by_id,
@@ -3151,6 +3152,7 @@ def get_event_gallery_preview(
             image_url=img.image_url,
             caption=img.caption,
             caption_cn=img.caption_cn,
+            photographer_credit=img.photographer_credit,
             display_order=img.display_order,
             is_active=img.is_active,
             uploaded_by_id=img.uploaded_by_id,
@@ -3216,6 +3218,7 @@ def get_batch_gallery_preview(
                 image_url=img.image_url,
                 caption=img.caption,
                 caption_cn=img.caption_cn,
+                photographer_credit=img.photographer_credit,
                 display_order=img.display_order,
                 is_active=img.is_active,
                 uploaded_by_id=img.uploaded_by_id,
@@ -3237,12 +3240,23 @@ def get_batch_gallery_preview(
     return BatchGalleryPreviewResponse(previews=previews)
 
 
+@app.get("/api/gallery/photographers")
+def get_photographer_names(db: Session = Depends(get_db)):
+    """Get all distinct photographer credit names for autocomplete dropdown"""
+    names = db.query(EventGalleryImage.photographer_credit).filter(
+        EventGalleryImage.photographer_credit.isnot(None),
+        EventGalleryImage.photographer_credit != ''
+    ).distinct().all()
+    return sorted(set(name[0] for name in names if name[0]))
+
+
 @app.post("/api/events/{event_id}/gallery", response_model=EventGalleryImageResponse)
 async def upload_gallery_image(
     event_id: int,
     file: UploadFile = File(...),
     caption: Optional[str] = Form(None),
     caption_cn: Optional[str] = Form(None),
+    photographer_credit: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID")
 ):
@@ -3282,14 +3296,17 @@ async def upload_gallery_image(
         EventGalleryImage.event_id == event_id
     ).scalar() or 0
 
+    uploader_name = current_member.display_name or current_member.username if current_member else "Anonymous"
+
     new_image = EventGalleryImage(
         event_id=event_id,
         image_url=image_url,
         caption=caption,
         caption_cn=caption_cn,
+        photographer_credit=photographer_credit.strip() if photographer_credit and photographer_credit.strip() else uploader_name,
         display_order=max_order + 1,
         uploaded_by_id=current_member.id if current_member else None,
-        uploaded_by_name=current_member.display_name or current_member.username if current_member else "Anonymous"
+        uploaded_by_name=uploader_name
     )
 
     db.add(new_image)
@@ -3302,6 +3319,7 @@ async def upload_gallery_image(
         image_url=new_image.image_url,
         caption=new_image.caption,
         caption_cn=new_image.caption_cn,
+        photographer_credit=new_image.photographer_credit,
         display_order=new_image.display_order,
         is_active=new_image.is_active,
         uploaded_by_id=new_image.uploaded_by_id,
@@ -3338,6 +3356,7 @@ def update_gallery_image(
         image_url=image.image_url,
         caption=image.caption,
         caption_cn=image.caption_cn,
+        photographer_credit=image.photographer_credit,
         display_order=image.display_order,
         is_active=image.is_active,
         uploaded_by_id=image.uploaded_by_id,

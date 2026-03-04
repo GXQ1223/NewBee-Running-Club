@@ -50,21 +50,31 @@ export const getBatchGalleryPreview = async (eventIds, firebaseUid = null) => {
 };
 
 /**
+ * Get all known photographer names for autocomplete
+ * @returns {Promise<Array<string>>} - List of photographer names
+ */
+export const getPhotographerNames = async () => {
+  return api.get('/api/gallery/photographers');
+};
+
+/**
  * Upload a new image to event gallery (uploads file to S3)
  * @param {number} eventId - Event ID
  * @param {File} file - Image file to upload
  * @param {string|null} caption - Optional caption (English)
  * @param {string|null} captionCn - Optional caption (Chinese)
+ * @param {string|null} photographerCredit - Photographer name
  * @param {string|null} firebaseUid - User's Firebase UID (optional but recommended)
  * @returns {Promise<Object>} - Created gallery image
  */
-export const uploadGalleryImage = async (eventId, file, caption = null, captionCn = null, firebaseUid = null) => {
+export const uploadGalleryImage = async (eventId, file, caption = null, captionCn = null, photographerCredit = null, firebaseUid = null) => {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
   const formData = new FormData();
   formData.append('file', file);
   if (caption) formData.append('caption', caption);
   if (captionCn) formData.append('caption_cn', captionCn);
+  if (photographerCredit) formData.append('photographer_credit', photographerCredit);
 
   const headers = {};
   if (firebaseUid) {

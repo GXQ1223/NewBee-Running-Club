@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
+  Autocomplete,
   Box,
   Button,
   Dialog,
@@ -14,11 +15,14 @@ import {
   useMediaQuery,
   LinearProgress,
   Grid,
+  TextField,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import CloseIcon from '@mui/icons-material/Close';
-import { uploadGalleryImage, compressImage, compressImageForUpload } from '../api/gallery';
+import { uploadGalleryImage, compressImage, compressImageForUpload, getPhotographerNames } from '../api/gallery';
 import { useAuth } from '../context/AuthContext';
+import { useAdmin } from '../context';
 
 /**
  * GalleryUploadButton - Upload interface for authenticated users to add photos to gallery
@@ -35,16 +39,29 @@ const GalleryUploadButton = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState(null);
+  const [photographerCredit, setPhotographerCredit] = useState('');
+  const [photographerOptions, setPhotographerOptions] = useState([]);
   const fileInputRef = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { currentUser } = useAuth();
+  const { memberData } = useAdmin();
+
+  // Fetch known photographer names for autocomplete
+  useEffect(() => {
+    getPhotographerNames()
+      .then(names => setPhotographerOptions(names || []))
+      .catch(() => {});
+  }, []);
 
   const handleOpen = () => {
     if (!currentUser) {
       setError('Please log in to upload photos / 请登录后上传照片');
       return;
     }
+    // Default photographer credit to current user's name
+    const defaultName = memberData?.display_name || memberData?.username || currentUser?.displayName || '';
+    setPhotographerCredit(defaultName);
     setOpen(true);
   };
 
@@ -53,6 +70,7 @@ const GalleryUploadButton = ({
     setSelectedFiles([]);
     setPreviews([]);
     setError(null);
+    setPhotographerCredit('');
     setUploadProgress({ current: 0, total: 0 });
   };
 
@@ -131,7 +149,7 @@ const GalleryUploadButton = ({
       try {
         // Compress image before upload (resize + JPEG compression)
         const compressedFile = await compressImageForUpload(file);
-        const result = await uploadGalleryImage(eventId, compressedFile, null, null, currentUser?.uid);
+        const result = await uploadGalleryImage(eventId, compressedFile, null, null, photographerCredit || null, currentUser?.uid);
         uploadedImages.push(result);
 
         // Notify parent of each successful upload
@@ -360,6 +378,35 @@ const GalleryUploadButton = ({
                 JPEG/PNG/GIF • Select multiple • Images auto-compressed
               </Typography>
             </Box>
+          )}
+
+          {/* Photographer credit */}
+          {selectedFiles.length > 0 && (
+            <Autocomplete
+              freeSolo
+              options={photographerOptions}
+              value={photographerCredit}
+              onInputChange={(_, value) => setPhotographerCredit(value)}
+              disabled={uploading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Photographer 摄影师"
+                  placeholder="Search or enter name..."
+                  size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <CameraAltIcon sx={{ color: 'text.secondary', mr: 0.5, fontSize: 18 }} />
+                        {params.InputProps.startAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              sx={{ mt: 1, mb: 1 }}
+            />
           )}
 
           {/* Error message */}

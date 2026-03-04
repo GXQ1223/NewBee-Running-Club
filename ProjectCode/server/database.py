@@ -552,6 +552,7 @@ class EventGalleryImage(Base):
     image_url = Column(Text().with_variant(LONGTEXT(), 'mysql'), nullable=False)  # Base64 data URL - LONGTEXT for MySQL (up to 4GB)
     caption = Column(String(500))
     caption_cn = Column(String(500))
+    photographer_credit = Column(String(200))  # Photographer name, defaults to uploader
     display_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     uploaded_by_id = Column(Integer, ForeignKey('members.id', ondelete='SET NULL'))

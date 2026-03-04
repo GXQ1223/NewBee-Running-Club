@@ -25,6 +25,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import { getEventGallery, toggleGalleryImageLike, deleteGalleryImage } from '../api/gallery';
 import { getEventById } from '../api/events';
 import { useAuth } from '../context/AuthContext';
@@ -373,19 +374,28 @@ const GalleryPage = () => {
 
                 {/* Footer info */}
                 <CardContent sx={{ py: 1, px: 1.5 }}>
-                  {image.uploaded_by_name && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
+                  {(image.photographer_credit || image.uploaded_by_name) && (
+                    <Box
                       sx={{
-                        display: 'block',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {image.uploaded_by_name}
-                    </Typography>
+                      <CameraAltIcon sx={{ fontSize: 14, color: 'text.secondary', flexShrink: 0 }} />
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {image.photographer_credit || image.uploaded_by_name}
+                      </Typography>
+                    </Box>
                   )}
                 </CardContent>
               </Card>

@@ -726,6 +726,7 @@ class EventGalleryImageCreate(EventGalleryImageBase):
 class EventGalleryImageUpdate(BaseModel):
     caption: Optional[str] = Field(None, max_length=500)
     caption_cn: Optional[str] = Field(None, max_length=500)
+    photographer_credit: Optional[str] = Field(None, max_length=200)
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
 
@@ -734,6 +735,7 @@ class EventGalleryImageResponse(EventGalleryImageBase):
     id: int
     event_id: int
     image_url: str
+    photographer_credit: Optional[str] = None
     is_active: bool = True
     uploaded_by_id: Optional[int] = None
     uploaded_by_name: Optional[str] = None

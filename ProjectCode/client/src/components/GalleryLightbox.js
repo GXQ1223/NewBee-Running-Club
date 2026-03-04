@@ -18,6 +18,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import DownloadIcon from '@mui/icons-material/Download';
 import ShareIcon from '@mui/icons-material/Share';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import { toggleGalleryImageLike, downloadImage, shareImage } from '../api/gallery';
 import { useAuth } from '../context/AuthContext';
 
@@ -311,19 +312,25 @@ const GalleryLightbox = ({
               </Box>
             </Box>
 
-            {/* Uploader info */}
-            {currentImage.uploaded_by_name && (
-              <Typography
-                variant="caption"
+            {/* Photographer / uploader info */}
+            {(currentImage.photographer_credit || currentImage.uploaded_by_name) && (
+              <Box
                 sx={{
-                  color: 'rgba(255,255,255,0.5)',
-                  display: 'block',
-                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.5,
                   mt: 1,
                 }}
               >
-                Uploaded by {currentImage.uploaded_by_name}
-              </Typography>
+                <CameraAltIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }} />
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'rgba(255,255,255,0.5)' }}
+                >
+                  {currentImage.photographer_credit || currentImage.uploaded_by_name}
+                </Typography>
+              </Box>
             )}
           </Box>
         </DialogContent>
