@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ const GalleryLightbox = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const { adminModeEnabled } = useAdmin();
 
   // Reset index when opening with new initialIndex
@@ -320,17 +322,31 @@ const GalleryLightbox = ({
                 </Typography>
               </Box>
 
-              {/* Download button - only for logged-in members */}
-              {currentUser && (
-                <Box sx={{ textAlign: 'center' }}>
-                  <IconButton onClick={handleDownload} sx={{ color: 'white' }}>
-                    <DownloadIcon />
-                  </IconButton>
-                  <Typography variant="caption" sx={{ color: 'white', display: 'block' }}>
-                    Download
-                  </Typography>
-                </Box>
-              )}
+              {/* Download button - greyed out with sign-up prompt for anonymous users */}
+              <Box sx={{ textAlign: 'center' }}>
+                {currentUser ? (
+                  <>
+                    <IconButton onClick={handleDownload} sx={{ color: 'white' }}>
+                      <DownloadIcon />
+                    </IconButton>
+                    <Typography variant="caption" sx={{ color: 'white', display: 'block' }}>
+                      Download
+                    </Typography>
+                  </>
+                ) : (
+                  <>
+                    <IconButton
+                      onClick={() => { onClose(); navigate('/register'); }}
+                      sx={{ color: 'grey.600' }}
+                    >
+                      <DownloadIcon />
+                    </IconButton>
+                    <Typography variant="caption" sx={{ color: 'grey.600', display: 'block' }}>
+                      Sign in to download
+                    </Typography>
+                  </>
+                )}
+              </Box>
 
               {/* Share button */}
               <Box sx={{ textAlign: 'center' }}>
@@ -358,8 +374,8 @@ const GalleryLightbox = ({
                 </Box>
               )}
 
-              {/* Request Delete button - logged-in non-admin users */}
-              {currentUser && !adminModeEnabled && onRequestDelete && (
+              {/* Report button - available to all users */}
+              {!adminModeEnabled && onRequestDelete && (
                 <Box sx={{ textAlign: 'center' }}>
                   <IconButton
                     onClick={() => {
