@@ -39,6 +39,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const [engagement, setEngagement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [shareSnackbar, setShareSnackbar] = useState(false);
+  const [errorSnackbar, setErrorSnackbar] = useState({ open: false, message: '' });
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionText, setDescriptionText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -56,6 +57,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
       setEngagement(data);
     } catch (error) {
       console.error('Error fetching engagement:', error);
+      setErrorSnackbar({ open: true, message: 'Failed to load engagement / 加载互动失败' });
     } finally {
       setLoading(false);
     }
@@ -100,6 +102,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
       if (onEventUpdate) onEventUpdate({ ...event, description: descriptionText });
     } catch (error) {
       console.error('Error updating description:', error);
+      setErrorSnackbar({ open: true, message: 'Failed to save description / 保存描述失败' });
     } finally {
       setSaving(false);
     }
@@ -355,6 +358,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                     initialCount={engagement.likes.count}
                     initialLiked={engagement.likes.user_liked}
                     onUpdate={handleLikeUpdate}
+                    onError={(msg) => setErrorSnackbar({ open: true, message: msg })}
                   />
                 )}
                 {engagement.reactions_enabled && (
@@ -362,6 +366,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                     eventId={event.id}
                     reactions={engagement.reactions}
                     onUpdate={handleReactionsUpdate}
+                    onError={(msg) => setErrorSnackbar({ open: true, message: msg })}
                   />
                 )}
               </Box>
@@ -451,6 +456,16 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
       >
         <Alert onClose={() => setShareSnackbar(false)} severity="success" sx={{ width: '100%' }}>
           Link copied / 链接已复制
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={errorSnackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setErrorSnackbar({ open: false, message: '' })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setErrorSnackbar({ open: false, message: '' })} severity="error" sx={{ width: '100%' }}>
+          {errorSnackbar.message}
         </Alert>
       </Snackbar>
     </Box>,

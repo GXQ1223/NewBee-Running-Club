@@ -2792,7 +2792,7 @@ ALLOWED_IMAGE_EXTENSIONS = {
 @app.post("/api/upload/image")
 async def upload_image(
     file: UploadFile = File(...),
-    current_admin: Member = Depends(get_current_admin)
+    current_admin: Member = Depends(get_current_committee_or_admin)
 ):
     """Upload an image file (admin only). Returns base64 data URL for database storage."""
     # Get file extension
@@ -3786,7 +3786,8 @@ def manually_generate_recurrence(
                     custom = json.loads(rule.custom_rule)
                     interval_days = custom.get('interval_days', 7)
                     current_date = current_date + timedelta(days=interval_days)
-                except:
+                except Exception as e:
+                    print(f"Error parsing custom rule: {e}")
                     current_date = current_date + timedelta(weeks=1)
             else:
                 current_date = current_date + timedelta(weeks=1)

@@ -24,7 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import { deleteComment, toggleCommentHighlight, hideComment, unhideComment } from '../api';
 
-export default function CommentItem({ comment, onUpdate, onDelete }) {
+export default function CommentItem({ comment, onUpdate, onDelete, onError }) {
   const { currentUser } = useAuth();
   const { adminModeEnabled } = useAdmin();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -55,6 +55,7 @@ export default function CommentItem({ comment, onUpdate, onDelete }) {
       if (onDelete) onDelete(comment.id);
     } catch (error) {
       console.error('Error deleting comment:', error);
+      if (onError) onError('Failed to delete comment / 删除评论失败');
     } finally {
       setLoading(false);
     }
@@ -68,6 +69,7 @@ export default function CommentItem({ comment, onUpdate, onDelete }) {
       if (onUpdate) onUpdate({ ...comment, is_highlighted: result.is_highlighted });
     } catch (error) {
       console.error('Error toggling highlight:', error);
+      if (onError) onError('Failed to toggle highlight / 切换高亮失败');
     } finally {
       setLoading(false);
     }
@@ -89,6 +91,7 @@ export default function CommentItem({ comment, onUpdate, onDelete }) {
       setHideReason('');
     } catch (error) {
       console.error('Error hiding comment:', error);
+      if (onError) onError('Failed to hide comment / 隐藏评论失败');
     } finally {
       setLoading(false);
     }
@@ -102,6 +105,7 @@ export default function CommentItem({ comment, onUpdate, onDelete }) {
       if (onUpdate) onUpdate({ ...comment, is_hidden: false, hidden_reason: null });
     } catch (error) {
       console.error('Error unhiding comment:', error);
+      if (onError) onError('Failed to unhide comment / 取消隐藏失败');
     } finally {
       setLoading(false);
     }

@@ -193,6 +193,7 @@ export default function CalendarPage() {
         })));
       } catch (error) {
         console.error('Error loading events:', error);
+        setSnackbar({ open: true, message: 'Failed to load events / 加载活动失败', severity: 'error' });
       }
     };
 

@@ -171,6 +171,7 @@ export default function CommentSection({ eventId, commentsEnabled = true, onComm
               comment={comment}
               onUpdate={handleCommentUpdate}
               onDelete={handleCommentDelete}
+              onError={(msg) => setError(msg)}
             />
           ))}
         </Box>

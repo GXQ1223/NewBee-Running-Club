@@ -22,6 +22,7 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CropIcon from '@mui/icons-material/Crop';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Snackbar, Alert } from '@mui/material';
 import {
   DndContext,
   closestCenter,
@@ -401,6 +402,7 @@ export default function HomePage() {
   const [carouselPositionEditing, setCarouselPositionEditing] = useState(false);
   const [sectionPositionEditing, setSectionPositionEditing] = useState(null);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
   const navigate = useNavigate();
 
   // Drag and drop sensors
@@ -521,7 +523,7 @@ export default function HomePage() {
           imageUrl = uploadResult.url;
         } catch (uploadErr) {
           console.error('Error uploading image:', uploadErr);
-          alert('Failed to upload image. Please try again.');
+          setSnackbar({ open: true, message: 'Failed to upload image / 上传图片失败', severity: 'error' });
           setSaving(false);
           setUploading(false);
           return;
@@ -535,7 +537,7 @@ export default function HomePage() {
       handleEditDialogClose();
     } catch (err) {
       console.error('Error saving section:', err);
-      alert('Failed to save section. Please try again.');
+      setSnackbar({ open: true, message: 'Failed to save section / 保存板块失败', severity: 'error' });
     } finally {
       setSaving(false);
       setUploading(false);
@@ -562,6 +564,7 @@ export default function HomePage() {
         console.error('Error saving section order:', err);
         // Revert on error
         setSections(sections);
+        setSnackbar({ open: true, message: 'Failed to reorder sections / 排序失败', severity: 'error' });
       }
     }
   };
@@ -944,6 +947,18 @@ export default function HomePage() {
         onClose={handleCloseEventModal}
         event={selectedEvent}
       />
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbar(s => ({ ...s, open: false }))} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       {/* Section Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={handleEditDialogClose} maxWidth="sm" fullWidth>

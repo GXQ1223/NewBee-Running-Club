@@ -21,6 +21,7 @@ import {
   Button,
   TextField,
   CircularProgress,
+  Snackbar,
 } from '@mui/material';
 import { useParams, useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -60,6 +61,9 @@ const GalleryPage = () => {
   const [imageToRequestDelete, setImageToRequestDelete] = useState(null);
   const [deletionReason, setDeletionReason] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
+
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
   // Admin review state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -133,6 +137,7 @@ const GalleryPage = () => {
       );
     } catch (err) {
       console.error('Failed to toggle like:', err);
+      setSnackbar({ open: true, message: 'Failed to like image / 点赞失败', severity: 'error' });
     }
   };
 
@@ -165,6 +170,7 @@ const GalleryPage = () => {
       setImageToDelete(null);
     } catch (error) {
       console.error('Failed to delete image:', error);
+      setSnackbar({ open: true, message: 'Failed to delete image / 删除图片失败', severity: 'error' });
     }
   };
 
@@ -197,6 +203,7 @@ const GalleryPage = () => {
       setRequestDeleteDialogOpen(false);
     } catch (err) {
       console.error('Failed to submit deletion request:', err);
+      setSnackbar({ open: true, message: 'Failed to submit request / 提交请求失败', severity: 'error' });
     } finally {
       setRequestLoading(false);
     }
@@ -228,6 +235,7 @@ const GalleryPage = () => {
       setReviewDialogOpen(false);
     } catch (err) {
       console.error('Failed to resolve deletion request:', err);
+      setSnackbar({ open: true, message: 'Failed to resolve request / 处理请求失败', severity: 'error' });
     } finally {
       setReviewLoading(false);
     }
@@ -654,6 +662,17 @@ const GalleryPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbar(s => ({ ...s, open: false }))} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

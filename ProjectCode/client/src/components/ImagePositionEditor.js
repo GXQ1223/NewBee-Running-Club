@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, IconButton, Tooltip, CircularProgress } from '@mui/material';
+import { Box, IconButton, Tooltip, CircularProgress, Typography } from '@mui/material';
 import CropIcon from '@mui/icons-material/Crop';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
@@ -10,6 +10,7 @@ export default function ImagePositionEditor({ eventId, imageUrl, currentPosition
   const { currentUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const [position, setPosition] = useState(currentPosition || 'center center');
   // Sync internal position state when the parent passes a new currentPosition
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function ImagePositionEditor({ eventId, imageUrl, currentPosition
     e.stopPropagation();
     if (!currentUser?.uid) return;
     setSaving(true);
+    setError(null);
     try {
       if (onSave) {
         await onSave(position);
@@ -69,6 +71,7 @@ export default function ImagePositionEditor({ eventId, imageUrl, currentPosition
       if (onPositionSaved) onPositionSaved(position);
     } catch (error) {
       console.error('Error saving image position:', error);
+      setError('Failed to save position / 保存位置失败');
     } finally {
       setSaving(false);
     }
@@ -184,6 +187,22 @@ export default function ImagePositionEditor({ eventId, imageUrl, currentPosition
             </IconButton>
           </Tooltip>
         </Box>
+      )}
+      {error && (
+        <Typography
+          variant="caption"
+          color="error"
+          sx={{
+            position: 'absolute',
+            bottom: editing ? 40 : 8,
+            left: 8,
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            px: 1,
+            borderRadius: 1,
+          }}
+        >
+          {error}
+        </Typography>
       )}
     </Box>
   );

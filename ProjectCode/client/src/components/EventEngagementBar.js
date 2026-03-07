@@ -10,6 +10,7 @@ export default function EventEngagementBar({ eventId, initialData = null, onData
   const { currentUser } = useAuth();
   const [engagement, setEngagement] = useState(initialData);
   const [loading, setLoading] = useState(!initialData);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!initialData) {
@@ -25,8 +26,9 @@ export default function EventEngagementBar({ eventId, initialData = null, onData
       if (onDataLoaded) {
         onDataLoaded(data);
       }
-    } catch (error) {
-      console.error('Error fetching engagement:', error);
+    } catch (err) {
+      console.error('Error fetching engagement:', err);
+      setError('Failed to load');
     } finally {
       setLoading(false);
     }
@@ -57,6 +59,14 @@ export default function EventEngagementBar({ eventId, initialData = null, onData
         <Skeleton width={100} height={24} />
         <Skeleton width={40} height={24} />
       </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+        {error}
+      </Typography>
     );
   }
 
