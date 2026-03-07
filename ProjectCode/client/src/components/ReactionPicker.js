@@ -4,7 +4,7 @@ import AddReactionOutlinedIcon from '@mui/icons-material/AddReactionOutlined';
 import { useAuth } from '../context/AuthContext';
 import { toggleReaction, ALLOWED_EMOJIS } from '../api';
 
-export default function ReactionPicker({ eventId, reactions = [], disabled = false, compact = false, onUpdate }) {
+export default function ReactionPicker({ eventId, reactions = [], disabled = false, compact = false, onUpdate, onError }) {
   const { currentUser } = useAuth();
   const [localReactions, setLocalReactions] = useState(reactions);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -37,6 +37,7 @@ export default function ReactionPicker({ eventId, reactions = [], disabled = fal
       }
     } catch (error) {
       console.error('Error toggling reaction:', error);
+      if (onError) onError('Failed to react / 反应失败');
     } finally {
       setLoading(false);
       handleClosePicker();

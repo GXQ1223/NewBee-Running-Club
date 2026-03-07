@@ -5,7 +5,7 @@ import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { useAuth } from '../context/AuthContext';
 import { toggleLike, getEventLikes } from '../api';
 
-export default function LikeButton({ eventId, initialCount = 0, initialLiked = false, disabled = false, compact = false, onUpdate }) {
+export default function LikeButton({ eventId, initialCount = 0, initialLiked = false, disabled = false, compact = false, onUpdate, onError }) {
   const { currentUser } = useAuth();
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
@@ -30,6 +30,7 @@ export default function LikeButton({ eventId, initialCount = 0, initialLiked = f
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+      if (onError) onError('Failed to like / 点赞失败');
     } finally {
       setLoading(false);
     }
