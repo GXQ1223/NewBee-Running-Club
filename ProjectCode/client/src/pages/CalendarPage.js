@@ -166,6 +166,7 @@ export default function CalendarPage() {
               status: event.status,
               eventType: event.event_type || 'standard',
               heyloEmbed: event.heylo_embed || '',
+              wechatQrCode: event.wechat_qr_code || '',
               parsedDate: eventDate
             };
           }).sort((a, b) => a.date.localeCompare(b.date)); // Sort in chronological order
@@ -187,7 +188,8 @@ export default function CalendarPage() {
           time: event.time,
           location: event.location,
           chineseLocation: event.chineseLocation,
-          chineseDescription: event.chineseDescription
+          chineseDescription: event.chineseDescription,
+          wechatQrCode: event.wechatQrCode
         })));
       } catch (error) {
         console.error('Error loading events:', error);
@@ -360,7 +362,8 @@ export default function CalendarPage() {
         signupLink: event.signup_link,
         status: event.status,
         eventType: event.event_type || 'standard',
-        heyloEmbed: event.heylo_embed || ''
+        heyloEmbed: event.heylo_embed || '',
+        wechatQrCode: event.wechat_qr_code || ''
       })).sort((a, b) => a.date.localeCompare(b.date));
       setUpcomingEvents(transformedEvents);
       setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
@@ -376,7 +379,8 @@ export default function CalendarPage() {
         chineseLocation: event.chineseLocation,
         chineseDescription: event.chineseDescription,
         eventType: event.eventType,
-        heyloEmbed: event.heyloEmbed
+        heyloEmbed: event.heyloEmbed,
+        wechatQrCode: event.wechatQrCode
       })));
     } catch (error) {
       console.error('Error saving event:', error);
@@ -415,7 +419,8 @@ export default function CalendarPage() {
         signupLink: event.signup_link,
         status: event.status,
         eventType: event.event_type || 'standard',
-        heyloEmbed: event.heylo_embed || ''
+        heyloEmbed: event.heylo_embed || '',
+        wechatQrCode: event.wechat_qr_code || ''
       })).sort((a, b) => a.date.localeCompare(b.date));
       setUpcomingEvents(transformedEvents);
       setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
@@ -431,7 +436,8 @@ export default function CalendarPage() {
         chineseLocation: event.chineseLocation,
         chineseDescription: event.chineseDescription,
         eventType: event.eventType,
-        heyloEmbed: event.heyloEmbed
+        heyloEmbed: event.heyloEmbed,
+        wechatQrCode: event.wechatQrCode
       })));
     } catch (error) {
       console.error('Error deleting event:', error);

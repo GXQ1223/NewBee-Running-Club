@@ -46,7 +46,7 @@ import { getCarouselBanners } from '../api/banners';
 import { updateBanner } from '../api/banners';
 import { getActiveSections, updateSection, reorderSections, uploadImage } from '../api/homepageSections';
 import ImagePositionEditor from '../components/ImagePositionEditor';
-import { updateEvent } from '../api';
+import { updateEvent, getEventsByStatus } from '../api';
 
 // Fallback carousel images if API fails
 const fallbackCarouselImages = [
@@ -81,8 +81,24 @@ const fallbackSections = [
 ];
 
 // Sortable Section Component
-function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit }) {
+function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit, upcomingEvents }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [eventImageIndex, setEventImageIndex] = useState(0);
+
+  // For Event Registration section: cycle through upcoming event images
+  const isEventRegistration = section.link_path === '/calendar' && section.title_en === 'Event Registration';
+  const eventsWithImages = isEventRegistration
+    ? (upcomingEvents || []).filter(ev => ev.image_url || ev.poster_url)
+    : [];
+
+  useEffect(() => {
+    if (eventsWithImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setEventImageIndex(prev => (prev + 1) % eventsWithImages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [eventsWithImages.length]);
+
   const {
     attributes,
     listeners,
@@ -171,7 +187,7 @@ function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit }) 
             borderRadius: { xs: '8px', sm: '12px' },
             cursor: 'pointer',
             backgroundColor: '#4a4a4a',
-            display: section.image_url ? 'block' : 'flex',
+            display: (isEventRegistration ? eventsWithImages.length > 0 : section.image_url) ? 'block' : 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             boxShadow: isHovered
@@ -184,9 +200,71 @@ function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit }) 
             },
           }}
           component="a"
-          href={section.link_path}
+          href={isEventRegistration && eventsWithImages.length > 0
+            ? `/calendar?event=${eventsWithImages[eventImageIndex].id}`
+            : section.link_path}
         >
-          {section.image_url ? (
+          {isEventRegistration && eventsWithImages.length > 0 ? (
+            /* Event Registration: cycle through upcoming event images */
+            <>
+              {eventsWithImages.map((ev, index) => (
+                <Box
+                  key={ev.id}
+                  component="img"
+                  src={ev.poster_url || ev.image_url}
+                  alt={ev.title || ev.name}
+                  loading="lazy"
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: ev.image_position || 'center center',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    opacity: index === eventImageIndex ? 1 : 0,
+                    transition: 'opacity 1s ease-in-out, filter 0.3s ease',
+                    borderRadius: { xs: '8px', sm: '12px' },
+                    filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              ))}
+              {/* Dot indicators */}
+              {eventsWithImages.length > 1 && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: { xs: 50, sm: 65, md: 80 },
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    display: 'flex',
+                    gap: 1,
+                    zIndex: 5,
+                  }}
+                >
+                  {eventsWithImages.map((_, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        width: { xs: 8, sm: 10 },
+                        height: { xs: 8, sm: 10 },
+                        borderRadius: '50%',
+                        backgroundColor: index === eventImageIndex ? '#FFA500' : 'rgba(255,255,255,0.5)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'scale(1.2)',
+                          backgroundColor: index === eventImageIndex ? '#FFA500' : 'rgba(255,255,255,0.8)',
+                        },
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+            </>
+          ) : section.image_url ? (
             <Box
               component="img"
               src={section.image_url}
@@ -322,6 +400,7 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false);
   const [carouselPositionEditing, setCarouselPositionEditing] = useState(false);
   const [sectionPositionEditing, setSectionPositionEditing] = useState(null);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
   const navigate = useNavigate();
 
   // Drag and drop sensors
@@ -343,6 +422,10 @@ export default function HomePage() {
       .then(data => setSections(data.length > 0 ? data : fallbackSections))
       .catch(() => setSections(fallbackSections))
       .finally(() => setSectionsLoading(false));
+
+    getEventsByStatus('Upcoming')
+      .then(data => setUpcomingEvents(data || []))
+      .catch(() => setUpcomingEvents([]));
   }, []);
 
   // Auto-rotate carousel
@@ -749,6 +832,7 @@ export default function HomePage() {
                 adminModeEnabled={adminModeEnabled}
                 onEdit={handleEditSection}
                 onPositionEdit={(section) => setSectionPositionEditing(section)}
+                upcomingEvents={upcomingEvents}
               />
             ))}
           </SortableContext>
@@ -760,6 +844,7 @@ export default function HomePage() {
             section={section}
             adminModeEnabled={false}
             onEdit={() => {}}
+            upcomingEvents={upcomingEvents}
           />
         ))
       )}
