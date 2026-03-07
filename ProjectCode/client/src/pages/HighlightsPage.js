@@ -9,6 +9,7 @@ import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, useSensor, useSensors, TouchSensor, MouseSensor, closestCenter } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import NavigationButtons from '../components/NavigationButtons';
+import EventCardImage from '../components/EventCardImage';
 import EventEngagementBar from '../components/EventEngagementBar';
 import EventGalleryPreview from '../components/EventGalleryPreview';
 import EventDetailModal from '../components/EventDetailModal';
@@ -604,18 +605,7 @@ export default function HighlightsPage() {
                 onClick={() => handleEventClick(event)}
               >
                 <Box sx={{ position: 'relative' }}>
-                  <CardMedia
-                    component="img"
-                    height="200"
-                    image={event.image}
-                    alt={event.title}
-                    loading="lazy"
-                    onError={handleImageError}
-                    sx={{
-                      objectFit: 'cover',
-                      backgroundColor: '#f5f5f5'
-                    }}
-                  />
+                  <EventCardImage event={event} height="200" onError={handleImageError} />
                   <IconButton
                     size="small"
                     onClick={(e) => handleShare(e, event.id, event.title)}
@@ -828,18 +818,10 @@ export default function HighlightsPage() {
                           position: 'relative'
                         }}
                       >
-                        <CardMedia
-                          component="img"
-                          loading="lazy"
-                          sx={{
-                            height: '100%',
-                            width: '100%',
-                            objectFit: 'cover',
-                            backgroundColor: '#f5f5f5'
-                          }}
-                          image={event.image}
-                          alt={event.name}
+                        <EventCardImage
+                          event={event}
                           onError={handleImageError}
+                          sx={{ height: '100%', width: '100%' }}
                         />
                         {/* Mobile drag handle - long press to drag */}
                         {adminModeEnabled && (
@@ -927,19 +909,7 @@ export default function HighlightsPage() {
                   flexShrink: 0
                 }}
               >
-                <CardMedia
-                  component="img"
-                  loading="lazy"
-                  sx={{
-                    height: '100%',
-                    width: '100%',
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                  image={event.image}
-                  alt={event.name}
-                  onError={handleImageError}
-                />
+                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
               </Box>
 
               {/* Content Column */}

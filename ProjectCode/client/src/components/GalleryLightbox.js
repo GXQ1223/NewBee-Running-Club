@@ -11,6 +11,7 @@ import {
   useMediaQuery,
   Snackbar,
   Alert,
+  TextField,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
@@ -21,7 +22,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import ShareIcon from '@mui/icons-material/Share';
 import WallpaperIcon from '@mui/icons-material/Wallpaper';
 import FlagIcon from '@mui/icons-material/Flag';
-import { toggleGalleryImageLike, downloadImage, shareImage } from '../api/gallery';
+import { toggleGalleryImageLike, downloadImage, shareImage, updateGalleryImage } from '../api/gallery';
 import { updateEvent } from '../api/events';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
@@ -46,6 +47,8 @@ const GalleryLightbox = ({
   const [liking, setLiking] = useState(false);
   const [settingCover, setSettingCover] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [editingUploaderName, setEditingUploaderName] = useState(false);
+  const [uploaderNameValue, setUploaderNameValue] = useState('');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { currentUser } = useAuth();
@@ -396,17 +399,68 @@ const GalleryLightbox = ({
 
             {/* Uploader info */}
             {currentImage.uploaded_by_name && (
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'rgba(255,255,255,0.5)',
-                  display: 'block',
-                  textAlign: 'center',
-                  mt: 1,
-                }}
-              >
-                Uploaded by {currentImage.uploaded_by_name}
-              </Typography>
+              editingUploaderName ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 1 }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Uploaded by
+                  </Typography>
+                  <TextField
+                    size="small"
+                    variant="standard"
+                    value={uploaderNameValue}
+                    onChange={(e) => setUploaderNameValue(e.target.value)}
+                    autoFocus
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
+                        try {
+                          await updateGalleryImage(currentImage.id, { uploaded_by_name: uploaderNameValue }, currentUser.uid);
+                          currentImage.uploaded_by_name = uploaderNameValue;
+                          if (onImageUpdate) onImageUpdate({ ...currentImage, uploaded_by_name: uploaderNameValue });
+                        } catch (err) {
+                          console.error('Failed to update uploader name:', err);
+                        }
+                        setEditingUploaderName(false);
+                      } else if (e.key === 'Escape') {
+                        setEditingUploaderName(false);
+                      }
+                    }}
+                    onBlur={async () => {
+                      try {
+                        await updateGalleryImage(currentImage.id, { uploaded_by_name: uploaderNameValue }, currentUser.uid);
+                        currentImage.uploaded_by_name = uploaderNameValue;
+                        if (onImageUpdate) onImageUpdate({ ...currentImage, uploaded_by_name: uploaderNameValue });
+                      } catch (err) {
+                        console.error('Failed to update uploader name:', err);
+                      }
+                      setEditingUploaderName(false);
+                    }}
+                    sx={{
+                      '& .MuiInput-input': { color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem', py: 0 },
+                      '& .MuiInput-underline:before': { borderBottomColor: 'rgba(255,255,255,0.3)' },
+                      '& .MuiInput-underline:after': { borderBottomColor: '#FFB84D' },
+                      maxWidth: 150,
+                    }}
+                  />
+                </Box>
+              ) : (
+                <Typography
+                  variant="caption"
+                  onClick={adminModeEnabled ? () => {
+                    setUploaderNameValue(currentImage.uploaded_by_name);
+                    setEditingUploaderName(true);
+                  } : undefined}
+                  sx={{
+                    color: 'rgba(255,255,255,0.5)',
+                    display: 'block',
+                    textAlign: 'center',
+                    mt: 1,
+                    cursor: adminModeEnabled ? 'pointer' : 'default',
+                    '&:hover': adminModeEnabled ? { color: 'rgba(255,255,255,0.8)', textDecoration: 'underline' } : {},
+                  }}
+                >
+                  Uploaded by {currentImage.uploaded_by_name}
+                </Typography>
+              )
             )}
           </Box>
         </DialogContent>

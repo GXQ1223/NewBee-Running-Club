@@ -18,6 +18,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
+import ImagePositionEditor from './ImagePositionEditor';
 import { getEventEngagement, updateEvent } from '../api';
 import LikeButton from './LikeButton';
 import ReactionPicker from './ReactionPicker';
@@ -101,10 +102,17 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
     }
   };
 
-  if (!event) return null;
+  const [imagePosition, setImagePosition] = useState('center center');
+  const eventTitle = event?.name || event?.title;
+  const eventChineseTitle = event?.chineseName || event?.chineseTitle;
 
-  const eventTitle = event.name || event.title;
-  const eventChineseTitle = event.chineseName || event.chineseTitle;
+  useEffect(() => {
+    if (event) {
+      setImagePosition(event.image_position || event.imagePosition || 'center center');
+    }
+  }, [event]);
+
+  if (!event) return null;
 
   return (
     <Box
@@ -131,17 +139,31 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <CardMedia
-          component="img"
-          height="300"
-          image={event.image}
-          alt={eventTitle}
-          onError={handleImageError}
-          sx={{
-            objectFit: 'cover',
-            backgroundColor: '#f5f5f5'
-          }}
-        />
+        {adminModeEnabled && event.id ? (
+          <ImagePositionEditor
+            eventId={event.id}
+            imageUrl={event.image}
+            currentPosition={imagePosition}
+            onPositionSaved={(pos) => {
+              setImagePosition(pos);
+              if (onEventUpdate) onEventUpdate({ ...event, image_position: pos });
+            }}
+            sx={{ height: 300, backgroundColor: '#f5f5f5' }}
+          />
+        ) : (
+          <CardMedia
+            component="img"
+            height="300"
+            image={event.image}
+            alt={eventTitle}
+            onError={handleImageError}
+            sx={{
+              objectFit: 'cover',
+              objectPosition: imagePosition,
+              backgroundColor: '#f5f5f5'
+            }}
+          />
+        )}
         <CardContent>
           <Typography variant="h5" gutterBottom>
             {eventTitle}

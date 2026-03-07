@@ -11,6 +11,7 @@ import { useEffect, useState, useRef } from 'react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import NavigationButtons from '../components/NavigationButtons';
 import EventDetailModal from '../components/EventDetailModal';
+import EventCardImage from '../components/EventCardImage';
 import { useAdmin, useAuth } from '../context';
 import { useAutoFillOnTab, useTranslationAutoFill } from '../hooks';
 import { storage } from '../firebase/config';
@@ -240,7 +241,7 @@ export default function CalendarPage() {
     }
     try {
       await updateEvent(event.id, { status: 'Highlight' }, currentUser.uid);
-      setEvents(prev => prev.filter(ev => ev.id !== event.id));
+      setUpcomingEvents(prev => prev.filter(ev => ev.id !== event.id));
       setSnackbar({ open: true, message: 'Event moved to Highlights / 活动已移至精彩回顾', severity: 'success' });
     } catch (error) {
       console.error('Error moving event to highlights:', error);
@@ -613,18 +614,7 @@ export default function CalendarPage() {
                     </Tooltip>
                   </Box>
                 )}
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={event.image}
-                  alt={event.title}
-                  loading="lazy"
-                  onError={handleImageError}
-                  sx={{
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                />
+                <EventCardImage event={event} height="200" onError={handleImageError} />
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                   <Typography gutterBottom variant="h6" component="div" sx={{
                     overflow: 'hidden',
@@ -844,19 +834,7 @@ export default function CalendarPage() {
                   height: '150px'
                 }}
               >
-                <CardMedia
-                  component="img"
-                  loading="lazy"
-                  sx={{
-                    height: '100%',
-                    width: '100%',
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                  image={event.image}
-                  alt={event.name}
-                  onError={handleImageError}
-                />
+                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
               </Box>
 
               {/* Time Column - hidden on mobile, shown on sm+ */}
@@ -890,19 +868,7 @@ export default function CalendarPage() {
                   flexShrink: 0
                 }}
               >
-                <CardMedia
-                  component="img"
-                  loading="lazy"
-                  sx={{
-                    height: '100%',
-                    width: '100%',
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                  image={event.image}
-                  alt={event.name}
-                  onError={handleImageError}
-                />
+                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
               </Box>
 
               {/* Content Column */}

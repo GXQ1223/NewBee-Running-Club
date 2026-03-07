@@ -268,6 +268,7 @@ class Event(Base):
     description = Column(Text)
     chinese_description = Column(Text)
     image = Column(String(500))
+    image_position = Column(String(50), default='center center')  # CSS object-position value
     signup_link = Column(String(500))
     status = Column(String(50), default='Upcoming')  # 'Upcoming', 'Highlight', 'Cancelled'
 
