@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -10,12 +11,17 @@ import {
   Divider,
   CircularProgress,
   TextField,
-  IconButton
+  IconButton,
+  Snackbar,
+  Alert,
+  Tooltip
 } from '@mui/material';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
+import ShareIcon from '@mui/icons-material/Share';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import ImagePositionEditor from './ImagePositionEditor';
@@ -32,6 +38,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const { adminModeEnabled } = useAdmin();
   const [engagement, setEngagement] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [shareSnackbar, setShareSnackbar] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionText, setDescriptionText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -52,6 +59,13 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/calendar?event=${event.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareSnackbar(true);
+    });
   };
 
   const handleImageError = (e) => {
@@ -108,13 +122,15 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
 
   useEffect(() => {
     if (event) {
-      setImagePosition(event.image_position || event.imagePosition || 'center center');
+      const pos = event.image_position || event.imagePosition || 'center center';
+      console.log('[EventDetailModal] event.id=', event.id, 'event.image_position=', event.image_position, '→ setting imagePosition to:', pos);
+      setImagePosition(pos);
     }
   }, [event]);
 
   if (!event) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <Box
       sx={{
         position: 'fixed',
@@ -139,35 +155,65 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {adminModeEnabled && event.id ? (
-          <ImagePositionEditor
-            eventId={event.id}
-            imageUrl={event.image}
-            currentPosition={imagePosition}
-            onPositionSaved={(pos) => {
-              setImagePosition(pos);
-              if (onEventUpdate) onEventUpdate({ ...event, image_position: pos });
-            }}
-            sx={{ height: 300, backgroundColor: '#f5f5f5' }}
-          />
-        ) : (
-          <CardMedia
-            component="img"
-            height="300"
-            image={event.image}
-            alt={eventTitle}
-            onError={handleImageError}
-            sx={{
-              objectFit: 'cover',
-              objectPosition: imagePosition,
-              backgroundColor: '#f5f5f5'
-            }}
-          />
-        )}
+        <Box sx={{ position: 'relative' }}>
+          {adminModeEnabled && event.id ? (
+            <ImagePositionEditor
+              eventId={event.id}
+              imageUrl={event.image}
+              currentPosition={imagePosition}
+              onPositionSaved={(pos) => {
+                setImagePosition(pos);
+                if (onEventUpdate) onEventUpdate({ ...event, image_position: pos });
+              }}
+              sx={{ height: 300, backgroundColor: '#f5f5f5' }}
+            />
+          ) : (
+            <CardMedia
+              component="img"
+              height="300"
+              image={event.image}
+              alt={eventTitle}
+              onError={handleImageError}
+              sx={{
+                objectFit: 'cover',
+                objectPosition: imagePosition,
+                backgroundColor: '#f5f5f5'
+              }}
+            />
+          )}
+          {(event.wechatQrCode || event.wechat_qr_code) && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                width: 80,
+                height: 80,
+                backgroundColor: 'white',
+                borderRadius: 1,
+                padding: '4px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}
+            >
+              <img
+                src={event.wechatQrCode || event.wechat_qr_code}
+                alt="WeChat QR Code"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            </Box>
+          )}
+        </Box>
         <CardContent>
-          <Typography variant="h5" gutterBottom>
-            {eventTitle}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+              {eventTitle}
+            </Typography>
+            <Tooltip title="Share / 分享">
+              <IconButton onClick={handleShare} sx={{ color: '#FFB84D' }}>
+                <ShareIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
           {eventChineseTitle && (
             <Typography variant="h6" color="text.secondary" gutterBottom>
               {eventChineseTitle}
@@ -194,6 +240,32 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
               </Typography>
             )}
           </Box>
+
+          {/* Signup Link */}
+          {(event.signupLink || event.signup_link) && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                Join / 参与
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<OpenInNewIcon />}
+                href={event.signupLink || event.signup_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#FFB84D',
+                  color: '#FFB84D',
+                  borderRadius: '8px',
+                  '&:hover': { borderColor: '#FFA833', backgroundColor: 'rgba(255, 184, 77, 0.04)' }
+                }}
+              >
+                Sign Up / 报名
+              </Button>
+            </Box>
+          )}
 
           {(event.description || (adminModeEnabled && event.id)) && (
             <Box>
@@ -309,28 +381,30 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                 />
               )}
 
-              {/* Gallery Section */}
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CollectionsIcon sx={{ color: 'text.secondary' }} />
-                    <Typography variant="subtitle1" fontWeight={600}>
-                      Photos / 相册
-                    </Typography>
+              {/* Gallery Section - hidden for Upcoming events */}
+              {event.status !== 'Upcoming' && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CollectionsIcon sx={{ color: 'text.secondary' }} />
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Photos / 相册
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/events/${event.id}/gallery`);
+                      }}
+                      sx={{ textTransform: 'none', color: '#FFB84D' }}
+                    >
+                      View All
+                    </Button>
                   </Box>
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      onClose();
-                      navigate(`/events/${event.id}/gallery`);
-                    }}
-                    sx={{ textTransform: 'none', color: '#FFB84D' }}
-                  >
-                    View All
-                  </Button>
+                  <EventGalleryPreview eventId={event.id} maxImages={5} size={56} />
                 </Box>
-                <EventGalleryPreview eventId={event.id} maxImages={5} size={56} />
-              </Box>
+              )}
 
               <Divider sx={{ mb: 3 }} />
 
@@ -371,6 +445,17 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
           </Box>
         </CardContent>
       </Card>
-    </Box>
+      <Snackbar
+        open={shareSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setShareSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setShareSnackbar(false)} severity="success" sx={{ width: '100%' }}>
+          Link copied / 链接已复制
+        </Alert>
+      </Snackbar>
+    </Box>,
+    document.body
   );
 }

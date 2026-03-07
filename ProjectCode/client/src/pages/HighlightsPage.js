@@ -199,6 +199,7 @@ export default function HighlightsPage() {
           description: event.description,
           chineseDescription: event.chinese_description,
           image: event.image || '/images/2025/20250517_bk_half.jpg',
+          image_position: event.image_position,
           signupLink: event.signup_link,
           status: event.status,
           parsedDate: eventDate,
@@ -257,7 +258,8 @@ export default function HighlightsPage() {
                 time: draggedEvent.time,
                 location: draggedEvent.location,
                 chinese_location: draggedEvent.chineseLocation,
-                image: draggedEvent.image
+                image: draggedEvent.image,
+                image_position: draggedEvent.image_position
               }],
               event_count: g.event_count + 1
             };
@@ -284,7 +286,8 @@ export default function HighlightsPage() {
             time: targetStandaloneEvent.time,
             location: targetStandaloneEvent.location,
             chinese_location: targetStandaloneEvent.chineseLocation,
-            image: targetStandaloneEvent.image
+            image: targetStandaloneEvent.image,
+            image_position: targetStandaloneEvent.image_position
           },
           {
             id: draggedEvent.id,
@@ -294,10 +297,13 @@ export default function HighlightsPage() {
             time: draggedEvent.time,
             location: draggedEvent.location,
             chinese_location: draggedEvent.chineseLocation,
-            image: draggedEvent.image
+            image: draggedEvent.image,
+            image_position: draggedEvent.image_position
           }
         ],
         cover_image: targetStandaloneEvent.image,
+        cover_image_position: targetStandaloneEvent.image_position,
+        cover_event_id: targetStandaloneEvent.id,
         most_recent_date: targetStandaloneEvent.date
       };
       setEventGroups(prev => [newGroup, ...prev]);
@@ -385,7 +391,8 @@ export default function HighlightsPage() {
       time: event.time,
       location: event.location,
       chineseLocation: event.chinese_location,
-      image: event.image
+      image: event.image,
+      image_position: event.image_position
     });
   };
 
@@ -461,6 +468,7 @@ export default function HighlightsPage() {
           location: groupEvent.location,
           chineseLocation: groupEvent.chinese_location,
           image: groupEvent.image,
+          image_position: groupEvent.image_position,
         });
         return;
       }
@@ -490,6 +498,7 @@ export default function HighlightsPage() {
             description: event.description,
             chineseDescription: event.chinese_description,
             image: event.image || '/images/2025/20250517_bk_half.jpg',
+            image_position: event.image_position,
           }))
           .sort((a, b) => b.date.localeCompare(a.date));
 
@@ -499,6 +508,7 @@ export default function HighlightsPage() {
           title: event.name,
           chineseTitle: event.chineseName,
           image: event.image,
+          image_position: event.image_position,
           description: event.description,
           date: event.date,
           time: event.time,
@@ -1082,6 +1092,13 @@ export default function HighlightsPage() {
         <EventDetailModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          onEventUpdate={(updatedEvent) => {
+            setSelectedEvent(updatedEvent);
+            const updateList = (list) => list.map(e => e.id === updatedEvent.id ? { ...e, ...updatedEvent } : e);
+            setPastEvents(updateList);
+            setStandaloneEvents(updateList);
+            setFeaturedEvents(updateList);
+          }}
         />
       )}
 

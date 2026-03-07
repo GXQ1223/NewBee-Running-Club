@@ -314,6 +314,7 @@ class EventBase(BaseModel):
     image: Optional[str] = None
     image_position: Optional[str] = Field(None, max_length=50)
     signup_link: Optional[str] = Field(None, max_length=500)
+    wechat_qr_code: Optional[str] = Field(None, max_length=500)
     status: EventStatus = Field(default=EventStatus.upcoming)
     event_type: EventType = Field(default=EventType.standard)
     heylo_embed: Optional[str] = None  # Heylo embed code for heylo event type
@@ -335,6 +336,7 @@ class EventUpdate(BaseModel):
     image: Optional[str] = None
     image_position: Optional[str] = Field(None, max_length=50)
     signup_link: Optional[str] = Field(None, max_length=500)
+    wechat_qr_code: Optional[str] = Field(None, max_length=500)
     status: Optional[EventStatus] = None
     event_type: Optional[EventType] = None
     heylo_embed: Optional[str] = None
@@ -548,6 +550,7 @@ class BannerImageBase(BaseModel):
     is_active: bool = Field(default=True)
     event_id: Optional[int] = None
     source_type: str = Field(default='manual', max_length=20)
+    image_position: Optional[str] = Field(None, max_length=50)
 
 
 class BannerImageCreate(BannerImageBase):
@@ -564,6 +567,7 @@ class BannerImageUpdate(BaseModel):
     is_active: Optional[bool] = None
     event_id: Optional[int] = None
     source_type: Optional[str] = Field(None, max_length=20)
+    image_position: Optional[str] = Field(None, max_length=50)
 
 
 class BannerImageResponse(BannerImageBase):
@@ -594,6 +598,7 @@ class CarouselBannerResponse(BaseModel):
     event_location: Optional[str] = None
     event_description: Optional[str] = None
     event_signup_link: Optional[str] = None
+    image_position: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -604,6 +609,7 @@ class HomepageSectionBase(BaseModel):
     title_en: str = Field(..., max_length=100)
     title_cn: Optional[str] = Field(None, max_length=100)
     image_url: Optional[str] = None  # No max_length - can store base64 data URLs
+    image_position: Optional[str] = Field(None, max_length=50)
     link_path: str = Field(..., max_length=255)
     display_order: int = Field(default=0)
     is_active: bool = Field(default=True)
@@ -617,6 +623,7 @@ class HomepageSectionUpdate(BaseModel):
     title_en: Optional[str] = Field(None, max_length=100)
     title_cn: Optional[str] = Field(None, max_length=100)
     image_url: Optional[str] = None  # No max_length - can store base64 data URLs
+    image_position: Optional[str] = Field(None, max_length=50)
     link_path: Optional[str] = Field(None, max_length=255)
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
@@ -948,6 +955,8 @@ class EventGroup(BaseModel):
     events: List[EventInGroup]
     # Cover info from most recent event
     cover_image: Optional[str] = None
+    cover_image_position: Optional[str] = None
+    cover_event_id: Optional[int] = None
     most_recent_date: dt.date
 
 

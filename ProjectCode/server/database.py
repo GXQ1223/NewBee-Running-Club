@@ -270,6 +270,7 @@ class Event(Base):
     image = Column(String(500))
     image_position = Column(String(50), default='center center')  # CSS object-position value
     signup_link = Column(String(500))
+    wechat_qr_code = Column(String(500))
     status = Column(String(50), default='Upcoming')  # 'Upcoming', 'Highlight', 'Cancelled'
 
     # Heylo integration fields
@@ -462,6 +463,7 @@ class BannerImage(Base):
     is_active = Column(Boolean, default=True)
     event_id = Column(Integer, ForeignKey('events.id', ondelete='SET NULL'), nullable=True)  # Link to event
     source_type = Column(String(20), default='manual')  # 'manual' or 'event_highlight'
+    image_position = Column(String(50), default='center center')  # CSS object-position value
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -482,6 +484,7 @@ class HomepageSection(Base):
     title_en = Column(String(100), nullable=False)
     title_cn = Column(String(100))
     image_url = Column(Text)  # Use Text to support base64 data URLs
+    image_position = Column(String(50), default='center center')  # CSS object-position value
     link_path = Column(String(255), nullable=False)
     display_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
