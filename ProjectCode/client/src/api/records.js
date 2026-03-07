@@ -39,3 +39,59 @@ export async function getWomenRecords(year = null) {
 export async function getAllRaces() {
   return api.get('/api/results/all-races');
 }
+
+/**
+ * Get available NYRR race patterns for syncing
+ * @returns {Promise<{races: Array<{code, name_template, distance, typical_month}>}>}
+ */
+export async function getSyncRacePatterns() {
+  return api.get('/api/results/sync/races');
+}
+
+/**
+ * Start NYRR data sync via SSE streaming
+ * @param {{years: number[], race_codes: string[]|null}} params
+ * @param {string} firebaseUid
+ * @param {function} onProgress - Called with each SSE event object
+ * @returns {Promise<void>}
+ */
+export async function startNyrrSync(params, firebaseUid, onProgress) {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+  const response = await fetch(`${API_BASE_URL}/api/results/sync`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Firebase-UID': firebaseUid,
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Sync failed with status ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const event = JSON.parse(line.slice(6));
+          onProgress(event);
+        } catch {
+          // skip malformed events
+        }
+      }
+    }
+  }
+}

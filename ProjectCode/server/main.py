@@ -1,12 +1,15 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 import os
+import json
+import asyncio
 import uuid
 import base64
 from pathlib import Path
@@ -364,6 +367,103 @@ def get_all_races(db: Session = Depends(get_db)):
             } for race in races
         ]
     }
+
+
+@app.get("/api/results/sync/races")
+def get_sync_race_patterns():
+    """Return the list of NYRR race patterns available for syncing."""
+    from fetch_historical_data import RACE_PATTERNS
+
+    patterns = []
+    for code, info in RACE_PATTERNS.items():
+        patterns.append({
+            "code": code,
+            "name_template": info["name_template"],
+            "distance": info["distance"],
+            "typical_month": info["typical_month"],
+        })
+
+    patterns.sort(key=lambda p: p["typical_month"])
+    return {"races": patterns}
+
+
+class NyrrSyncRequest(BaseModel):
+    years: List[int]
+    race_codes: Optional[List[str]] = None
+
+
+@app.post("/api/results/sync")
+async def sync_nyrr_data(request: Request):
+    """
+    Stream NYRR race data sync progress via SSE.
+    Auth is validated manually since StreamingResponse doesn't work with Depends().
+    """
+    # Manual auth check
+    firebase_uid = request.headers.get("X-Firebase-UID")
+    if not firebase_uid:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    db = next(get_db())
+    try:
+        member = db.query(Member).filter(Member.firebase_uid == firebase_uid).first()
+        if not member or member.status not in ('admin', 'committee'):
+            raise HTTPException(status_code=403, detail="Committee or admin access required.")
+    finally:
+        db.close()
+
+    # Parse request body
+    body = await request.json()
+    sync_req = NyrrSyncRequest(**body)
+
+    from fetch_historical_data import (
+        RACE_PATTERNS, generate_event_code, generate_race_config,
+        fetch_race_data, import_race_data
+    )
+
+    # Determine which races to sync
+    if sync_req.race_codes:
+        race_items = [(code, RACE_PATTERNS[code]) for code in sync_req.race_codes if code in RACE_PATTERNS]
+    else:
+        race_items = list(RACE_PATTERNS.items())
+
+    # Build list of (year, code, info) combos
+    combos = []
+    for year in sync_req.years:
+        for code, info in race_items:
+            combos.append((year, code, info))
+
+    async def event_stream():
+        yield f"data: {json.dumps({'type': 'start', 'total': len(combos)})}\n\n"
+
+        total_imported = 0
+        total_errors = 0
+
+        for i, (year, code, info) in enumerate(combos):
+            event_code = generate_event_code(code, year)
+            config = generate_race_config(code, info, year)
+            race_name = config["name"]
+
+            # Send fetching status
+            yield f"data: {json.dumps({'type': 'progress', 'index': i, 'race': race_name, 'status': 'fetching', 'event_code': event_code})}\n\n"
+
+            try:
+                df = await asyncio.to_thread(fetch_race_data, event_code)
+                if df is not None and len(df) > 0:
+                    count = await asyncio.to_thread(import_race_data, event_code, config, df)
+                    total_imported += count
+                    yield f"data: {json.dumps({'type': 'progress', 'index': i, 'race': race_name, 'status': 'imported', 'count': count})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'progress', 'index': i, 'race': race_name, 'status': 'no_data', 'count': 0})}\n\n"
+            except Exception as e:
+                total_errors += 1
+                yield f"data: {json.dumps({'type': 'progress', 'index': i, 'race': race_name, 'status': 'error', 'error': str(e)})}\n\n"
+
+            # Delay between API calls
+            await asyncio.sleep(0.5)
+
+        yield f"data: {json.dumps({'type': 'complete', 'total_imported': total_imported, 'total_errors': total_errors})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.get("/api/results/member/{search_key}")
@@ -2794,7 +2894,7 @@ async def upload_image(
     file: UploadFile = File(...),
     current_admin: Member = Depends(get_current_committee_or_admin)
 ):
-    """Upload an image file (admin only). Returns base64 data URL for database storage."""
+    """Upload an image file to S3 (admin only). Returns the public S3 URL."""
     # Get file extension
     file_ext = Path(file.filename).suffix.lower() if file.filename else ''
 
@@ -2811,25 +2911,58 @@ async def upload_image(
             detail=f"File type not allowed. Allowed types: JPEG, PNG, GIF, WebP"
         )
 
-    # Validate file size (max 5MB)
-    max_size = 5 * 1024 * 1024  # 5MB
+    # Validate file size (max 20MB)
+    max_size = 20 * 1024 * 1024  # 20MB
     contents = await file.read()
     if len(contents) > max_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File too large. Maximum size is 5MB."
+            detail="File too large. Maximum size is 20MB."
         )
 
     try:
-        # Convert to base64 data URL
-        base64_data = base64.b64encode(contents).decode('utf-8')
-        data_url = f"data:{mime_type};base64,{base64_data}"
+        # Resize/compress image to save S3 space
+        from PIL import Image
+        import io
 
-        return {"url": data_url}
+        img = Image.open(io.BytesIO(contents))
+
+        # Convert RGBA/P to RGB for JPEG output
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+
+        # Resize if larger than 1920px on the longest side
+        max_dimension = 1920
+        if max(img.size) > max_dimension:
+            img.thumbnail((max_dimension, max_dimension), Image.LANCZOS)
+
+        # Save as JPEG with quality 85
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=85, optimize=True)
+        contents = output.getvalue()
+        mime_type = 'image/jpeg'
+        safe_ext = 'jpg'
+
+        # Upload to S3
+        s3_client = get_s3_client()
+        bucket, region = get_s3_config()
+        key = f"homepage/{uuid.uuid4().hex}.{safe_ext}"
+
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=contents,
+            ContentType=mime_type
+        )
+
+        url = f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+        return {"url": url}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process image: {str(e)}"
+            detail=f"Failed to upload image: {str(e)}"
         )
     finally:
         await file.close()
