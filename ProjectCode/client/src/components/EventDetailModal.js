@@ -122,9 +122,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
 
   useEffect(() => {
     if (event) {
-      const pos = event.image_position || event.imagePosition || 'center center';
-      console.log('[EventDetailModal] event.id=', event.id, 'event.image_position=', event.image_position, '→ setting imagePosition to:', pos);
-      setImagePosition(pos);
+      setImagePosition(event.image_position || event.imagePosition || 'center center');
     }
   }, [event]);
 
