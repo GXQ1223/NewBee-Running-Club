@@ -3358,9 +3358,9 @@ def update_gallery_image(
     image_id: int,
     image_update: EventGalleryImageUpdate,
     db: Session = Depends(get_db),
-    current_admin: Member = Depends(get_current_admin)
+    current_user: Member = Depends(get_current_committee_or_admin)
 ):
-    """Update a gallery image (admin only)"""
+    """Update a gallery image (committee or admin)"""
     image = db.query(EventGalleryImage).filter(EventGalleryImage.id == image_id).first()
     if not image:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
