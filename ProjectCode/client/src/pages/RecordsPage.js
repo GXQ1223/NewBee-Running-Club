@@ -4,9 +4,14 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Radio, RadioGroup, Select, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
+import SyncIcon from '@mui/icons-material/Sync';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import { Alert, Box, Button, Checkbox, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, FormGroup, IconButton, InputAdornment, InputLabel, LinearProgress, MenuItem, Paper, Radio, RadioGroup, Select, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { getAvailableYears, getMenRecords, getWomenRecords } from '../api/records';
+import { getAvailableYears, getMenRecords, getWomenRecords, getSyncRacePatterns, startNyrrSync } from '../api/records';
+import { clearApiCache } from '../api/client';
 import { getCredits, createCredit, updateCredit, deleteCredit, bulkUploadCredits } from '../api/credits';
 import ClubEntryRules from '../components/ClubEntryRules';
 import NavigationButtons from '../components/NavigationButtons';
@@ -53,6 +58,17 @@ export default function RecordsPage() {
   const [bulkUploadMode, setBulkUploadMode] = useState('merge');
   const [bulkUploadLoading, setBulkUploadLoading] = useState(false);
   const [bulkUploadResult, setBulkUploadResult] = useState(null);
+
+  // NYRR Sync state
+  const currentYear = new Date().getFullYear();
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncYears, setSyncYears] = useState([currentYear]);
+  const [syncRaceCodes, setSyncRaceCodes] = useState([]);
+  const [syncAllRaces, setSyncAllRaces] = useState(true);
+  const [availableRacePatterns, setAvailableRacePatterns] = useState([]);
+  const [syncProgress, setSyncProgress] = useState([]);
+  const [syncRunning, setSyncRunning] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   const distances = [
     { label: "1 Mile\n一英里", value: "1M" },
@@ -283,6 +299,77 @@ export default function RecordsPage() {
     }
   };
 
+  // NYRR Sync handlers
+  const handleOpenSyncDialog = async () => {
+    setSyncDialogOpen(true);
+    setSyncProgress([]);
+    setSyncResult(null);
+    setSyncYears([currentYear]);
+    setSyncAllRaces(true);
+    setSyncRaceCodes([]);
+    try {
+      const data = await getSyncRacePatterns();
+      setAvailableRacePatterns(data.races || []);
+    } catch (error) {
+      console.error('Error fetching race patterns:', error);
+    }
+  };
+
+  const handleCloseSyncDialog = () => {
+    if (!syncRunning) {
+      setSyncDialogOpen(false);
+    }
+  };
+
+  const toggleSyncYear = (year) => {
+    setSyncYears(prev =>
+      prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year].sort()
+    );
+  };
+
+  const toggleSyncRaceCode = (code) => {
+    setSyncRaceCodes(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+  };
+
+  const handleStartSync = async () => {
+    if (syncYears.length === 0) return;
+    setSyncRunning(true);
+    setSyncProgress([]);
+    setSyncResult(null);
+
+    try {
+      await startNyrrSync(
+        {
+          years: syncYears,
+          race_codes: syncAllRaces ? null : syncRaceCodes,
+        },
+        currentUser?.uid,
+        (event) => {
+          if (event.type === 'progress') {
+            setSyncProgress(prev => {
+              const updated = [...prev];
+              updated[event.index] = event;
+              return updated;
+            });
+          } else if (event.type === 'complete') {
+            setSyncResult(event);
+          }
+        }
+      );
+    } catch (error) {
+      setSyncResult({ total_imported: 0, total_errors: 1, error: error.message });
+    } finally {
+      setSyncRunning(false);
+      // Refresh records data
+      clearApiCache('/api/results');
+      await fetchRecordsData(selectedYear || null);
+      const yearsJson = await getAvailableYears();
+      setAvailableYears(yearsJson.years || []);
+    }
+  };
+
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
     setShowAll(false);
@@ -420,6 +507,8 @@ export default function RecordsPage() {
         <Box sx={{
           display: 'flex',
           justifyContent: 'center',
+          alignItems: 'center',
+          gap: 2,
           mb: 3
         }}>
           <FormControl sx={{ minWidth: 200 }}>
@@ -457,6 +546,19 @@ export default function RecordsPage() {
               ))}
             </Select>
           </FormControl>
+          {adminModeEnabled && (
+            <Button
+              variant="contained"
+              startIcon={<SyncIcon />}
+              onClick={handleOpenSyncDialog}
+              sx={{
+                backgroundColor: '#FFA500',
+                '&:hover': { backgroundColor: '#e69500' },
+              }}
+            >
+              Sync NYRR Data
+            </Button>
+          )}
         </Box>
 
         {/* Records Tabs */}
@@ -987,6 +1089,132 @@ export default function RecordsPage() {
             color="error"
           >
             Delete 删除
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* NYRR Sync Dialog */}
+      <Dialog open={syncDialogOpen} onClose={handleCloseSyncDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Sync NYRR Race Data 同步NYRR比赛数据</DialogTitle>
+        <DialogContent>
+          {/* Year Selection */}
+          <Typography variant="subtitle2" sx={{ mb: 1, mt: 1 }}>
+            Select Years 选择年份
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+            {Array.from({ length: currentYear - 2014 }, (_, i) => 2015 + i).map(year => (
+              <Chip
+                key={year}
+                label={year}
+                clickable
+                color={syncYears.includes(year) ? 'primary' : 'default'}
+                variant={syncYears.includes(year) ? 'filled' : 'outlined'}
+                onClick={() => toggleSyncYear(year)}
+                disabled={syncRunning}
+                sx={syncYears.includes(year) ? {
+                  backgroundColor: '#FFA500',
+                  '&:hover': { backgroundColor: '#e69500' },
+                } : {}}
+              />
+            ))}
+          </Box>
+
+          {/* Race Selection */}
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Select Races 选择比赛
+          </Typography>
+          <Box sx={{ mb: 1 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={syncAllRaces}
+                  onChange={(e) => setSyncAllRaces(e.target.checked)}
+                  disabled={syncRunning}
+                  sx={{ '&.Mui-checked': { color: '#FFA500' } }}
+                />
+              }
+              label="All Races 所有比赛"
+            />
+          </Box>
+          {!syncAllRaces && (
+            <FormGroup sx={{ maxHeight: 200, overflowY: 'auto', ml: 1, mb: 2 }}>
+              {availableRacePatterns.map(race => (
+                <FormControlLabel
+                  key={race.code}
+                  control={
+                    <Checkbox
+                      checked={syncRaceCodes.includes(race.code)}
+                      onChange={() => toggleSyncRaceCode(race.code)}
+                      disabled={syncRunning}
+                      size="small"
+                      sx={{ '&.Mui-checked': { color: '#FFA500' } }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      {race.name_template.replace('{year}', '')} ({race.distance})
+                    </Typography>
+                  }
+                />
+              ))}
+            </FormGroup>
+          )}
+
+          {/* Progress Area */}
+          {(syncRunning || syncProgress.length > 0) && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Progress 进度
+              </Typography>
+              {syncRunning && <LinearProgress sx={{ mb: 1, '& .MuiLinearProgress-bar': { backgroundColor: '#FFA500' } }} />}
+              <Box sx={{ maxHeight: 250, overflowY: 'auto' }}>
+                {syncProgress.map((item, idx) => item && (
+                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+                    {item.status === 'fetching' && <CircularProgress size={16} sx={{ color: '#FFA500' }} />}
+                    {item.status === 'imported' && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
+                    {item.status === 'no_data' && <RemoveCircleOutlineIcon sx={{ fontSize: 16, color: 'text.disabled' }} />}
+                    {item.status === 'error' && <ErrorIcon sx={{ fontSize: 16, color: 'error.main' }} />}
+                    <Typography variant="body2" sx={{ flex: 1 }}>
+                      {item.race}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.status === 'imported' && `${item.count} records`}
+                      {item.status === 'no_data' && 'No data'}
+                      {item.status === 'error' && 'Error'}
+                      {item.status === 'fetching' && 'Fetching...'}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* Sync Result */}
+          {syncResult && (
+            <Alert severity={syncResult.error ? 'error' : 'success'} sx={{ mt: 2 }}>
+              {syncResult.error ? (
+                <Typography variant="body2">{syncResult.error}</Typography>
+              ) : (
+                <Typography variant="body2">
+                  Sync complete! Imported {syncResult.total_imported} records.
+                  {syncResult.total_errors > 0 && ` Errors: ${syncResult.total_errors}`}
+                </Typography>
+              )}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSyncDialog} disabled={syncRunning}>
+            Close 关闭
+          </Button>
+          <Button
+            onClick={handleStartSync}
+            variant="contained"
+            disabled={syncRunning || syncYears.length === 0 || (!syncAllRaces && syncRaceCodes.length === 0)}
+            startIcon={syncRunning ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}
+            sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#e69500' } }}
+          >
+            {syncRunning ? 'Syncing...' : 'Start Sync 开始同步'}
           </Button>
         </DialogActions>
       </Dialog>
