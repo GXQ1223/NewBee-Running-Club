@@ -4,13 +4,14 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import EventIcon from '@mui/icons-material/Event';
+import StarIcon from '@mui/icons-material/Star';
 import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, IconButton, MenuItem, Snackbar, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import { useEffect, useState, useRef } from 'react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import DOMPurify from 'dompurify';
 import NavigationButtons from '../components/NavigationButtons';
+import EventDetailModal from '../components/EventDetailModal';
+import EventCardImage from '../components/EventCardImage';
 import { useAdmin, useAuth } from '../context';
 import { useAutoFillOnTab, useTranslationAutoFill } from '../hooks';
 import { storage } from '../firebase/config';
@@ -230,6 +231,22 @@ export default function CalendarPage() {
     e.stopPropagation();
     setEventToDelete(event);
     setDeleteDialogOpen(true);
+  };
+
+  const handleMoveToHighlights = async (e, event) => {
+    e.stopPropagation();
+    if (!currentUser?.uid) {
+      setSnackbar({ open: true, message: 'You must be logged in / 您必须登录', severity: 'error' });
+      return;
+    }
+    try {
+      await updateEvent(event.id, { status: 'Highlight' }, currentUser.uid);
+      setUpcomingEvents(prev => prev.filter(ev => ev.id !== event.id));
+      setSnackbar({ open: true, message: 'Event moved to Highlights / 活动已移至精彩回顾', severity: 'success' });
+    } catch (error) {
+      console.error('Error moving event to highlights:', error);
+      setSnackbar({ open: true, message: 'Failed to move event / 移动活动失败', severity: 'error' });
+    }
   };
 
   const handleAddEvent = () => {
@@ -583,20 +600,21 @@ export default function CalendarPage() {
                         <DeleteIcon fontSize="small" color="error" />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title="Move to Highlights / 移至精彩回顾">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleMoveToHighlights(e, event)}
+                        sx={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          '&:hover': { backgroundColor: 'white' }
+                        }}
+                      >
+                        <StarIcon fontSize="small" sx={{ color: '#FFB84D' }} />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 )}
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={event.image}
-                  alt={event.title}
-                  loading="lazy"
-                  onError={handleImageError}
-                  sx={{
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                />
+                <EventCardImage event={event} height="200" onError={handleImageError} />
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                   <Typography gutterBottom variant="h6" component="div" sx={{
                     overflow: 'hidden',
@@ -793,6 +811,18 @@ export default function CalendarPage() {
                       <DeleteIcon fontSize="small" color="error" />
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Move to Highlights / 移至精彩回顾">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleMoveToHighlights(e, event)}
+                      sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '&:hover': { backgroundColor: 'white' }
+                      }}
+                    >
+                      <StarIcon fontSize="small" sx={{ color: '#FFB84D' }} />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
               )}
 
@@ -804,19 +834,7 @@ export default function CalendarPage() {
                   height: '150px'
                 }}
               >
-                <CardMedia
-                  component="img"
-                  loading="lazy"
-                  sx={{
-                    height: '100%',
-                    width: '100%',
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                  image={event.image}
-                  alt={event.name}
-                  onError={handleImageError}
-                />
+                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
               </Box>
 
               {/* Time Column - hidden on mobile, shown on sm+ */}
@@ -850,19 +868,7 @@ export default function CalendarPage() {
                   flexShrink: 0
                 }}
               >
-                <CardMedia
-                  component="img"
-                  loading="lazy"
-                  sx={{
-                    height: '100%',
-                    width: '100%',
-                    objectFit: 'cover',
-                    backgroundColor: '#f5f5f5'
-                  }}
-                  image={event.image}
-                  alt={event.name}
-                  onError={handleImageError}
-                />
+                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
               </Box>
 
               {/* Content Column */}
@@ -937,169 +943,10 @@ export default function CalendarPage() {
 
       {/* Event Detail Modal */}
       {selectedEvent && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-          }}
-          onClick={() => setSelectedEvent(null)}
-        >
-          <Card
-            sx={{
-              maxWidth: 600,
-              width: '90%',
-              maxHeight: '90vh',
-              overflow: 'auto'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <CardMedia
-              component="img"
-              height="300"
-              image={selectedEvent.image}
-              alt={selectedEvent.name || selectedEvent.title}
-              onError={handleImageError}
-              sx={{
-                objectFit: 'cover',
-                backgroundColor: '#f5f5f5'
-              }}
-            />
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <Typography variant="h5" sx={{ flexGrow: 1 }}>
-                  {selectedEvent.name || selectedEvent.title}
-                </Typography>
-                {(selectedEvent.eventType || selectedEvent.event_type) === 'heylo' && (
-                  <Chip
-                    icon={<EventIcon />}
-                    label="Heylo Event"
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                )}
-                {(selectedEvent.eventType || selectedEvent.event_type) === 'race' && (
-                  <Chip
-                    label="Race"
-                    size="small"
-                    color="secondary"
-                    variant="outlined"
-                  />
-                )}
-              </Box>
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                {selectedEvent.chineseName || selectedEvent.chineseTitle}
-              </Typography>
-
-              {/* Heylo Embed Display */}
-              {(selectedEvent.eventType || selectedEvent.event_type) === 'heylo' && (selectedEvent.heyloEmbed || selectedEvent.heylo_embed) && (
-                <Box
-                  sx={{
-                    my: 2,
-                    p: 2,
-                    backgroundColor: '#f5f5f5',
-                    borderRadius: 2,
-                    border: '1px solid #e0e0e0'
-                  }}
-                >
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Heylo Event Details / Heylo活动详情
-                  </Typography>
-                  <Box
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(selectedEvent.heyloEmbed || selectedEvent.heylo_embed, {
-                        ADD_TAGS: ['iframe'],
-                        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling']
-                      })
-                    }}
-                    sx={{
-                      '& iframe': {
-                        maxWidth: '100%',
-                        borderRadius: 1
-                      }
-                    }}
-                  />
-                </Box>
-              )}
-
-              <Typography variant="body1" paragraph>
-                {selectedEvent.description}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" paragraph>
-                Date: {selectedEvent.date}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" paragraph>
-                Time: {selectedEvent.time}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" paragraph>
-                Location: {selectedEvent.location}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" paragraph>
-                {selectedEvent.chineseLocation}
-              </Typography>
-              <Box sx={{ mt: 2 }}>
-                <Button
-                  variant="contained"
-                  sx={{
-                    backgroundColor: '#FFB84D',
-                    color: 'white',
-                    textTransform: 'none',
-                    fontSize: '16px',
-                    px: 2,
-                    py: 1.5,
-                    borderRadius: '12px',
-                    border: '2px solid #FFB84D',
-                    mr: 2,
-                    '&:hover': {
-                      backgroundColor: '#FFA833',
-                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                      transform: 'translateY(-2px)',
-                    },
-                    '&:active': {
-                      transform: 'translateY(1px) scale(0.98)',
-                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-                    }
-                  }}
-                >
-                  Sign Up 报名
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => setSelectedEvent(null)}
-                  sx={{
-                    color: '#FFB84D',
-                    borderColor: '#FFB84D',
-                    textTransform: 'none',
-                    fontSize: '16px',
-                    px: 2,
-                    py: 1.5,
-                    borderRadius: '12px',
-                    '&:hover': {
-                      borderColor: '#FFA833',
-                      backgroundColor: 'rgba(255, 184, 77, 0.04)',
-                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                      transform: 'translateY(-2px)',
-                    },
-                    '&:active': {
-                      transform: 'translateY(1px) scale(0.98)',
-                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-                    }
-                  }}
-                >
-                  Close 关闭
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+        />
       )}
 
       {/* Event Form Dialog */}

@@ -58,13 +58,14 @@ export const getBatchGalleryPreview = async (eventIds, firebaseUid = null) => {
  * @param {string|null} firebaseUid - User's Firebase UID (optional but recommended)
  * @returns {Promise<Object>} - Created gallery image
  */
-export const uploadGalleryImage = async (eventId, file, caption = null, captionCn = null, firebaseUid = null) => {
+export const uploadGalleryImage = async (eventId, file, caption = null, captionCn = null, firebaseUid = null, uploaderName = null) => {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
   const formData = new FormData();
   formData.append('file', file);
   if (caption) formData.append('caption', caption);
   if (captionCn) formData.append('caption_cn', captionCn);
+  if (uploaderName) formData.append('uploaded_by_name', uploaderName);
 
   const headers = {};
   if (firebaseUid) {

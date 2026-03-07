@@ -1437,6 +1437,16 @@ def delete_event(
             detail=f"Event with ID {event_id} not found"
         )
 
+    # Manually delete related records (MySQL FK cascades may not be set up correctly)
+    db.query(EventCommentSettings).filter(EventCommentSettings.event_id == event_id).delete()
+    db.query(Comment).filter(Comment.event_id == event_id).delete()
+    db.query(Like).filter(Like.event_id == event_id).delete()
+    db.query(Reaction).filter(Reaction.event_id == event_id).delete()
+    db.query(EventGalleryImage).filter(EventGalleryImage.event_id == event_id).delete()
+    db.query(EventRecurrenceRule).filter(EventRecurrenceRule.event_id == event_id).delete()
+    # Unlink child events from this parent
+    db.query(Event).filter(Event.parent_event_id == event_id).update({Event.parent_event_id: None})
+
     db.delete(event)
     db.commit()
     return {"message": f"Event {event_id} deleted successfully"}
@@ -3272,6 +3282,7 @@ async def upload_gallery_image(
     file: UploadFile = File(...),
     caption: Optional[str] = Form(None),
     caption_cn: Optional[str] = Form(None),
+    uploaded_by_name: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID")
 ):
@@ -3318,7 +3329,7 @@ async def upload_gallery_image(
         caption_cn=caption_cn,
         display_order=max_order + 1,
         uploaded_by_id=current_member.id if current_member else None,
-        uploaded_by_name=current_member.display_name or current_member.username if current_member else "Anonymous"
+        uploaded_by_name=uploaded_by_name or (current_member.display_name or current_member.username if current_member else "Anonymous")
     )
 
     db.add(new_image)

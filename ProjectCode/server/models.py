@@ -312,6 +312,7 @@ class EventBase(BaseModel):
     description: Optional[str] = None
     chinese_description: Optional[str] = None
     image: Optional[str] = None
+    image_position: Optional[str] = Field(None, max_length=50)
     signup_link: Optional[str] = Field(None, max_length=500)
     status: EventStatus = Field(default=EventStatus.upcoming)
     event_type: EventType = Field(default=EventType.standard)
@@ -332,6 +333,7 @@ class EventUpdate(BaseModel):
     description: Optional[str] = None
     chinese_description: Optional[str] = None
     image: Optional[str] = None
+    image_position: Optional[str] = Field(None, max_length=50)
     signup_link: Optional[str] = Field(None, max_length=500)
     status: Optional[EventStatus] = None
     event_type: Optional[EventType] = None
@@ -344,6 +346,7 @@ class EventResponse(EventBase):
     id: int
     event_type: str = "standard"
     heylo_embed: Optional[str] = None
+    image_position: Optional[str] = None
     # Event group fields
     group_name: Optional[str] = None
     group_name_cn: Optional[str] = None
@@ -728,6 +731,7 @@ class EventGalleryImageUpdate(BaseModel):
     caption_cn: Optional[str] = Field(None, max_length=500)
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
+    uploaded_by_name: Optional[str] = Field(None, max_length=100)
 
 
 class GalleryDeletionRequestResponse(BaseModel):
