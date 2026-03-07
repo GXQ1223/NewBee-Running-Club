@@ -734,7 +734,24 @@ export default function CalendarPage() {
                     </Tooltip>
                   </Box>
                 )}
-                <EventCardImage event={event} height="200" onError={handleImageError} />
+                <Box sx={{ position: 'relative' }}>
+                  <EventCardImage event={event} height="200" onError={handleImageError} />
+                  {!adminModeEnabled && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleShareEvent(e, event)}
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
+                      }}
+                    >
+                      <ShareIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                   <Typography gutterBottom variant="h6" component="div" sx={{
                     overflow: 'hidden',
@@ -788,15 +805,6 @@ export default function CalendarPage() {
                   >
                     Learn More & Sign Up 了解更多并报名
                   </Button>
-                  <Tooltip title="Share / 分享">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleShareEvent(e, event)}
-                      sx={{ mt: 1, color: '#FFB84D' }}
-                    >
-                      <ShareIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                 </CardContent>
               </Card>
             </Grid>
@@ -1018,9 +1026,23 @@ export default function CalendarPage() {
                   flex: 1,
                   p: 2,
                   display: 'flex',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  position: 'relative'
                 }}
               >
+                {/* Share button */}
+                <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleShareEvent(e, event)}
+                    sx={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
+                    }}
+                  >
+                    <ShareIcon fontSize="small" />
+                  </IconButton>
+                </Box>
                 {/* Mobile: Show date/time at top of content */}
                 <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: '#FFA500' }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -1069,15 +1091,6 @@ export default function CalendarPage() {
                   >
                     Learn More & Sign Up 了解更多并报名
                   </Button>
-                  <Tooltip title="Share / 分享">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleShareEvent(e, event)}
-                      sx={{ color: '#FFB84D' }}
-                    >
-                      <ShareIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                 </Box>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   {event.location}
