@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -10,6 +10,9 @@ import {
 import FolderIcon from '@mui/icons-material/Folder';
 import EventGalleryPreview from './EventGalleryPreview';
 import EventEngagementBar from './EventEngagementBar';
+import ImagePositionEditor from './ImagePositionEditor';
+import { updateEvent } from '../api';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * EventGroupCard - iOS-style stacked card for event groups
@@ -21,7 +24,11 @@ const EventGroupCard = ({
   onGroupClick,
   engagementData,
   adminModeEnabled = false,
+  onPositionSaved,
 }) => {
+  const { currentUser } = useAuth();
+  const [coverPosition, setCoverPosition] = useState(group.cover_image_position || 'center center');
+
   const handleImageError = (e) => {
     e.target.src = '/images/2025/20250517_bk_half.jpg';
   };
@@ -79,19 +86,35 @@ const EventGroupCard = ({
           position: 'relative',
         }}
       >
-        <CardMedia
-          component="img"
-          loading="lazy"
-          sx={{
-            height: '100%',
-            width: '100%',
-            objectFit: 'cover',
-            backgroundColor: '#f5f5f5',
-          }}
-          image={group.cover_image || '/images/2025/20250517_bk_half.jpg'}
-          alt={group.group_name}
-          onError={handleImageError}
-        />
+        {adminModeEnabled && group.cover_image ? (
+          <ImagePositionEditor
+            imageUrl={group.cover_image}
+            currentPosition={coverPosition}
+            onSave={async (position) => {
+              await updateEvent(group.cover_event_id || group.parent_event_id, { image_position: position }, currentUser.uid);
+            }}
+            onPositionSaved={(pos) => {
+              setCoverPosition(pos);
+              if (onPositionSaved) onPositionSaved(pos);
+            }}
+            sx={{ width: '100%', height: '100%' }}
+          />
+        ) : (
+          <CardMedia
+            component="img"
+            loading="lazy"
+            sx={{
+              height: '100%',
+              width: '100%',
+              objectFit: 'cover',
+              objectPosition: coverPosition,
+              backgroundColor: '#f5f5f5',
+            }}
+            image={group.cover_image || '/images/2025/20250517_bk_half.jpg'}
+            alt={group.group_name}
+            onError={handleImageError}
+          />
+        )}
         {/* Group badge */}
         <Chip
           icon={<FolderIcon sx={{ fontSize: 16 }} />}
@@ -104,6 +127,7 @@ const EventGroupCard = ({
             backgroundColor: 'rgba(255, 165, 0, 0.9)',
             color: 'white',
             fontWeight: 600,
+            zIndex: 5,
           }}
         />
       </Box>
@@ -157,19 +181,35 @@ const EventGroupCard = ({
           flexShrink: 0,
         }}
       >
-        <CardMedia
-          component="img"
-          loading="lazy"
-          sx={{
-            height: '100%',
-            width: '100%',
-            objectFit: 'cover',
-            backgroundColor: '#f5f5f5',
-          }}
-          image={group.cover_image || '/images/2025/20250517_bk_half.jpg'}
-          alt={group.group_name}
-          onError={handleImageError}
-        />
+        {adminModeEnabled && group.cover_image ? (
+          <ImagePositionEditor
+            imageUrl={group.cover_image}
+            currentPosition={coverPosition}
+            onSave={async (position) => {
+              await updateEvent(group.cover_event_id || group.parent_event_id, { image_position: position }, currentUser.uid);
+            }}
+            onPositionSaved={(pos) => {
+              setCoverPosition(pos);
+              if (onPositionSaved) onPositionSaved(pos);
+            }}
+            sx={{ width: '100%', height: '100%' }}
+          />
+        ) : (
+          <CardMedia
+            component="img"
+            loading="lazy"
+            sx={{
+              height: '100%',
+              width: '100%',
+              objectFit: 'cover',
+              objectPosition: coverPosition,
+              backgroundColor: '#f5f5f5',
+            }}
+            image={group.cover_image || '/images/2025/20250517_bk_half.jpg'}
+            alt={group.group_name}
+            onError={handleImageError}
+          />
+        )}
       </Box>
 
       {/* Content Column */}

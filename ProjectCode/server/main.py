@@ -2565,7 +2565,8 @@ def get_carousel_banners(db: Session = Depends(get_db)):
             label_cn=banner.label_cn,
             display_order=banner.display_order,
             source_type=banner.source_type or 'manual',
-            event_id=banner.event_id
+            event_id=banner.event_id,
+            image_position=banner.image_position
         )
 
         # If banner is linked to an event, populate event details
@@ -2577,6 +2578,9 @@ def get_carousel_banners(db: Session = Depends(get_db)):
             item.event_location = banner.event.location
             item.event_description = banner.event.description
             item.event_signup_link = banner.event.signup_link
+            # Use event's image_position if banner doesn't have its own
+            if not item.image_position:
+                item.image_position = banner.event.image_position
 
         carousel_items.append(item)
 
@@ -2606,7 +2610,8 @@ def get_carousel_banners(db: Session = Depends(get_db)):
             event_time=event.time,
             event_location=event.location,
             event_description=event.description,
-            event_signup_link=event.signup_link
+            event_signup_link=event.signup_link,
+            image_position=event.image_position
         )
         carousel_items.append(item)
 
@@ -3358,9 +3363,9 @@ def update_gallery_image(
     image_id: int,
     image_update: EventGalleryImageUpdate,
     db: Session = Depends(get_db),
-    current_admin: Member = Depends(get_current_admin)
+    current_user: Member = Depends(get_current_committee_or_admin)
 ):
-    """Update a gallery image (admin only)"""
+    """Update a gallery image (committee or admin)"""
     image = db.query(EventGalleryImage).filter(EventGalleryImage.id == image_id).first()
     if not image:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
@@ -4254,6 +4259,8 @@ def get_highlights_grouped(db: Session = Depends(get_db)):
             event_count=len(events),
             events=event_list,
             cover_image=most_recent.image,
+            cover_image_position=most_recent.image_position,
+            cover_event_id=most_recent.id,
             most_recent_date=most_recent.date
         ))
 

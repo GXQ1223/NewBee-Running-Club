@@ -52,6 +52,7 @@ export default function EventModal({ open, onClose, event }) {
   const eventDescription = event.event_description || event.description;
   const eventChineseDescription = event.event_chinese_description || event.chinese_description;
   const eventImage = event.image_url || event.image;
+  const eventImagePosition = event.image_position || 'center center';
   const signupLink = event.event_signup_link || event.signup_link;
 
   return (
@@ -84,6 +85,7 @@ export default function EventModal({ open, onClose, event }) {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
+              objectPosition: eventImagePosition,
             }}
             onError={(e) => {
               e.target.src = '/placeholder-event.png';

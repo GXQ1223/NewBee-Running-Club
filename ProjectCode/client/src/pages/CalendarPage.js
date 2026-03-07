@@ -5,9 +5,12 @@ import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import StarIcon from '@mui/icons-material/Star';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
 import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, IconButton, MenuItem, Snackbar, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import RepeatIcon from '@mui/icons-material/Repeat';
+import ShareIcon from '@mui/icons-material/Share';
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import NavigationButtons from '../components/NavigationButtons';
 import EventDetailModal from '../components/EventDetailModal';
@@ -44,6 +47,7 @@ const initialFormData = {
 export default function CalendarPage() {
   const { adminModeEnabled } = useAdmin();
   const { currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [featuredEvents, setFeaturedEvents] = useState([]);
@@ -69,6 +73,14 @@ export default function CalendarPage() {
   const [imagePreview, setImagePreview] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Quick QR upload state
+  const [quickQrEventId, setQuickQrEventId] = useState(null);
+  const [quickQrFile, setQuickQrFile] = useState(null);
+  const [quickQrPreview, setQuickQrPreview] = useState('');
+  const [quickQrDialogOpen, setQuickQrDialogOpen] = useState(false);
+  const [quickQrUploading, setQuickQrUploading] = useState(false);
+  const quickQrFileInputRef = useRef(null);
 
   // Default values for Tab auto-fill
   const eventDefaultValues = {
@@ -149,6 +161,7 @@ export default function CalendarPage() {
               description: event.description,
               chineseDescription: event.chinese_description,
               image: event.image,
+              image_position: event.image_position,
               signupLink: event.signup_link,
               status: event.status,
               eventType: event.event_type || 'standard',
@@ -168,6 +181,7 @@ export default function CalendarPage() {
           title: event.name,
           chineseTitle: event.chineseName,
           image: event.image,
+          image_position: event.image_position,
           description: event.description,
           date: event.date,
           time: event.time,
@@ -183,14 +197,35 @@ export default function CalendarPage() {
     fetchEvents();
   }, []);
 
-  const handleEventClick = (event) => {
-    // For featured events, we need to find the full event data
-    if (event.id) {
-      setSelectedEvent(event);
-    } else {
-      // For upcoming events, we already have the full event data
-      setSelectedEvent(event);
+  // Deep-link: auto-open event modal from ?event=ID
+  useEffect(() => {
+    const eventId = searchParams.get('event');
+    if (eventId && upcomingEvents.length > 0) {
+      const event = upcomingEvents.find(ev => String(ev.id) === eventId);
+      if (event) {
+        setSelectedEvent(event);
+      }
     }
+  }, [searchParams, upcomingEvents]);
+
+  const handleEventClick = (event) => {
+    setSelectedEvent(event);
+    setSearchParams({ event: event.id });
+  };
+
+  const handleEventClose = () => {
+    setSelectedEvent(null);
+    setSearchParams({});
+  };
+
+  const handleShareEvent = (e, event) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/calendar?event=${event.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setSnackbar({ open: true, message: 'Link copied / 链接已复制', severity: 'success' });
+    }).catch(() => {
+      setSnackbar({ open: true, message: 'Failed to copy link / 复制链接失败', severity: 'error' });
+    });
   };
 
   const handleFilterChange = (field) => (event) => {
@@ -321,6 +356,7 @@ export default function CalendarPage() {
         description: event.description,
         chineseDescription: event.chinese_description,
         image: event.image,
+        image_position: event.image_position,
         signupLink: event.signup_link,
         status: event.status,
         eventType: event.event_type || 'standard',
@@ -332,6 +368,7 @@ export default function CalendarPage() {
         title: event.name,
         chineseTitle: event.chineseName,
         image: event.image,
+        image_position: event.image_position,
         description: event.description,
         date: event.date,
         time: event.time,
@@ -374,6 +411,7 @@ export default function CalendarPage() {
         description: event.description,
         chineseDescription: event.chinese_description,
         image: event.image,
+        image_position: event.image_position,
         signupLink: event.signup_link,
         status: event.status,
         eventType: event.event_type || 'standard',
@@ -385,6 +423,7 @@ export default function CalendarPage() {
         title: event.name,
         chineseTitle: event.chineseName,
         image: event.image,
+        image_position: event.image_position,
         description: event.description,
         date: event.date,
         time: event.time,
@@ -456,6 +495,75 @@ export default function CalendarPage() {
     setFormData(prev => ({ ...prev, image: '' }));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // Quick QR upload handlers
+  const getEventQrCode = (eventId) => {
+    const event = [...featuredEvents, ...upcomingEvents].find(ev => ev.id === eventId);
+    return event?.wechatQrCode || '';
+  };
+
+  const handleQuickQrOpen = (e, event) => {
+    e.stopPropagation();
+    setQuickQrEventId(event.id);
+    setQuickQrFile(null);
+    setQuickQrPreview('');
+    if (quickQrFileInputRef.current) quickQrFileInputRef.current.value = '';
+    setQuickQrDialogOpen(true);
+  };
+
+  const handleQuickQrSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setSnackbar({ open: true, message: 'Please select an image file / 请选择图片文件', severity: 'error' });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setSnackbar({ open: true, message: 'Image must be less than 5MB / 图片必须小于5MB', severity: 'error' });
+        return;
+      }
+      setQuickQrFile(file);
+      setQuickQrPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleQuickQrSubmit = async () => {
+    if (!quickQrFile || !quickQrEventId) return;
+    setQuickQrUploading(true);
+    try {
+      const timestamp = Date.now();
+      const filename = `events/qr/${timestamp}_${quickQrFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const storageRef = ref(storage, filename);
+      await uploadBytes(storageRef, quickQrFile);
+      const url = await getDownloadURL(storageRef);
+      await updateEvent(quickQrEventId, { wechat_qr_code: url }, currentUser.uid);
+      const updateList = (list) => list.map(ev => ev.id === quickQrEventId ? { ...ev, wechatQrCode: url } : ev);
+      setFeaturedEvents(updateList);
+      setUpcomingEvents(updateList);
+      setQuickQrDialogOpen(false);
+      setSnackbar({ open: true, message: 'QR code uploaded / 二维码已上传', severity: 'success' });
+    } catch (error) {
+      console.error('Error uploading QR code:', error);
+      setSnackbar({ open: true, message: 'Failed to upload QR code / 二维码上传失败', severity: 'error' });
+    } finally {
+      setQuickQrUploading(false);
+    }
+  };
+
+  const handleQuickQrRemove = async () => {
+    if (!quickQrEventId) return;
+    try {
+      await updateEvent(quickQrEventId, { wechat_qr_code: '' }, currentUser.uid);
+      const updateList = (list) => list.map(ev => ev.id === quickQrEventId ? { ...ev, wechatQrCode: '' } : ev);
+      setFeaturedEvents(updateList);
+      setUpcomingEvents(updateList);
+      setQuickQrDialogOpen(false);
+      setSnackbar({ open: true, message: 'QR code removed / 二维码已移除', severity: 'success' });
+    } catch (error) {
+      console.error('Error removing QR code:', error);
+      setSnackbar({ open: true, message: 'Failed to remove QR code / 移除二维码失败', severity: 'error' });
     }
   };
 
@@ -612,6 +720,18 @@ export default function CalendarPage() {
                         <StarIcon fontSize="small" sx={{ color: '#FFB84D' }} />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title="Upload WeChat QR / 上传微信二维码">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleQuickQrOpen(e, event)}
+                        sx={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          '&:hover': { backgroundColor: 'white' }
+                        }}
+                      >
+                        <QrCode2Icon fontSize="small" sx={{ color: event.wechatQrCode ? '#07C160' : 'action.active' }} />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 )}
                 <EventCardImage event={event} height="200" onError={handleImageError} />
@@ -668,6 +788,15 @@ export default function CalendarPage() {
                   >
                     Learn More & Sign Up 了解更多并报名
                   </Button>
+                  <Tooltip title="Share / 分享">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleShareEvent(e, event)}
+                      sx={{ mt: 1, color: '#FFB84D' }}
+                    >
+                      <ShareIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </CardContent>
               </Card>
             </Grid>
@@ -823,6 +952,18 @@ export default function CalendarPage() {
                       <StarIcon fontSize="small" sx={{ color: '#FFB84D' }} />
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Upload WeChat QR / 上传微信二维码">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleQuickQrOpen(e, event)}
+                      sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '&:hover': { backgroundColor: 'white' }
+                      }}
+                    >
+                      <QrCode2Icon fontSize="small" sx={{ color: event.wechatQrCode ? '#07C160' : 'action.active' }} />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
               )}
 
@@ -928,6 +1069,15 @@ export default function CalendarPage() {
                   >
                     Learn More & Sign Up 了解更多并报名
                   </Button>
+                  <Tooltip title="Share / 分享">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleShareEvent(e, event)}
+                      sx={{ color: '#FFB84D' }}
+                    >
+                      <ShareIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   {event.location}
@@ -945,7 +1095,17 @@ export default function CalendarPage() {
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
+          onClose={handleEventClose}
+          onEventUpdate={(updatedEvent) => {
+            setSelectedEvent(updatedEvent);
+            const updateList = (list) => list.map(ev =>
+              ev.id === updatedEvent.id ? { ...ev, ...updatedEvent } : ev
+            );
+            setUpcomingEvents(updateList);
+            setFeaturedEvents(prev => prev.map(ev =>
+              ev.id === updatedEvent.id ? { ...ev, ...updatedEvent } : ev
+            ));
+          }}
         />
       )}
 
@@ -1378,6 +1538,82 @@ export default function CalendarPage() {
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : 'Delete / 删除'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Quick QR Upload Dialog */}
+      <Dialog
+        open={quickQrDialogOpen}
+        onClose={() => setQuickQrDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ textAlign: 'center' }}>
+          WeChat QR Code / 微信二维码
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          {getEventQrCode(quickQrEventId) && !quickQrPreview && (
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Current QR Code / 当前二维码
+              </Typography>
+              <img
+                src={getEventQrCode(quickQrEventId)}
+                alt="Current QR Code"
+                style={{ width: 200, height: 200, objectFit: 'contain' }}
+              />
+              <Box sx={{ mt: 1 }}>
+                <Button size="small" color="error" onClick={handleQuickQrRemove}>
+                  Remove / 移除
+                </Button>
+              </Box>
+            </Box>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleQuickQrSelect}
+            ref={quickQrFileInputRef}
+            style={{ display: 'none' }}
+            id="quick-qr-upload"
+          />
+          <label htmlFor="quick-qr-upload">
+            <Button
+              variant="outlined"
+              component="span"
+              startIcon={<CloudUploadIcon />}
+              sx={{
+                borderColor: '#FFB84D',
+                color: '#FFB84D',
+                '&:hover': { borderColor: '#FFA833', backgroundColor: 'rgba(255, 184, 77, 0.04)' }
+              }}
+            >
+              {getEventQrCode(quickQrEventId) ? 'Replace QR / 替换二维码' : 'Choose QR Code / 选择二维码'}
+            </Button>
+          </label>
+          {quickQrPreview && (
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                New QR Code / 新二维码
+              </Typography>
+              <img
+                src={quickQrPreview}
+                alt="QR Preview"
+                style={{ width: 200, height: 200, objectFit: 'contain' }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setQuickQrDialogOpen(false)}>Cancel / 取消</Button>
+          <Button
+            onClick={handleQuickQrSubmit}
+            variant="contained"
+            disabled={!quickQrFile || quickQrUploading}
+            sx={{ backgroundColor: '#07C160', '&:hover': { backgroundColor: '#06AD56' } }}
+          >
+            {quickQrUploading ? <CircularProgress size={20} /> : 'Upload / 上传'}
           </Button>
         </DialogActions>
       </Dialog>

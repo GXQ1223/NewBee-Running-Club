@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import CropIcon from '@mui/icons-material/Crop';
 import CheckIcon from '@mui/icons-material/Check';
@@ -6,11 +6,15 @@ import CloseIcon from '@mui/icons-material/Close';
 import { updateEvent } from '../api';
 import { useAuth } from '../context/AuthContext';
 
-export default function ImagePositionEditor({ eventId, imageUrl, currentPosition, onPositionSaved, sx }) {
+export default function ImagePositionEditor({ eventId, imageUrl, currentPosition, onPositionSaved, onSave, sx }) {
   const { currentUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [position, setPosition] = useState(currentPosition || 'center center');
+  // Sync internal position state when the parent passes a new currentPosition
+  useEffect(() => {
+    setPosition(currentPosition || 'center center');
+  }, [currentPosition]);
   const [dragStart, setDragStart] = useState(null);
   const [positionAtDragStart, setPositionAtDragStart] = useState(null);
   const dragRef = useRef(null);
@@ -56,7 +60,11 @@ export default function ImagePositionEditor({ eventId, imageUrl, currentPosition
     if (!currentUser?.uid) return;
     setSaving(true);
     try {
-      await updateEvent(eventId, { image_position: position }, currentUser.uid);
+      if (onSave) {
+        await onSave(position);
+      } else {
+        await updateEvent(eventId, { image_position: position }, currentUser.uid);
+      }
       setEditing(false);
       if (onPositionSaved) onPositionSaved(position);
     } catch (error) {

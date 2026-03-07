@@ -19,6 +19,7 @@ import {
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import EditIcon from '@mui/icons-material/Edit';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import CropIcon from '@mui/icons-material/Crop';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -42,7 +43,10 @@ import EventModal from '../components/EventModal';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import { getCarouselBanners } from '../api/banners';
+import { updateBanner } from '../api/banners';
 import { getActiveSections, updateSection, reorderSections, uploadImage } from '../api/homepageSections';
+import ImagePositionEditor from '../components/ImagePositionEditor';
+import { updateEvent } from '../api';
 
 // Fallback carousel images if API fails
 const fallbackCarouselImages = [
@@ -68,8 +72,8 @@ const fallbackCarouselImages = [
 
 // Fallback sections if API fails
 const fallbackSections = [
-  { id: 1, title_en: 'Event Registration', title_cn: '活动报名', link_path: '/event-registration', image_url: '/EventRegistration.png' },
-  { id: 2, title_en: 'Memories', title_cn: '回忆', link_path: '/Highlights', image_url: '/Highlights.png' },
+  { id: 1, title_en: 'Event Registration', title_cn: '活动报名', link_path: '/calendar', image_url: '/EventRegistration.png' },
+  { id: 2, title_en: 'Memories', title_cn: '回忆', link_path: '/highlights', image_url: '/Highlights.png' },
   { id: 3, title_en: 'Upcoming', title_cn: '即将到来', link_path: '/calendar', image_url: null },
   { id: 4, title_en: 'Club Credits/Records', title_cn: '俱乐部积分/记录', link_path: '/records', image_url: null },
   { id: 5, title_en: 'Join NewBee', title_cn: '加入新蜂', link_path: '/join', image_url: null },
@@ -77,7 +81,7 @@ const fallbackSections = [
 ];
 
 // Sortable Section Component
-function SortableSection({ section, adminModeEnabled, onEdit }) {
+function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit }) {
   const [isHovered, setIsHovered] = useState(false);
   const {
     attributes,
@@ -192,6 +196,7 @@ function SortableSection({ section, adminModeEnabled, onEdit }) {
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
+                objectPosition: section.image_position || 'center center',
                 borderRadius: { xs: '8px', sm: '12px' },
                 transition: 'filter 0.3s ease',
                 filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
@@ -260,6 +265,30 @@ function SortableSection({ section, adminModeEnabled, onEdit }) {
               />
             </Box>
           </Box>
+
+          {/* Admin: crop button for section image position */}
+          {adminModeEnabled && section.image_url && (
+            <Tooltip title="Adjust image position / 调整图片位置">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onPositionEdit) onPositionEdit(section);
+                }}
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  '&:hover': { backgroundColor: 'white' },
+                  zIndex: 10,
+                }}
+              >
+                <CropIcon fontSize="small" sx={{ color: '#FFB84D' }} />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       </Container>
     </Box>
@@ -283,6 +312,7 @@ export default function HomePage() {
     title_en: '',
     title_cn: '',
     image_url: '',
+    image_position: '',
     link_path: '',
     is_active: true
   });
@@ -290,6 +320,8 @@ export default function HomePage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [carouselPositionEditing, setCarouselPositionEditing] = useState(false);
+  const [sectionPositionEditing, setSectionPositionEditing] = useState(null);
   const navigate = useNavigate();
 
   // Drag and drop sensors
@@ -354,6 +386,7 @@ export default function HomePage() {
       title_en: section.title_en || '',
       title_cn: section.title_cn || '',
       image_url: section.image_url || '',
+      image_position: section.image_position || '',
       link_path: section.link_path || '',
       is_active: section.is_active !== false
     });
@@ -503,6 +536,7 @@ export default function HomePage() {
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
+                  objectPosition: image.image_position || 'center center',
                   position: 'absolute',
                   top: 0,
                   left: 0,
@@ -602,6 +636,29 @@ export default function HomePage() {
                 />
               ))}
             </Box>
+
+            {/* Admin: crop button to open position editor dialog */}
+            {adminModeEnabled && carouselImages[currentImageIndex] && (
+              <Tooltip title="Adjust image position / 调整图片位置">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCarouselPositionEditing(true);
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '&:hover': { backgroundColor: 'white' },
+                    zIndex: 10,
+                  }}
+                >
+                  <CropIcon fontSize="small" sx={{ color: '#FFB84D' }} />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         </Container>
       )}
@@ -691,6 +748,7 @@ export default function HomePage() {
                 section={section}
                 adminModeEnabled={adminModeEnabled}
                 onEdit={handleEditSection}
+                onPositionEdit={(section) => setSectionPositionEditing(section)}
               />
             ))}
           </SortableContext>
@@ -704,6 +762,95 @@ export default function HomePage() {
             onEdit={() => {}}
           />
         ))
+      )}
+
+      {/* Carousel Position Editor Dialog */}
+      {carouselPositionEditing && carouselImages[currentImageIndex] && (
+        <Dialog
+          open={carouselPositionEditing}
+          onClose={() => setCarouselPositionEditing(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle sx={{ color: '#FFA500', fontWeight: 600 }}>
+            Adjust Image Position / 调整图片位置
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Click the crop icon, then drag the image to adjust its position. / 点击裁剪图标，然后拖动图片调整位置。
+            </Typography>
+            <ImagePositionEditor
+              imageUrl={carouselImages[currentImageIndex].image_url}
+              currentPosition={carouselImages[currentImageIndex].image_position || 'center center'}
+              onSave={async (position) => {
+                const img = carouselImages[currentImageIndex];
+                if (img.source_type === 'event_highlight' && img.event_id) {
+                  await updateEvent(img.event_id, { image_position: position }, currentUser.uid);
+                } else if (img.id > 0) {
+                  await updateBanner(img.id, { image_position: position }, currentUser.uid);
+                }
+              }}
+              onPositionSaved={(position) => {
+                setCarouselImages(prev => prev.map((img, idx) =>
+                  idx === currentImageIndex ? { ...img, image_position: position } : img
+                ));
+                setCarouselPositionEditing(false);
+              }}
+              sx={{
+                width: '100%',
+                height: { xs: '200px', sm: '300px', md: '400px' },
+                borderRadius: '8px',
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCarouselPositionEditing(false)}>
+              Close / 关闭
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {/* Section Position Editor Dialog */}
+      {sectionPositionEditing && (
+        <Dialog
+          open={!!sectionPositionEditing}
+          onClose={() => setSectionPositionEditing(null)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle sx={{ color: '#FFA500', fontWeight: 600 }}>
+            Adjust Image Position / 调整图片位置
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Click the crop icon, then drag the image to adjust its position. / 点击裁剪图标，然后拖动图片调整位置。
+            </Typography>
+            <ImagePositionEditor
+              imageUrl={sectionPositionEditing.image_url}
+              currentPosition={sectionPositionEditing.image_position || 'center center'}
+              onSave={async (position) => {
+                await updateSection(sectionPositionEditing.id, { image_position: position }, currentUser.uid);
+              }}
+              onPositionSaved={(position) => {
+                setSections(prev => prev.map(s =>
+                  s.id === sectionPositionEditing.id ? { ...s, image_position: position } : s
+                ));
+                setSectionPositionEditing(null);
+              }}
+              sx={{
+                width: '100%',
+                height: { xs: '200px', sm: '300px', md: '400px' },
+                borderRadius: '8px',
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSectionPositionEditing(null)}>
+              Close / 关闭
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
 
       {/* Event Modal */}
