@@ -2,7 +2,8 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ShareIcon from '@mui/icons-material/Share';
-import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, Container, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, useSensor, useSensors, TouchSensor, MouseSensor, closestCenter } from '@dnd-kit/core';
@@ -14,7 +15,7 @@ import EventDetailModal from '../components/EventDetailModal';
 import EventGroupCard from '../components/EventGroupCard';
 import EventGroupGalleryModal from '../components/EventGroupGalleryModal';
 import UndoSnackbar from '../components/UndoSnackbar';
-import { getEventsByStatus, getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge } from '../api';
+import { getEventsByStatus, getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge, deleteEvent } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 
@@ -87,6 +88,9 @@ export default function HighlightsPage() {
   const [undoData, setUndoData] = useState(null); // { parentId, eventId, message }
   const [draggedEventId, setDraggedEventId] = useState(null);
   const [activeId, setActiveId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Sensors: TouchSensor with 250ms delay (long press like iOS), MouseSensor with distance
   const sensors = useSensors(
@@ -132,6 +136,32 @@ export default function HighlightsPage() {
   const handleMenuClose = () => {
     setMenuAnchorEl(null);
     setMenuEventId(null);
+  };
+
+  const handleDeleteEvent = () => {
+    const event = [...standaloneEvents, ...pastEvents].find(e => e.id === menuEventId);
+    if (event) {
+      setEventToDelete(event);
+      setDeleteDialogOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!eventToDelete || !currentUser?.uid) return;
+    setDeleteLoading(true);
+    try {
+      await deleteEvent(eventToDelete.id, currentUser.uid);
+      setDeleteDialogOpen(false);
+      setEventToDelete(null);
+      setSnackbar({ open: true, message: 'Event deleted / 活动已删除', severity: 'success' });
+      refreshEvents();
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      setSnackbar({ open: true, message: 'Failed to delete event / 删除活动失败', severity: 'error' });
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const refreshEvents = useCallback(async () => {
@@ -1071,6 +1101,10 @@ export default function HighlightsPage() {
           <PlaylistAddIcon sx={{ mr: 1, color: '#FFA500' }} />
           Mark as Series Parent 设为系列主活动
         </MenuItem>
+        <MenuItem onClick={handleDeleteEvent}>
+          <DeleteIcon sx={{ mr: 1, color: 'error.main' }} />
+          Delete Event 删除活动
+        </MenuItem>
       </Menu>
 
       {/* Event Detail Modal */}
@@ -1093,6 +1127,31 @@ export default function HighlightsPage() {
         onRemoveFromGroup={handleRemoveFromGroup}
         adminModeEnabled={adminModeEnabled}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Event / 删除活动</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete "{eventToDelete?.name || eventToDelete?.title}"?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            您确定要删除 "{eventToDelete?.chineseName || eventToDelete?.chineseTitle || eventToDelete?.name || eventToDelete?.title}" 吗？
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleteLoading}>
+            Cancel 取消
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? <CircularProgress size={24} /> : 'Delete / 删除'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Share Snackbar */}
       <Snackbar
