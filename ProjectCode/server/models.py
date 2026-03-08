@@ -107,6 +107,7 @@ class MemberBase(BaseModel):
     last_name: Optional[str] = Field(None, max_length=50)
     display_name: Optional[str] = Field(None, max_length=100)
     display_name_cn: Optional[str] = Field(None, max_length=100)
+    nickname: Optional[str] = Field(None, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     profile_photo_url: Optional[str] = Field(None, max_length=500)
     gender: Optional[str] = Field(None, max_length=1)  # "M" or "F"
@@ -143,6 +144,7 @@ class MemberUpdate(BaseModel):
     last_name: Optional[str] = Field(None, max_length=50)
     display_name: Optional[str] = Field(None, max_length=100)
     display_name_cn: Optional[str] = Field(None, max_length=100)
+    nickname: Optional[str] = Field(None, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     profile_photo_url: Optional[str] = Field(None, max_length=500)
     gender: Optional[str] = Field(None, max_length=1)  # "M" or "F"
@@ -192,6 +194,7 @@ class MemberPublicResponse(BaseModel):
     last_name: Optional[str] = None
     display_name: Optional[str] = None
     display_name_cn: Optional[str] = None
+    nickname: Optional[str] = None
     status: MemberStatus
     committee_position: Optional[str] = None
     committee_position_cn: Optional[str] = None
@@ -217,6 +220,7 @@ class JoinApplicationRequest(BaseModel):
     """Join application form submission"""
     first_name: str = Field(..., max_length=50)
     last_name: str = Field(..., max_length=50)
+    nickname: Optional[str] = Field(None, max_length=100)
     email: str = Field(..., max_length=255)
     nyrr_id: Optional[str] = Field(None, max_length=50)
     running_experience: str

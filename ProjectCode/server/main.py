@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Header, File, Uploa
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text, inspect
 from typing import List, Optional
 from pydantic import BaseModel
 import os
@@ -104,7 +104,7 @@ def delete_from_s3(image_url: str) -> bool:
         print(f"S3 delete error for {image_url}: {e}")
         return False
 
-from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, GalleryDeletionRequest, EventRecurrenceRule, SiteSetting
+from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, GalleryDeletionRequest, EventRecurrenceRule, SiteSetting, engine
 from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest,
@@ -157,11 +157,22 @@ def _seed_settings_on_startup():
         db.close()
 
 
+def _run_migrations():
+    """Run lightweight schema migrations for new columns."""
+    inspector = inspect(engine)
+    columns = [c['name'] for c in inspector.get_columns('members')]
+    if 'nickname' not in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE members ADD COLUMN nickname VARCHAR(100)"))
+            conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown events."""
     # Startup
     create_tables()
+    _run_migrations()
     start_scheduler()
     _seed_settings_on_startup()
     yield
@@ -807,13 +818,25 @@ def link_donor_to_member(
 
 # MEMBER ENDPOINTS
 
-@app.get("/api/members", response_model=List[MemberPublicResponse])
-def get_all_members(db: Session = Depends(get_db)):
-    """Get all active members (public info only) - excludes pending and quit members"""
+@app.get("/api/members")
+def get_all_members(
+    x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID"),
+    db: Session = Depends(get_db)
+):
+    """Get all members. Returns full data for admin/committee, public data otherwise."""
+    # Check if caller is admin or committee
+    if x_firebase_uid:
+        caller = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
+        if caller and caller.status in ('admin', 'committee'):
+            # Return full member data for admin/committee
+            all_members = db.query(Member).order_by(Member.display_name).all()
+            return [MemberResponse.model_validate(m) for m in all_members]
+
+    # Public: active members only, limited fields
     members = db.query(Member).filter(
         Member.status.in_(['runner', 'committee', 'admin'])
     ).order_by(Member.display_name).all()
-    return members
+    return [MemberPublicResponse.model_validate(m) for m in members]
 
 
 @app.get("/api/members/credits", response_model=List[MemberPublicResponse])
@@ -1224,6 +1247,7 @@ def submit_join_application(application: JoinApplicationRequest, db: Session = D
         first_name=application.first_name,
         last_name=application.last_name,
         display_name=full_name,
+        nickname=application.nickname,
         nyrr_member_id=application.nyrr_id,
         status='pending',
         # Application form data
