@@ -486,7 +486,10 @@ def get_member_race_results(
     ).order_by(Results.race_time.desc()).all()
 
     # If gender and birth_year provided, filter by matching gender and calculated birth year
+    # Map standard gender codes to NYRR codes (NYRR uses "M"/"W" instead of "M"/"F")
+    gender_map = {"F": "W", "W": "W", "M": "M"}
     if gender and birth_year:
+        mapped_gender = gender_map.get(gender.upper(), gender.upper())
         filtered_results = []
         for result in results:
             if result.race_time and result.gender_age:
@@ -504,7 +507,7 @@ def get_member_race_results(
 
                     # Match if gender matches AND calculated birth year is exact or +1 year
                     # (+1 tolerance because if birthday hasn't passed yet, age is 1 less → calc birth year is 1 more)
-                    if result_gender == gender and calculated_birth_year in (birth_year, birth_year + 1):
+                    if result_gender == mapped_gender and calculated_birth_year in (birth_year, birth_year + 1):
                         filtered_results.append(result)
         results = filtered_results
 
