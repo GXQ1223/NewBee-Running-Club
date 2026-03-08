@@ -148,8 +148,9 @@ class Member(Base):
     # Profile
     first_name = Column(String(50))
     last_name = Column(String(50))
-    display_name = Column(String(100))
+    display_name = Column(String(100))  # NYRR registered name (locked once set)
     display_name_cn = Column(String(100))
+    nickname = Column(String(100))  # Freely changeable display name on website
     phone = Column(String(20))
     profile_photo_url = Column(String(500))
     gender = Column(String(1))  # "M" or "F" for race record matching

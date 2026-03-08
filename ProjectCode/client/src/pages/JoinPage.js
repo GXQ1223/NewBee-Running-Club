@@ -112,6 +112,7 @@ export default function JoinPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    nickname: '',
     email: '',
     nyrr_id: '',
     runningExperience: '',
@@ -202,6 +203,7 @@ export default function JoinPage() {
       const applicationData = {
         first_name: formData.firstName,
         last_name: formData.lastName,
+        nickname: formData.nickname || null,
         email: formData.email,
         nyrr_id: formData.nyrr_id || null,
         running_experience: formData.runningExperience,
@@ -242,6 +244,7 @@ export default function JoinPage() {
     setFormData({
       firstName: '',
       lastName: '',
+      nickname: '',
       email: '',
       nyrr_id: '',
       runningExperience: '',
@@ -622,7 +625,7 @@ export default function JoinPage() {
       <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
         <TextField
           fullWidth
-          label="First Name 名"
+          label="NYRR First Name / NYRR注册名"
           name="firstName"
           value={formData.firstName}
           onChange={handleFormChange}
@@ -632,7 +635,7 @@ export default function JoinPage() {
         />
         <TextField
           fullWidth
-          label="Last Name 姓"
+          label="NYRR Last Name / NYRR注册姓"
           name="lastName"
           value={formData.lastName}
           onChange={handleFormChange}
@@ -641,6 +644,16 @@ export default function JoinPage() {
           disabled={submitting}
         />
       </Box>
+      <TextField
+        fullWidth
+        label="Nickname (Website Display Name) / 昵称（网站显示名）"
+        name="nickname"
+        value={formData.nickname}
+        onChange={handleFormChange}
+        margin="normal"
+        disabled={submitting}
+        helperText="Optional. This name will be shown on the website instead of your NYRR name. / 可选。此名称将显示在网站上，替代NYRR注册名。"
+      />
       <TextField
         fullWidth
         label="Email 电子邮箱"

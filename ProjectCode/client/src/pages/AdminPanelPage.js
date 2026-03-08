@@ -26,7 +26,9 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
+  TableSortLabel,
   Tabs,
   TextField,
   Tooltip,
@@ -37,7 +39,7 @@ import { useSearchParams } from 'react-router-dom';
 import NavigationButtons from '../components/NavigationButtons';
 import MeetingMinutesEditor from '../components/MeetingMinutesEditor';
 import { useAuth } from '../context/AuthContext';
-import { getPendingMembers, approveMember, rejectMember, getMemberByFirebaseUid, getAllMembers, promoteToCommittee, demoteFromCommittee } from '../api/members';
+import { getPendingMembers, approveMember, rejectMember, getMemberByFirebaseUid, getAllMembers, updateMember, promoteToCommittee, demoteFromCommittee } from '../api/members';
 import { createEvent, getAllEvents, updateEvent, deleteEvent } from '../api/events';
 import { getDonationSummary } from '../api/donors';
 import { getAllBanners, createBanner, updateBanner, deleteBanner } from '../api/banners';
@@ -105,6 +107,18 @@ export default function AdminPanelPage() {
   const [isCommittee, setIsCommittee] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false); // True only for full admin status
   const [currentMemberData, setCurrentMemberData] = useState(null);
+
+  // All Members table state
+  const [memberSortColumn, setMemberSortColumn] = useState('created_at');
+  const [memberSortDirection, setMemberSortDirection] = useState('desc');
+  const [memberPage, setMemberPage] = useState(0);
+  const [memberRowsPerPage, setMemberRowsPerPage] = useState(10);
+  const [memberSearch, setMemberSearch] = useState('');
+
+  // Edit member dialog state
+  const [editMemberDialogOpen, setEditMemberDialogOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [editMemberFormData, setEditMemberFormData] = useState({});
 
   // Activity verification state
   const [pendingActivities, setPendingActivities] = useState([]);
@@ -320,6 +334,51 @@ export default function AdminPanelPage() {
 
   const handleCancelAction = () => {
     setConfirmDialog({ open: false, action: null, id: null, name: '' });
+  };
+
+  // Edit member handlers
+  const handleEditMember = (member) => {
+    setEditingMember(member);
+    setEditMemberFormData({
+      display_name: member.display_name || '',
+      display_name_cn: member.display_name_cn || '',
+      email: member.email || '',
+      gender: member.gender || '',
+      birth_year: member.birth_year || '',
+      phone: member.phone || '',
+      nyrr_member_id: member.nyrr_member_id || '',
+      status: member.status || ''
+    });
+    setEditMemberDialogOpen(true);
+  };
+
+  const handleSaveMember = async () => {
+    if (!editingMember) return;
+    setActionLoading(editingMember.id);
+    try {
+      const updateData = {};
+      // Only include fields that have values, convert types properly
+      for (const [key, value] of Object.entries(editMemberFormData)) {
+        if (value === '' || value === null || value === undefined) continue;
+        if (key === 'birth_year') {
+          updateData[key] = parseInt(value);
+        } else {
+          updateData[key] = value;
+        }
+      }
+      await updateMember(editingMember.id, updateData, currentUser.uid);
+      setSuccessMessage(`Updated ${editMemberFormData.display_name || editingMember.username} successfully!`);
+      setEditMemberDialogOpen(false);
+      // Refresh members
+      const members = await getAllMembers(currentUser.uid).catch(() => []);
+      setAllMembers(members);
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (err) {
+      console.error('Error updating member:', err);
+      setError('Failed to update member. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // Event form handlers
@@ -866,49 +925,140 @@ export default function AdminPanelPage() {
             All Members ({allMembers.length})
           </Typography>
 
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: 'rgba(255, 165, 0, 0.1)' }}>
-                  <TableCell><strong>Name</strong></TableCell>
-                  <TableCell><strong>Email</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Joined</strong></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {allMembers.slice(0, 20).map((member) => (
-                  <TableRow key={member.id} hover>
-                    <TableCell>{member.display_name || member.username}</TableCell>
-                    <TableCell>{member.email}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={member.status}
-                        size="small"
-                        color={
-                          member.status === 'admin' ? 'primary' :
-                          member.status === 'committee' ? 'secondary' :
-                          member.status === 'runner' ? 'success' :
-                          member.status === 'pending' ? 'warning' :
-                          member.status === 'rejected' ? 'error' :
-                          member.status === 'suspended' ? 'error' :
-                          member.status === 'quit' ? 'default' : 'default'
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {member.created_at ? new Date(member.created_at).toLocaleDateString() : 'N/A'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          {allMembers.length > 20 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-              Showing 20 of {allMembers.length} members
-            </Typography>
-          )}
+          <TextField
+            size="small"
+            placeholder="Search by name or email / 搜索姓名或邮箱"
+            value={memberSearch}
+            onChange={(e) => { setMemberSearch(e.target.value); setMemberPage(0); }}
+            sx={{ mb: 2, width: { xs: '100%', sm: 300 } }}
+          />
+
+          {(() => {
+            const memberSortHandler = (col) => () => {
+              setMemberSortDirection(memberSortColumn === col && memberSortDirection === 'asc' ? 'desc' : 'asc');
+              setMemberSortColumn(col);
+            };
+            const filtered = allMembers.filter(m => {
+              if (!memberSearch) return true;
+              const q = memberSearch.toLowerCase();
+              return (m.display_name || m.username || '').toLowerCase().includes(q) ||
+                     (m.email || '').toLowerCase().includes(q);
+            });
+            const sorted = [...filtered].sort((a, b) => {
+              let aVal, bVal;
+              switch (memberSortColumn) {
+                case 'display_name':
+                  aVal = (a.display_name || a.username || '').toLowerCase();
+                  bVal = (b.display_name || b.username || '').toLowerCase();
+                  break;
+                case 'email':
+                  aVal = (a.email || '').toLowerCase();
+                  bVal = (b.email || '').toLowerCase();
+                  break;
+                case 'gender':
+                  aVal = a.gender || '';
+                  bVal = b.gender || '';
+                  break;
+                case 'status':
+                  aVal = a.status || '';
+                  bVal = b.status || '';
+                  break;
+                case 'join_date':
+                  aVal = a.join_date || a.created_at || '';
+                  bVal = b.join_date || b.created_at || '';
+                  break;
+                default:
+                  aVal = '';
+                  bVal = '';
+              }
+              if (aVal < bVal) return memberSortDirection === 'asc' ? -1 : 1;
+              if (aVal > bVal) return memberSortDirection === 'asc' ? 1 : -1;
+              return 0;
+            });
+            const paginated = sorted.slice(memberPage * memberRowsPerPage, memberPage * memberRowsPerPage + memberRowsPerPage);
+
+            return (
+              <TableContainer component={Paper}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'rgba(255, 165, 0, 0.1)' }}>
+                      {[
+                        { id: 'display_name', label: 'Name' },
+                        { id: 'email', label: 'Email' },
+                        { id: 'gender', label: 'Gender' },
+                        { id: 'status', label: 'Status' },
+                        { id: 'join_date', label: 'Joined' }
+                      ].map(col => (
+                        <TableCell key={col.id}>
+                          <TableSortLabel
+                            active={memberSortColumn === col.id}
+                            direction={memberSortColumn === col.id ? memberSortDirection : 'asc'}
+                            onClick={memberSortHandler(col.id)}
+                          >
+                            <strong>{col.label}</strong>
+                          </TableSortLabel>
+                        </TableCell>
+                      ))}
+                      <TableCell align="right"><strong>Actions</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginated.map((member) => (
+                      <TableRow key={member.id} hover>
+                        <TableCell>
+                          {member.display_name || member.username}
+                          {member.display_name_cn && (
+                            <Typography variant="caption" display="block" color="text.secondary">
+                              {member.display_name_cn}
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>{member.email || '-'}</TableCell>
+                        <TableCell>
+                          {member.gender === 'M' ? 'Male' : member.gender === 'F' ? 'Female' : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={member.status}
+                            size="small"
+                            color={
+                              member.status === 'admin' ? 'primary' :
+                              member.status === 'committee' ? 'secondary' :
+                              member.status === 'runner' ? 'success' :
+                              member.status === 'pending' ? 'warning' :
+                              member.status === 'rejected' ? 'error' :
+                              member.status === 'suspended' ? 'error' :
+                              member.status === 'quit' ? 'default' : 'default'
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {member.join_date ? new Date(member.join_date).toLocaleDateString() :
+                           member.created_at ? new Date(member.created_at).toLocaleDateString() : 'N/A'}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="Edit Member">
+                            <IconButton size="small" onClick={() => handleEditMember(member)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <TablePagination
+                  component="div"
+                  count={filtered.length}
+                  page={memberPage}
+                  onPageChange={(e, newPage) => setMemberPage(newPage)}
+                  rowsPerPage={memberRowsPerPage}
+                  onRowsPerPageChange={(e) => { setMemberRowsPerPage(parseInt(e.target.value, 10)); setMemberPage(0); }}
+                  rowsPerPageOptions={[10, 25, 50]}
+                />
+              </TableContainer>
+            );
+          })()}
         </TabPanel>
 
         {/* Tab 1: Activity Verification */}
@@ -2054,6 +2204,112 @@ export default function AdminPanelPage() {
             disabled={!rejectionReason.trim() || actionLoading === rejectDialog.id}
           >
             {actionLoading === rejectDialog.id ? <CircularProgress size={20} /> : 'Reject / 拒绝'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={editMemberDialogOpen} onClose={() => setEditMemberDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Edit Member / 编辑会员
+          <IconButton onClick={() => setEditMemberDialogOpen(false)} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="NYRR Registered Name"
+                value={editMemberFormData.display_name || ''}
+                onChange={(e) => setEditMemberFormData(prev => ({ ...prev, display_name: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Display Name (CN)"
+                value={editMemberFormData.display_name_cn || ''}
+                onChange={(e) => setEditMemberFormData(prev => ({ ...prev, display_name_cn: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Email"
+                value={editMemberFormData.email || ''}
+                onChange={(e) => setEditMemberFormData(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Gender</InputLabel>
+                <Select
+                  value={editMemberFormData.gender || ''}
+                  onChange={(e) => setEditMemberFormData(prev => ({ ...prev, gender: e.target.value }))}
+                  label="Gender"
+                >
+                  <MenuItem value="">Not specified</MenuItem>
+                  <MenuItem value="M">Male</MenuItem>
+                  <MenuItem value="F">Female</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Birth Year"
+                value={editMemberFormData.birth_year || ''}
+                onChange={(e) => setEditMemberFormData(prev => ({ ...prev, birth_year: e.target.value }))}
+                inputProps={{ min: 1900, max: 2020 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Phone"
+                value={editMemberFormData.phone || ''}
+                onChange={(e) => setEditMemberFormData(prev => ({ ...prev, phone: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="NYRR Runner ID"
+                value={editMemberFormData.nyrr_member_id || ''}
+                onChange={(e) => setEditMemberFormData(prev => ({ ...prev, nyrr_member_id: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={editMemberFormData.status || ''}
+                  onChange={(e) => setEditMemberFormData(prev => ({ ...prev, status: e.target.value }))}
+                  label="Status"
+                >
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="runner">Runner</MenuItem>
+                  <MenuItem value="committee">Committee</MenuItem>
+                  <MenuItem value="admin">Admin</MenuItem>
+                  <MenuItem value="suspended">Suspended</MenuItem>
+                  <MenuItem value="quit">Quit</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setEditMemberDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveMember}
+            disabled={actionLoading === editingMember?.id}
+            sx={{ backgroundColor: '#FFB84D', '&:hover': { backgroundColor: '#FFA833' } }}
+          >
+            {actionLoading === editingMember?.id ? <CircularProgress size={20} /> : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>

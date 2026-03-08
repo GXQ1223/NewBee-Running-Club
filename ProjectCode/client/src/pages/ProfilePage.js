@@ -86,7 +86,7 @@ const ProfilePage = () => {
 
   // Default values for Tab auto-fill
   const profileDefaultValues = {
-    display_name: 'Display Name',
+    display_name: 'NYRR Registered Name',
     display_name_cn: '中文名',
     phone: '000-000-0000',
     nyrr_member_id: 'Not provided',
@@ -248,6 +248,7 @@ const ProfilePage = () => {
 
   const handleOpenEditDialog = () => {
     setEditFormData({
+      nickname: memberData?.nickname || '',
       display_name: memberData?.display_name || currentUser?.displayName || '',
       display_name_cn: memberData?.display_name_cn || '',
       email: memberData?.email || currentUser?.email || '',
@@ -396,7 +397,7 @@ const ProfilePage = () => {
 
   if (!currentUser) return null;
 
-  const displayName = memberData?.display_name || currentUser?.displayName || 'User';
+  const displayName = memberData?.nickname || memberData?.display_name || currentUser?.displayName || 'User';
   const displayNameCn = memberData?.display_name_cn;
 
   return (
@@ -463,11 +464,6 @@ const ProfilePage = () => {
             <Box>
               <Typography variant="h4" component="h1" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
                 {displayName}
-                {displayNameCn && (
-                  <Typography component="span" variant="h5" color="text.secondary" sx={{ ml: 1, fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
-                    ({displayNameCn})
-                  </Typography>
-                )}
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                 {memberData?.email || currentUser?.email}
@@ -851,18 +847,27 @@ const ProfilePage = () => {
                 Basic Information / 基本信息
               </Typography>
             </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nickname (Website Display Name) / 昵称（网站显示名）"
+                value={editFormData.nickname || ''}
+                onChange={handleEditFormChange('nickname')}
+                helperText="This name will be shown on the website. You can change it anytime. / 此名称将显示在网站上，可随时更改。"
+              />
+            </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 name="display_name"
                 fullWidth
-                label="Name (English) / 英文名"
+                label="NYRR Registered Name / NYRR注册名"
                 value={editFormData.display_name || ''}
                 onChange={handleEditFormChange('display_name')}
                 onKeyDown={handleFieldKeyDown}
                 onBlur={handleTranslationBlur}
                 placeholder={profileDefaultValues.display_name}
                 disabled={!!memberData?.display_name}
-                helperText={memberData?.display_name ? 'Contact admin to change / 联系管理员修改' : ''}
+                helperText={memberData?.display_name ? 'Contact admin to change / 联系管理员修改' : 'Use your name as registered on NYRR / 请使用NYRR注册时的姓名'}
               />
             </Grid>
             <Grid item xs={12} sm={6}>

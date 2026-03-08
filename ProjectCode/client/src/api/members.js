@@ -42,8 +42,9 @@ export async function getMember(memberId) {
  * @param {Object} data - Updated fields
  * @returns {Promise<Object>} Updated member data
  */
-export async function updateMember(memberId, data) {
-  return api.put(`/api/members/${memberId}`, data);
+export async function updateMember(memberId, data, firebaseUid = null) {
+  const headers = firebaseUid ? { 'X-Firebase-UID': firebaseUid } : {};
+  return api.put(`/api/members/${memberId}`, data, headers);
 }
 
 /**
