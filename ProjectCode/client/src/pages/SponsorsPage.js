@@ -7,7 +7,9 @@ import { useEffect, useState } from 'react';
 import NavigationButtons from '../components/NavigationButtons';
 import { useAdmin } from '../context';
 import { useAutoFillOnTab } from '../hooks';
-import { getAllDonors, getPublicDonors, createDonor, updateDonor, deleteDonor } from '../api/donors';
+import { getAllDonors, getPublicDonors, createDonor, updateDonor, deleteDonor, getHideAmounts, toggleHideAmounts } from '../api/donors';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 export default function SponsorsPage() {
   const { adminModeEnabled } = useAdmin();
@@ -16,6 +18,9 @@ export default function SponsorsPage() {
   const [selectedTab, setSelectedTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Hide amounts toggle
+  const [hideAmounts, setHideAmounts] = useState(false);
 
   // Admin dialogs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -73,8 +78,21 @@ export default function SponsorsPage() {
 
   useEffect(() => {
     fetchDonors();
+    if (adminModeEnabled) {
+      getHideAmounts().then(data => setHideAmounts(data.hide_amounts)).catch(() => {});
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminModeEnabled]);
+
+  const handleToggleHideAmounts = async () => {
+    try {
+      const data = await toggleHideAmounts();
+      setHideAmounts(data.hide_amounts);
+    } catch (err) {
+      console.error('Error toggling hide amounts:', err);
+      setError('Failed to toggle amount visibility. / 切换金额可见性失败。');
+    }
+  };
 
   const handleEditDonor = (donor) => {
     setEditingDonor(donor);
@@ -321,7 +339,24 @@ export default function SponsorsPage() {
         </Typography>
 
         {adminModeEnabled && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 3 }}>
+            <Button
+              variant={hideAmounts ? 'contained' : 'outlined'}
+              startIcon={hideAmounts ? <VisibilityOffIcon /> : <VisibilityIcon />}
+              onClick={handleToggleHideAmounts}
+              sx={{
+                textTransform: 'none',
+                borderColor: '#FFB84D',
+                color: hideAmounts ? 'white' : '#FFB84D',
+                backgroundColor: hideAmounts ? '#FFB84D' : 'transparent',
+                '&:hover': {
+                  backgroundColor: hideAmounts ? '#FFA833' : 'rgba(255, 184, 77, 0.08)',
+                  borderColor: '#FFA833',
+                }
+              }}
+            >
+              {hideAmounts ? 'Amounts Hidden / 金额已隐藏' : 'Amounts Visible / 金额可见'}
+            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}

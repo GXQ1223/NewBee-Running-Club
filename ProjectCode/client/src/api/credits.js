@@ -15,6 +15,15 @@ export const getCredits = async (creditType = null) => {
 };
 
 /**
+ * Get aggregated credits for a specific member by name
+ * @param {string} memberName - Member's display name
+ * @returns {Promise<Object>} { registration_credits, checkin_credits, volunteer_credits, activity_credits }
+ */
+export const getMemberCredits = async (memberName) => {
+  return api.get(`/api/credits/member/${encodeURIComponent(memberName)}`);
+};
+
+/**
  * Get a specific credit by ID
  * @param {number} creditId
  * @returns {Promise<Object>}
