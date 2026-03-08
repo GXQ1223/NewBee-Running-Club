@@ -52,6 +52,7 @@ import { storage } from '../firebase/config';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getMemberByFirebaseUid, updateMember } from '../api/members';
 import { getMemberRaceResults } from '../api/results';
+import { getMemberCredits } from '../api/credits';
 
 const ProfilePage = () => {
   const { currentUser } = useAuth();
@@ -67,6 +68,9 @@ const ProfilePage = () => {
   // Race results state
   const [raceData, setRaceData] = useState({ results: [], stats: { total_races: 0, prs: {}, recent_results: [] } });
   const [loadingRaces, setLoadingRaces] = useState(false);
+
+  // Club credits state
+  const [clubCredits, setClubCredits] = useState({ registration_credits: 0, checkin_credits: 0, volunteer_credits: 0, activity_credits: 0 });
 
   // Race history sorting state
   const [sortColumn, setSortColumn] = useState('race_date');
@@ -128,6 +132,16 @@ const ProfilePage = () => {
     try {
       const response = await getMemberByFirebaseUid(currentUser.uid);
       setMemberData(response);
+
+      // Fetch club credits from TempClubCredit table
+      if (response?.display_name) {
+        try {
+          const credits = await getMemberCredits(response.display_name);
+          setClubCredits(credits);
+        } catch (creditErr) {
+          console.error('Failed to fetch club credits:', creditErr);
+        }
+      }
 
       // If member has NYRR ID or name, fetch race results
       if (response?.nyrr_member_id || response?.display_name) {
@@ -617,22 +631,28 @@ const ProfilePage = () => {
             <StarsIcon sx={{ color: '#FFB84D' }} /> Club Credits / 俱乐部积分
           </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
-                <Typography variant="h4" color="primary">{memberData.registration_credits || 0}</Typography>
+                <Typography variant="h4" color="primary">{clubCredits.registration_credits || 0}</Typography>
                 <Typography variant="body2" color="text.secondary">Registration / 比赛积分</Typography>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
-                <Typography variant="h4" color="primary">{memberData.checkin_credits || 0}</Typography>
+                <Typography variant="h4" color="primary">{clubCredits.checkin_credits || 0}</Typography>
                 <Typography variant="body2" color="text.secondary">Check-in / 签到积分</Typography>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
-                <Typography variant="h4" color="primary">{memberData.volunteer_credits || 0}</Typography>
+                <Typography variant="h4" color="primary">{clubCredits.volunteer_credits || 0}</Typography>
                 <Typography variant="body2" color="text.secondary">Volunteer / 志愿者积分</Typography>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h4" color="primary">{clubCredits.activity_credits || 0}</Typography>
+                <Typography variant="body2" color="text.secondary">Activity / 活动积分</Typography>
               </Card>
             </Grid>
           </Grid>
@@ -841,6 +861,8 @@ const ProfilePage = () => {
                 onKeyDown={handleFieldKeyDown}
                 onBlur={handleTranslationBlur}
                 placeholder={profileDefaultValues.display_name}
+                disabled={!!memberData?.display_name}
+                helperText={memberData?.display_name ? 'Contact admin to change / 联系管理员修改' : ''}
               />
             </Grid>
             <Grid item xs={12} sm={6}>

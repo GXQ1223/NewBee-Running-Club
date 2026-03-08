@@ -141,6 +141,18 @@ def _seed_settings_on_startup():
     db = next(get_db())
     try:
         seed_social_links(db)
+        # Seed donors_hide_amounts setting
+        existing = db.query(SiteSetting).filter(SiteSetting.key == "donors_hide_amounts").first()
+        if not existing:
+            db.add(SiteSetting(
+                key="donors_hide_amounts",
+                value="false",
+                label_en="Hide Donation Amounts",
+                label_cn="隐藏捐款金额",
+                category="donors",
+                is_active=True
+            ))
+            db.commit()
     finally:
         db.close()
 
@@ -623,6 +635,10 @@ def get_public_donors(db: Session = Depends(get_db)):
         Donor.notes != "Anonymous Donor"
     ).order_by(Donor.donation_date.desc(), Donor.name).all()
 
+    # Check global hide_amounts setting
+    hide_amounts_setting = db.query(SiteSetting).filter(SiteSetting.key == "donors_hide_amounts").first()
+    global_hide_amounts = hide_amounts_setting and hide_amounts_setting.value == "true"
+
     public_donors = []
     for donor in donors:
         # Check if linked to a member who has opted out of donor display
@@ -631,8 +647,11 @@ def get_public_donors(db: Session = Depends(get_db)):
             if linked_member and not linked_member.show_in_donors:
                 continue  # Skip this donor
 
-        # Apply privacy rules: hide amount for individual donors
-        show_amount = donor.donor_type == 'enterprise' and not donor.hide_amount
+        # Apply privacy rules: hide amount if global setting is on, or for individual donors
+        if global_hide_amounts:
+            show_amount = False
+        else:
+            show_amount = donor.donor_type == 'enterprise' and not donor.hide_amount
         display_name = "Anonymous Donor" if donor.hide_name else donor.name
 
         public_donors.append(DonorPublicResponse(
@@ -648,6 +667,34 @@ def get_public_donors(db: Session = Depends(get_db)):
         ))
 
     return public_donors
+
+
+@app.get("/api/donors/hide-amounts")
+def get_hide_amounts(db: Session = Depends(get_db)):
+    """Get whether donation amounts are hidden globally."""
+    setting = db.query(SiteSetting).filter(SiteSetting.key == "donors_hide_amounts").first()
+    return {"hide_amounts": setting.value == "true" if setting else False}
+
+
+@app.put("/api/donors/hide-amounts")
+def toggle_hide_amounts(db: Session = Depends(get_db)):
+    """Toggle the global hide donation amounts setting (admin only)."""
+    setting = db.query(SiteSetting).filter(SiteSetting.key == "donors_hide_amounts").first()
+    if not setting:
+        setting = SiteSetting(
+            key="donors_hide_amounts",
+            value="true",
+            label_en="Hide Donation Amounts",
+            label_cn="隐藏捐款金额",
+            category="donors",
+            is_active=True
+        )
+        db.add(setting)
+    else:
+        setting.value = "false" if setting.value == "true" else "true"
+    db.commit()
+    db.refresh(setting)
+    return {"hide_amounts": setting.value == "true"}
 
 
 @app.get("/api/donors/{donor_type}", response_model=List[DonorResponse])
@@ -841,8 +888,14 @@ def create_member(member: MemberCreate, db: Session = Depends(get_db)):
 
 
 @app.put("/api/members/{member_id}", response_model=MemberResponse)
-def update_member(member_id: int, member_update: MemberUpdate, db: Session = Depends(get_db)):
-    """Update a member"""
+def update_member(
+    member_id: int,
+    member_update: MemberUpdate,
+    x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID"),
+    db: Session = Depends(get_db)
+):
+    """Update a member. Locked fields (display_name, gender, birth_year) cannot be
+    changed by regular users once set — only admins can modify them."""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
         raise HTTPException(
@@ -850,7 +903,23 @@ def update_member(member_id: int, member_update: MemberUpdate, db: Session = Dep
             detail=f"Member with ID {member_id} not found"
         )
 
+    # Check if the caller is an admin
+    is_admin = False
+    if x_firebase_uid:
+        caller = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
+        if caller and caller.status == 'admin':
+            is_admin = True
+
     update_data = member_update.model_dump(exclude_unset=True)
+
+    # Locked fields: once set, only admins can change them
+    # This prevents users from changing name/gender/birth_year to view other runners' race records
+    locked_fields = ['display_name']
+    if not is_admin:
+        for field in locked_fields:
+            if field in update_data and getattr(member, field):
+                # Field already has a value and caller is not admin — remove from update
+                del update_data[field]
 
     # Convert enum to string if status is being updated
     if 'status' in update_data and update_data['status']:
@@ -2317,6 +2386,34 @@ def get_all_credits(
         TempClubCredit.full_name
     ).all()
     return credits
+
+
+@app.get("/api/credits/member/{member_name}")
+def get_member_credits(member_name: str, db: Session = Depends(get_db)):
+    """Get aggregated club credits for a specific member by name."""
+    credits = db.query(TempClubCredit).filter(
+        TempClubCredit.full_name.ilike(member_name)
+    ).all()
+
+    result = {
+        "registration_credits": 0,
+        "checkin_credits": 0,
+        "volunteer_credits": 0,
+        "activity_credits": 0
+    }
+
+    for credit in credits:
+        reg = float(credit.registration_credits or 0)
+        checkin = float(credit.checkin_credits or 0)
+        if credit.credit_type == 'volunteer':
+            result["volunteer_credits"] += reg + checkin
+        elif credit.credit_type == 'activity':
+            result["activity_credits"] += reg + checkin
+        else:
+            result["registration_credits"] += reg
+            result["checkin_credits"] += checkin
+
+    return result
 
 
 @app.get("/api/credits/{credit_id}", response_model=TempClubCreditResponse)

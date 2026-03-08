@@ -78,6 +78,22 @@ export async function getPublicDonors() {
 }
 
 /**
+ * Get whether donation amounts are hidden globally
+ * @returns {Promise<Object>} { hide_amounts: boolean }
+ */
+export async function getHideAmounts() {
+  return api.get('/api/donors/hide-amounts');
+}
+
+/**
+ * Toggle global hide donation amounts setting (admin only)
+ * @returns {Promise<Object>} { hide_amounts: boolean }
+ */
+export async function toggleHideAmounts() {
+  return api.put('/api/donors/hide-amounts');
+}
+
+/**
  * Link a donor to a member account (admin only)
  * @param {string} donorId - Donor ID
  * @param {number} memberId - Member ID to link
