@@ -149,7 +149,9 @@ export default function CalendarPage() {
             const timeStr = event.time || '';
             const timeParts = timeStr ? timeStr.split(':').map(Number) : [0, 0];
             const isPM = timeStr ? timeStr.toLowerCase().includes('pm') : false;
-            const eventDate = new Date(year, month - 1, day, isPM ? timeParts[0] + 12 : timeParts[0], timeParts[1] || 0);
+            const hours = Math.min(Math.max(timeParts[0] || 0, 0), 23);
+            const minutes = Math.min(Math.max(timeParts[1] || 0, 0), 59);
+            const eventDate = new Date(year, month - 1, day, isPM ? hours + 12 : hours, minutes);
 
             return {
               id: event.id,

@@ -62,9 +62,12 @@ def get_event_gallery(
             GalleryDeletionRequest.image_id.in_(image_ids),
             GalleryDeletionRequest.status == 'pending'
         ).all()
+        # Batch query all requesters to avoid N+1
+        requester_ids = {req.requested_by_id for req in pending_reqs}
+        requesters = {m.id: m for m in db.query(Member).filter(Member.id.in_(requester_ids)).all()} if requester_ids else {}
         for req in pending_reqs:
             if req.image_id not in pending_requests:
-                requester = db.query(Member).filter(Member.id == req.requested_by_id).first()
+                requester = requesters.get(req.requested_by_id)
                 pending_requests[req.image_id] = GalleryDeletionRequestResponse(
                     id=req.id,
                     image_id=req.image_id,

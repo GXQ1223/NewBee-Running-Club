@@ -164,7 +164,7 @@ const GalleryPage = () => {
     if (!imageToDelete) return;
 
     try {
-      await deleteGalleryImage(imageToDelete.id, currentUser.uid);
+      await deleteGalleryImage(imageToDelete.id, currentUser?.uid);
       setImages((prev) => prev.filter((img) => img.id !== imageToDelete.id));
       setDeleteDialogOpen(false);
       setImageToDelete(null);
@@ -192,7 +192,7 @@ const GalleryPage = () => {
     if (!imageToRequestDelete || !deletionReason.trim()) return;
     setRequestLoading(true);
     try {
-      await requestGalleryImageDeletion(imageToRequestDelete.id, deletionReason.trim(), currentUser.uid);
+      await requestGalleryImageDeletion(imageToRequestDelete.id, deletionReason.trim(), currentUser?.uid);
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageToRequestDelete.id
@@ -220,7 +220,7 @@ const GalleryPage = () => {
     if (!requestToReview?.deletionRequest) return;
     setReviewLoading(true);
     try {
-      await resolveGalleryDeletionRequest(requestToReview.deletionRequest.id, approved, currentUser.uid);
+      await resolveGalleryDeletionRequest(requestToReview.deletionRequest.id, approved, currentUser?.uid);
       if (approved) {
         setImages((prev) => prev.filter((img) => img.id !== requestToReview.image.id));
       } else {

@@ -30,6 +30,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import NavigationButtons from '../components/NavigationButtons';
 import { useAuth } from '../context/AuthContext';
 import { getApprovedTips, submitTip, toggleUpvote } from '../api/trainingTips';
+import { getAnonymousId } from '../api/engagement';
 import GroupsIcon from '@mui/icons-material/Groups';
 import RouteIcon from '@mui/icons-material/Route';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -101,15 +102,6 @@ const getCategoryColor = (category) => {
   return colors[category] || '#FFA500';
 };
 
-// Helper to get or create anonymous ID for upvoting
-const getAnonymousId = () => {
-  let id = localStorage.getItem('newbee_anonymous_id');
-  if (!id) {
-    id = 'anon_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-    localStorage.setItem('newbee_anonymous_id', id);
-  }
-  return id;
-};
 
 // Helper to extract video embed URL
 const getVideoEmbedUrl = (url, platform) => {

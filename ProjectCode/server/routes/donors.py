@@ -188,7 +188,7 @@ def update_donor(donor_id: str, donor_update: DonorUpdate, db: Session = Depends
             detail=f"Donor with ID {donor_id} not found"
         )
 
-    update_data = donor_update.dict(exclude_unset=True)
+    update_data = donor_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(donor, field, value)
 

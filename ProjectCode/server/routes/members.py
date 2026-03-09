@@ -191,9 +191,9 @@ def update_member_privacy(
     if x_firebase_uid:
         caller = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
         if not caller or (caller.id != member_id and caller.status not in ('admin', 'committee')):
-            raise HTTPException(status_code=403, detail="You can only update your own privacy settings.")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own privacy settings.")
     else:
-        raise HTTPException(status_code=401, detail="Authentication required.")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
 
     if show_in_credits is not None:
         member.show_in_credits = show_in_credits
@@ -228,7 +228,7 @@ def delete_member(
 def get_committee_members(db: Session = Depends(get_db)):
     """Get all committee members (admin status indicates committee member)"""
     members = db.query(Member).filter(
-        Member.status == 'admin'
+        Member.status.in_(['admin', 'committee'])
     ).order_by(Member.display_name).all()
     return members
 

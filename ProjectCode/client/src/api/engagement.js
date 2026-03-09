@@ -14,7 +14,7 @@ const ANONYMOUS_ID_KEY = 'newbee_anonymous_id';
 export const getAnonymousId = () => {
   let anonymousId = localStorage.getItem(ANONYMOUS_ID_KEY);
   if (!anonymousId) {
-    anonymousId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    anonymousId = `anon_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     localStorage.setItem(ANONYMOUS_ID_KEY, anonymousId);
   }
   return anonymousId;

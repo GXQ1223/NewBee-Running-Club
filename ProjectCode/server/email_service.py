@@ -24,21 +24,44 @@ def must_have_env(env_var: str) -> str:
     return value
 
 
-# Gmail SMTP Configuration
-GMAIL_USER = must_have_env("GMAIL_USER")
-GMAIL_APP_PASSWORD = must_have_env("GMAIL_APP_PASSWORD")
+# Gmail SMTP Configuration - lazy loaded to avoid crashing on import
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
-# Website URL for email templates
-WEBSITE_URL = must_have_env("WEBSITE_URL")
+_email_config = None
 
-# Log configuration status on module load
-if GMAIL_APP_PASSWORD:
-    logger.info(f"[EMAIL] Email service configured with user: {GMAIL_USER}")
-else:
-    logger.warning("[EMAIL] GMAIL_APP_PASSWORD not set - emails will be disabled")
-    logger.warning("[EMAIL] To enable emails, add GMAIL_APP_PASSWORD to server/.env")
+def _get_email_config():
+    """Lazy-load email configuration to avoid crashing on import if env vars are missing."""
+    global _email_config
+    if _email_config is None:
+        _email_config = {
+            'gmail_user': os.getenv("GMAIL_USER", ""),
+            'gmail_app_password': os.getenv("GMAIL_APP_PASSWORD", ""),
+            'website_url': os.getenv("WEBSITE_URL", ""),
+        }
+        if _email_config['gmail_app_password']:
+            logger.info(f"[EMAIL] Email service configured with user: {_email_config['gmail_user']}")
+        else:
+            logger.warning("[EMAIL] GMAIL_APP_PASSWORD not set - emails will be disabled")
+    return _email_config
+
+# Expose WEBSITE_URL as a lazy property for imports
+def _get_website_url():
+    return _get_email_config()['website_url']
+
+class _WebsiteUrlProxy:
+    def __str__(self):
+        return _get_website_url()
+    def __add__(self, other):
+        return _get_website_url() + other
+    def __radd__(self, other):
+        return other + _get_website_url()
+    def __format__(self, spec):
+        return format(_get_website_url(), spec)
+
+WEBSITE_URL = _WebsiteUrlProxy()
+GMAIL_USER = None  # Accessed via _get_email_config()
+GMAIL_APP_PASSWORD = None  # Accessed via _get_email_config()
 
 
 class EmailService:
@@ -63,21 +86,25 @@ class EmailService:
         Returns:
             True if email sent successfully, False otherwise
         """
-        if not GMAIL_APP_PASSWORD:
+        config = _get_email_config()
+        gmail_user = config['gmail_user']
+        gmail_password = config['gmail_app_password']
+
+        if not gmail_password:
             logger.warning(f"[EMAIL] Skipping email to {to_email} - GMAIL_APP_PASSWORD not configured")
             logger.debug(f"[EMAIL] Would have sent: subject='{subject}'")
             return False
 
         logger.info(f"[EMAIL] Attempting to send email to {to_email}")
         logger.debug(f"[EMAIL] Subject: {subject}")
-        logger.debug(f"[EMAIL] From: {GMAIL_USER}")
+        logger.debug(f"[EMAIL] From: {gmail_user}")
         logger.debug(f"[EMAIL] SMTP: {SMTP_SERVER}:{SMTP_PORT}")
 
         try:
             # Create message
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
-            msg['From'] = f"NewBee Running Club <{GMAIL_USER}>"
+            msg['From'] = f"NewBee Running Club <{gmail_user}>"
             msg['To'] = to_email
 
             # Attach plain text and HTML versions
@@ -95,8 +122,8 @@ class EmailService:
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
                 logger.debug("[EMAIL] Starting TLS...")
                 server.starttls()
-                logger.debug(f"[EMAIL] Logging in as {GMAIL_USER}...")
-                server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+                logger.debug(f"[EMAIL] Logging in as {gmail_user}...")
+                server.login(gmail_user, gmail_password)
                 logger.debug("[EMAIL] Sending message...")
                 server.send_message(msg)
 
@@ -104,7 +131,7 @@ class EmailService:
             return True
 
         except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"[EMAIL] Authentication failed for {GMAIL_USER}")
+            logger.error(f"[EMAIL] Authentication failed for {gmail_user}")
             logger.error(f"[EMAIL] Check GMAIL_APP_PASSWORD is correct (should be 16-char app password)")
             logger.error(f"[EMAIL] Error: {str(e)}")
             logger.debug(f"[EMAIL] Traceback:\n{traceback.format_exc()}")
@@ -253,7 +280,7 @@ class EmailService:
         """
 
         logger.info(f"[EMAIL] Sending committee notification for applicant: {applicant_name} ({applicant_email})")
-        return EmailService.send_email(GMAIL_USER, subject, body_html, body_text)
+        return EmailService.send_email(_get_email_config()['gmail_user'], subject, body_html, body_text)
 
     @staticmethod
     def send_approval_notification(member_email: str, member_name: str) -> bool:
@@ -464,4 +491,4 @@ class EmailService:
         """
 
         logger.info(f"[EMAIL] Sending existing member account notification for: {member_name} ({member_email})")
-        return EmailService.send_email(GMAIL_USER, subject, body_html, body_text)
+        return EmailService.send_email(_get_email_config()['gmail_user'], subject, body_html, body_text)
