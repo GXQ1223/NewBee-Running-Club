@@ -496,13 +496,20 @@ export default function HomePage() {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
-      // Create preview URL
+      // Revoke previous blob URL to prevent memory leak
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
     }
   };
 
   const handleRemoveImage = () => {
+    // Revoke blob URL to prevent memory leak
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setSelectedFile(null);
     setImagePreview(null);
     setEditFormData(prev => ({ ...prev, image_url: '' }));

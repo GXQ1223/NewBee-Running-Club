@@ -56,11 +56,12 @@ def submit_member_activity(
 
     db_activity = MemberActivity(**activity_data)
     db.add(db_activity)
+    db.flush()  # Ensure new activity is visible to count query
 
     # Update member's activities_completed count
     member.activities_completed = db.query(MemberActivity).filter(
         MemberActivity.member_id == member_id
-    ).count() + 1
+    ).count()
 
     db.commit()
     db.refresh(db_activity)
@@ -91,6 +92,11 @@ def verify_activity(
     if request.approved:
         activity.status = 'verified'
     else:
+        if not request.rejection_reason or not request.rejection_reason.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Rejection reason is required"
+            )
         activity.status = 'rejected'
         activity.rejection_reason = request.rejection_reason
 
