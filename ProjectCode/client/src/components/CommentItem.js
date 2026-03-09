@@ -32,7 +32,7 @@ export default function CommentItem({ comment, onUpdate, onDelete, onError }) {
   const [hideReason, setHideReason] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isOwnComment = currentUser?.uid === comment.firebase_uid || currentUser?.uid && comment.member_id === currentUser.uid;
+  const isOwnComment = (currentUser?.uid === comment.firebase_uid) || (currentUser?.uid && comment.member_id === currentUser.uid);
   const canModerate = adminModeEnabled;
   const canDelete = isOwnComment || canModerate;
 

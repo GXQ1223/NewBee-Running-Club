@@ -361,7 +361,7 @@ export default function AdminPanelPage() {
       for (const [key, value] of Object.entries(editMemberFormData)) {
         if (value === '' || value === null || value === undefined) continue;
         if (key === 'birth_year') {
-          updateData[key] = parseInt(value);
+          updateData[key] = parseInt(value, 10);
         } else {
           updateData[key] = value;
         }
@@ -593,15 +593,23 @@ export default function AdminPanelPage() {
     }
     setSendingNewsletter(true);
     try {
-      // TODO: Integrate with email service (SendGrid, AWS SES, etc.)
-      // For now, just show a success message
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setSuccessMessage('Newsletter feature is in development. Email integration coming soon!');
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/newsletter/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Firebase-UID': currentUser.uid,
+        },
+        body: JSON.stringify({ subject: newsletterSubject, content: newsletterContent }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail || 'Failed to send newsletter');
+      setSuccessMessage(`Newsletter sent! ${result.sent} delivered, ${result.failed} failed out of ${result.total} members.`);
       setNewsletterSubject('');
       setNewsletterContent('');
-      setTimeout(() => setSuccessMessage(''), 5000);
+      setTimeout(() => setSuccessMessage(''), 10000);
     } catch (err) {
-      setError('Failed to send newsletter. Please try again.');
+      setError(`Failed to send newsletter: ${err.message}`);
     } finally {
       setSendingNewsletter(false);
     }
@@ -922,7 +930,7 @@ export default function AdminPanelPage() {
           )}
 
           <Typography variant="h5" sx={{ fontWeight: 600, mt: 5, mb: 3 }}>
-            All Members ({allMembers.length})
+            All Members ({allMembers.filter(m => m.status === 'runner' || m.status === 'admin' || m.status === 'committee').length}) + Pending ({pendingMembers.length})
           </Typography>
 
           <TextField
@@ -1403,9 +1411,9 @@ export default function AdminPanelPage() {
 
           <Paper sx={{ p: 3 }}>
             <Alert severity="info" sx={{ mb: 3 }}>
-              Newsletter functionality requires email service integration (coming soon).
+              Send a newsletter to all active members via email.
               <br />
-              邮件通知功能需要邮件服务集成（即将推出）。
+              向所有活跃会员发送邮件通知。
             </Alert>
 
             <TextField
@@ -1452,11 +1460,11 @@ export default function AdminPanelPage() {
               <Paper sx={{ p: 3, textAlign: 'center', border: '2px solid #FFA500', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <PeopleIcon sx={{ fontSize: 48, color: '#FFA500', mb: 1 }} />
                 <Typography variant="h3" sx={{ fontWeight: 700, color: '#FFA500' }}>
-                  {memberStats.total}
+                  {memberStats.active}
                 </Typography>
-                <Typography variant="body1" color="text.secondary">Total Members</Typography>
+                <Typography variant="body1" color="text.secondary">Active Runners</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {memberStats.active} active, {memberStats.pending} pending
+                  {memberStats.total} total members, {memberStats.pending} pending
                 </Typography>
               </Paper>
             </Grid>

@@ -187,7 +187,8 @@ def test_event_code_exists(event_code, team_code="NBRC"):
     try:
         response = requests.get(url, params=params, timeout=10)
         return response.status_code == 200 and len(response.content) > 1000
-    except:
+    except Exception as e:
+        print(f"Error testing event code {event_code}: {e}")
         return False
 
 def discover_available_races(start_year=2015, end_year=2025, team_code="NBRC"):

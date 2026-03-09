@@ -3,6 +3,7 @@ import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ShareIcon from '@mui/icons-material/Share';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -16,7 +17,7 @@ import EventDetailModal from '../components/EventDetailModal';
 import EventGroupCard from '../components/EventGroupCard';
 import EventGroupGalleryModal from '../components/EventGroupGalleryModal';
 import UndoSnackbar from '../components/UndoSnackbar';
-import { getEventsByStatus, getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge, deleteEvent } from '../api';
+import { getEventsByStatus, getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge, deleteEvent, createEvent } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 
@@ -93,6 +94,16 @@ export default function HighlightsPage() {
   const [eventToDelete, setEventToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Add event state
+  const [addEventOpen, setAddEventOpen] = useState(false);
+  const [addEventLoading, setAddEventLoading] = useState(false);
+  const [addEventForm, setAddEventForm] = useState({
+    name: '', chinese_name: '', date: '', time: '',
+    location: '', chinese_location: '',
+    description: '', chinese_description: '',
+    image: '', status: 'Highlight',
+  });
+
   // Sensors: TouchSensor with 250ms delay (long press like iOS), MouseSensor with distance
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -162,6 +173,43 @@ export default function HighlightsPage() {
       setSnackbar({ open: true, message: 'Failed to delete event / 删除活动失败', severity: 'error' });
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleAddEventFormChange = (field) => (e) => {
+    setAddEventForm(prev => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleAddEventSubmit = async () => {
+    if (!addEventForm.name || !addEventForm.date) {
+      setSnackbar({ open: true, message: 'Name and date are required / 名称和日期为必填项', severity: 'error' });
+      return;
+    }
+    if (!currentUser?.uid) {
+      setSnackbar({ open: true, message: 'You must be logged in / 请先登录', severity: 'error' });
+      return;
+    }
+    setAddEventLoading(true);
+    try {
+      const eventData = Object.fromEntries(
+        Object.entries(addEventForm).map(([key, value]) => [key, value === '' ? null : value])
+      );
+      eventData.status = 'Highlight';
+      await createEvent(eventData, currentUser.uid);
+      setAddEventOpen(false);
+      setAddEventForm({
+        name: '', chinese_name: '', date: '', time: '',
+        location: '', chinese_location: '',
+        description: '', chinese_description: '',
+        image: '', status: 'Highlight',
+      });
+      setSnackbar({ open: true, message: 'Event created / 活动已创建', severity: 'success' });
+      await refreshEvents();
+    } catch (error) {
+      console.error('Error creating event:', error);
+      setSnackbar({ open: true, message: `Failed to create event: ${error.message}`, severity: 'error' });
+    } finally {
+      setAddEventLoading(false);
     }
   };
 
@@ -691,20 +739,35 @@ export default function HighlightsPage() {
 
       {/* Past Events Section */}
       <Container maxWidth="xl" sx={{ px: 2, mt: 6 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Memories
-          <br />
-          回忆
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mb: { xs: 2, sm: 3 } }}>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 600,
+              color: '#FFA500',
+              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
+              textAlign: 'center'
+            }}
+          >
+            Memories
+            <br />
+            回忆
+          </Typography>
+          {adminModeEnabled && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setAddEventOpen(true)}
+              sx={{
+                backgroundColor: '#FFA500',
+                '&:hover': { backgroundColor: '#e69500' },
+                flexShrink: 0,
+              }}
+            >
+              Add Event
+            </Button>
+          )}
+        </Box>
 
         {/* Filters */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
@@ -1136,6 +1199,91 @@ export default function HighlightsPage() {
             disabled={deleteLoading}
           >
             {deleteLoading ? <CircularProgress size={24} /> : 'Delete / 删除'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Event Dialog */}
+      <Dialog open={addEventOpen} onClose={() => !addEventLoading && setAddEventOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Highlight Event 添加精选活动</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              label="Event Name 活动名称 *"
+              value={addEventForm.name}
+              onChange={handleAddEventFormChange('name')}
+              fullWidth
+            />
+            <TextField
+              label="Chinese Name 中文名称"
+              value={addEventForm.chinese_name}
+              onChange={handleAddEventFormChange('chinese_name')}
+              fullWidth
+            />
+            <TextField
+              label="Date 日期 *"
+              type="date"
+              value={addEventForm.date}
+              onChange={handleAddEventFormChange('date')}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              label="Time 时间"
+              value={addEventForm.time}
+              onChange={handleAddEventFormChange('time')}
+              fullWidth
+              placeholder="e.g. 8:00 AM"
+            />
+            <TextField
+              label="Location 地点"
+              value={addEventForm.location}
+              onChange={handleAddEventFormChange('location')}
+              fullWidth
+            />
+            <TextField
+              label="Chinese Location 中文地点"
+              value={addEventForm.chinese_location}
+              onChange={handleAddEventFormChange('chinese_location')}
+              fullWidth
+            />
+            <TextField
+              label="Description 描述"
+              value={addEventForm.description}
+              onChange={handleAddEventFormChange('description')}
+              fullWidth
+              multiline
+              rows={3}
+            />
+            <TextField
+              label="Chinese Description 中文描述"
+              value={addEventForm.chinese_description}
+              onChange={handleAddEventFormChange('chinese_description')}
+              fullWidth
+              multiline
+              rows={3}
+            />
+            <TextField
+              label="Image URL 图片链接"
+              value={addEventForm.image}
+              onChange={handleAddEventFormChange('image')}
+              fullWidth
+              placeholder="https://..."
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddEventOpen(false)} disabled={addEventLoading}>
+            Cancel 取消
+          </Button>
+          <Button
+            onClick={handleAddEventSubmit}
+            variant="contained"
+            disabled={addEventLoading}
+            startIcon={addEventLoading ? <CircularProgress size={20} color="inherit" /> : <AddIcon />}
+            sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#e69500' } }}
+          >
+            {addEventLoading ? 'Creating...' : 'Create 创建'}
           </Button>
         </DialogActions>
       </Dialog>
