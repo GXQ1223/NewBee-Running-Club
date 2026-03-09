@@ -6,6 +6,14 @@
 import { api } from './client';
 
 /**
+ * Get join page requirements (public)
+ * @returns {Promise<Object>} - { min_english_words, min_chinese_chars }
+ */
+export const getJoinRequirements = async () => {
+  return api.get('/api/settings/join-requirements');
+};
+
+/**
  * Get social media links (public)
  * @returns {Promise<Object>} - Social links object with instagram, xiaohongshu, heylo, shop
  */

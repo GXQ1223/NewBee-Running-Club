@@ -33,6 +33,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import NavigationButtons from '../components/NavigationButtons';
 import { submitJoinApplication } from '../api/members';
 import { submitActivity } from '../api/activities';
+import { getJoinRequirements } from '../api/settings';
 
 const steps = ['Read Terms', 'Complete Application', 'Record Activities', 'Complete'];
 
@@ -48,40 +49,34 @@ const locationOptions = [
 ];
 
 // Validation function for introduction
-const validateIntroduction = (text) => {
+const validateIntroduction = (text, minEnglish = 120, minChinese = 240) => {
   if (!text) return { valid: false, message: '', count: 0 };
 
-  // Count Chinese characters
   const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
-
-  // Count English words (split by whitespace, filter empty)
   const words = text.split(/\s+/).filter(w => w.length > 0);
-  // Filter out words that are only Chinese characters
   const englishWords = words.filter(w => !/^[\u4e00-\u9fff]+$/.test(w)).length;
 
-  // Check if meets minimum requirements
-  const meetsChineseMin = chineseChars >= 480;
-  const meetsEnglishMin = englishWords >= 120;
+  const meetsChineseMin = chineseChars >= minChinese;
+  const meetsEnglishMin = englishWords >= minEnglish;
 
   if (meetsChineseMin || meetsEnglishMin) {
     return { valid: true, message: '', count: chineseChars > englishWords ? chineseChars : englishWords, type: chineseChars > englishWords ? 'chinese' : 'english' };
   }
 
-  // Return which requirement is closer to being met
-  const chineseProgress = chineseChars / 480;
-  const englishProgress = englishWords / 120;
+  const chineseProgress = chineseChars / minChinese;
+  const englishProgress = englishWords / minEnglish;
 
   if (chineseProgress > englishProgress) {
     return {
       valid: false,
-      message: `${chineseChars}/480 Chinese characters. Need ${480 - chineseChars} more. / 中文字符 ${chineseChars}/480，还需要 ${480 - chineseChars} 个字符`,
+      message: `${chineseChars}/${minChinese} Chinese characters. Need ${minChinese - chineseChars} more. / 中文字符 ${chineseChars}/${minChinese}，还需要 ${minChinese - chineseChars} 个字符`,
       count: chineseChars,
       type: 'chinese'
     };
   } else {
     return {
       valid: false,
-      message: `${englishWords}/120 English words. Need ${120 - englishWords} more. / 英文单词 ${englishWords}/120，还需要 ${120 - englishWords} 个单词`,
+      message: `${englishWords}/${minEnglish} English words. Need ${minEnglish - englishWords} more. / 英文单词 ${englishWords}/${minEnglish}，还需要 ${minEnglish - englishWords} 个单词`,
       count: englishWords,
       type: 'english'
     };
@@ -95,6 +90,8 @@ export default function JoinPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [introValidation, setIntroValidation] = useState({ valid: true, message: '', count: 0 });
+  const [minEnglish, setMinEnglish] = useState(120);
+  const [minChinese, setMinChinese] = useState(240);
   const [locationSelect, setLocationSelect] = useState('');
   const [showOtherLocation, setShowOtherLocation] = useState(false);
   const termsContainerRef = useRef(null);
@@ -123,6 +120,15 @@ export default function JoinPage() {
     goals: '',
     introduction: '',
   });
+
+  useEffect(() => {
+    getJoinRequirements()
+      .then(data => {
+        if (data.min_english_words) setMinEnglish(data.min_english_words);
+        if (data.min_chinese_chars) setMinChinese(data.min_chinese_chars);
+      })
+      .catch(() => {}); // fallback to defaults
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -179,7 +185,7 @@ export default function JoinPage() {
 
     // Validate introduction as user types
     if (name === 'introduction') {
-      const validation = validateIntroduction(value);
+      const validation = validateIntroduction(value, minEnglish, minChinese);
       setIntroValidation(validation);
     }
   };
@@ -188,10 +194,10 @@ export default function JoinPage() {
     e.preventDefault();
 
     // Validate introduction before submission
-    const validation = validateIntroduction(formData.introduction);
+    const validation = validateIntroduction(formData.introduction, minEnglish, minChinese);
     if (!validation.valid) {
       setIntroValidation(validation);
-      setSubmitError('Please complete your self-introduction with at least 120 English words or 480 Chinese characters. / 请完成您的自我介绍，至少120个英文单词或480个中文字符。');
+      setSubmitError(`Please complete your self-introduction with at least ${minEnglish} English words or ${minChinese} Chinese characters. / 请完成您的自我介绍，至少${minEnglish}个英文单词或${minChinese}个中文字符。`);
       return;
     }
 
@@ -779,7 +785,7 @@ export default function JoinPage() {
             ? (introValidation.valid
                 ? `Valid! ${introValidation.type === 'chinese' ? `${introValidation.count} Chinese characters` : `${introValidation.count} English words`} / 有效！${introValidation.type === 'chinese' ? `${introValidation.count} 个中文字符` : `${introValidation.count} 个英文单词`}`
                 : introValidation.message)
-            : 'Minimum 120 English words OR 480 Chinese characters required. / 至少需要120个英文单词或480个中文字符。'
+            : `Minimum ${minEnglish} English words OR ${minChinese} Chinese characters required. / 至少需要${minEnglish}个英文单词或${minChinese}个中文字符。`
         }
       />
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
