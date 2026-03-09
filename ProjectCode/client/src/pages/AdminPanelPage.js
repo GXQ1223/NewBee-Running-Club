@@ -930,7 +930,7 @@ export default function AdminPanelPage() {
           )}
 
           <Typography variant="h5" sx={{ fontWeight: 600, mt: 5, mb: 3 }}>
-            All Members ({allMembers.length})
+            All Members ({allMembers.filter(m => m.status === 'runner' || m.status === 'admin' || m.status === 'committee').length}) + Pending ({pendingMembers.length})
           </Typography>
 
           <TextField
