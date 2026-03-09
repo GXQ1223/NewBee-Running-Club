@@ -58,6 +58,15 @@ def _seed_settings_on_startup():
                 is_active=True
             ))
             db.commit()
+
+        # Seed join requirements settings
+        for setting_data in [
+            {"key": "join_min_english_words", "value": "120", "label_en": "Min English Words", "label_cn": "最少英文单词数", "category": "join"},
+            {"key": "join_min_chinese_chars", "value": "240", "label_en": "Min Chinese Characters", "label_cn": "最少中文字符数", "category": "join"},
+        ]:
+            if not db.query(SiteSetting).filter(SiteSetting.key == setting_data["key"]).first():
+                db.add(SiteSetting(**setting_data, is_active=True))
+        db.commit()
     except Exception as e:
         db.rollback()
         import logging
