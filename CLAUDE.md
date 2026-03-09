@@ -40,9 +40,31 @@ ProjectCode/
 │   └── public/
 │       └── data/           # CSV files, meeting notes, images
 ├── server/
-│   ├── main.py             # FastAPI app with all endpoints
+│   ├── main.py             # Slim entry point: app init, middleware, router includes
 │   ├── database.py         # SQLAlchemy models & connection
 │   ├── models.py           # Pydantic schemas
+│   ├── routes/             # API route modules (one per domain)
+│   │   ├── results.py      # Race results & NYRR sync
+│   │   ├── donors.py       # Donor management
+│   │   ├── members.py      # Member profiles, auth, approvals, newsletter
+│   │   ├── activities.py   # Member activity tracking
+│   │   ├── events.py       # Event CRUD
+│   │   ├── engagement.py   # Comments, likes, reactions
+│   │   ├── gallery.py      # Event gallery images & S3 upload
+│   │   ├── training_tips.py # Training tips
+│   │   ├── credits.py      # Club credits
+│   │   ├── banners.py      # Banner images
+│   │   ├── homepage.py     # Homepage sections
+│   │   ├── uploads.py      # Image uploads
+│   │   ├── meeting_minutes.py # Meeting minutes
+│   │   ├── recurrence.py   # Event recurrence rules & series
+│   │   ├── highlights.py   # Event groups & highlights
+│   │   └── settings.py     # Site settings & social links
+│   ├── utils/              # Shared utilities
+│   │   ├── auth.py         # Auth dependencies (get_current_admin, etc.)
+│   │   ├── s3.py           # S3 upload/delete functions
+│   │   ├── time.py         # Time parsing utilities
+│   │   └── name_detector.py # Event group name detection
 │   └── .env                # Environment config (DB credentials)
 ```
 
@@ -175,7 +197,9 @@ GitHub Actions:
 | `client/src/App.js` | Main app, routing, theme |
 | `client/src/config.json` | Server host/port config |
 | `client/src/firebase/config.js` | Firebase project config |
-| `server/main.py` | All FastAPI endpoints |
+| `server/main.py` | Slim app entry point (middleware, router includes) |
+| `server/routes/*.py` | API route modules (one per domain) |
+| `server/utils/auth.py` | Auth dependencies (get_current_admin, etc.) |
 | `server/database.py` | SQLAlchemy models & DB setup |
 | `server/fetch_historical_data.py` | NYRR race data import script |
 | `WISHLIST.md` | Tasks for overnight Claude automation |
@@ -188,9 +212,10 @@ GitHub Actions:
 3. Add nav link in `NavBar.js` if needed
 
 ### Adding a New API Endpoint
-1. Add route in `server/main.py`
-2. Create Pydantic model in `models.py` if needed
-3. Add database model in `database.py` if needed
+1. Add route in the appropriate `server/routes/<domain>.py` file (or create a new one)
+2. If creating a new route file, register it in `server/main.py` with `app.include_router()`
+3. Create Pydantic model in `models.py` if needed
+4. Add database model in `database.py` if needed
 
 ### Modifying Donor/Results Data
 1. Backend API handles CRUD operations
