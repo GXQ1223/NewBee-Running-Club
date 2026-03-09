@@ -97,7 +97,6 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
     setSaving(true);
     try {
       await updateEvent(event.id, { description: descriptionText }, currentUser.uid);
-      event.description = descriptionText;
       setEditingDescription(false);
       if (onEventUpdate) onEventUpdate({ ...event, description: descriptionText });
     } catch (error) {

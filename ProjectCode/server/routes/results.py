@@ -242,6 +242,7 @@ def get_member_race_results(
     search_key: str,
     gender: str = None,
     birth_year: int = None,
+
     db: Session = Depends(get_db)
 ):
     """
@@ -260,7 +261,12 @@ def get_member_race_results(
     # Map standard gender codes to NYRR codes (NYRR uses "M"/"W" instead of "M"/"F")
     gender_map = {"F": "W", "W": "W", "M": "M"}
     if gender and birth_year:
-        mapped_gender = gender_map.get(gender.upper(), gender.upper())
+        if gender.upper() not in gender_map:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid gender '{gender}'. Must be M, F, or W"
+            )
+        mapped_gender = gender_map[gender.upper()]
         filtered_results = []
         for result in results:
             if result.race_time and result.gender_age:
