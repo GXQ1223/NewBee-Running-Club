@@ -626,7 +626,7 @@ def update_event_settings(
 
     # Set closed info if a feature was disabled
     if feature_disabled:
-        settings.closed_at = func.now()
+        settings.closed_at = datetime.now(timezone.utc)
         settings.closed_by = current_admin.id
 
     db.commit()

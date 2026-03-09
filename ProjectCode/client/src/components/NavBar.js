@@ -53,19 +53,20 @@ export default function NavBar() {
       return;
     }
 
+    let cancelled = false;
     const fetchPendingCount = async () => {
       try {
         const pendingMembers = await getPendingMembers(currentUser.uid);
-        setPendingCount(pendingMembers?.length || 0);
+        if (!cancelled) setPendingCount(pendingMembers?.length || 0);
       } catch (error) {
         console.error('Error fetching pending members:', error);
-        setPendingCount(0);
+        if (!cancelled) setPendingCount(0);
       }
     };
 
     fetchPendingCount();
     const interval = setInterval(fetchPendingCount, 30000);
-    return () => clearInterval(interval);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [isAdmin, adminModeEnabled, currentUser?.uid]);
 
   return (

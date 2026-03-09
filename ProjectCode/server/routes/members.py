@@ -546,7 +546,7 @@ def send_newsletter(
     current_admin: Member = Depends(get_current_committee_or_admin)
 ):
     """Send a newsletter email to all active members (admin/committee only)."""
-    subject = request.subject.strip().replace('\n', ' ').replace('\r', ' ')
+    subject = html_module.escape(request.subject.strip().replace('\n', ' ').replace('\r', ' '))
     content = request.content.strip()
 
     if not subject or not content:

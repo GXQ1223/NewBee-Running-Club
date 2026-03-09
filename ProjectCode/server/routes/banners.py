@@ -1,6 +1,6 @@
 """Banner image endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from database import get_db, BannerImage, Event, Member
@@ -41,7 +41,9 @@ def get_carousel_banners(db: Session = Depends(get_db)):
     carousel_items = []
 
     # Get active manual banners
-    manual_banners = db.query(BannerImage).filter(
+    manual_banners = db.query(BannerImage).options(
+        joinedload(BannerImage.event)
+    ).filter(
         BannerImage.is_active == True
     ).order_by(BannerImage.display_order).all()
 
