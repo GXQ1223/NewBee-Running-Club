@@ -521,6 +521,7 @@ export default function HomePage() {
 
     try {
       let imageUrl = editFormData.image_url;
+      let imageChanged = false;
 
       // Upload new image if selected
       if (selectedFile) {
@@ -528,6 +529,7 @@ export default function HomePage() {
         try {
           const uploadResult = await uploadImage(selectedFile, currentUser.uid);
           imageUrl = uploadResult.url;
+          imageChanged = true;
         } catch (uploadErr) {
           console.error('Error uploading image:', uploadErr);
           setSnackbar({ open: true, message: 'Failed to upload image / 上传图片失败', severity: 'error' });
@@ -536,9 +538,23 @@ export default function HomePage() {
           return;
         }
         setUploading(false);
+      } else if (imageUrl !== editingSection.image_url) {
+        // Image was removed or URL was manually changed
+        imageChanged = true;
       }
 
-      const dataToSave = { ...editFormData, image_url: imageUrl || null };
+      // Only send fields that changed — avoid sending massive base64 image_url back
+      const dataToSave = {
+        title_en: editFormData.title_en,
+        title_cn: editFormData.title_cn,
+        link_path: editFormData.link_path,
+        is_active: editFormData.is_active,
+        image_position: editFormData.image_position || null,
+      };
+      if (imageChanged) {
+        dataToSave.image_url = imageUrl || null;
+      }
+
       const updated = await updateSection(editingSection.id, dataToSave, currentUser.uid);
       setSections(prev => prev.map(s => s.id === editingSection.id ? updated : s));
       handleEditDialogClose();
