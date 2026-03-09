@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI, Depends, HTTPException, status, Header, File, UploadFile, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -19,7 +19,10 @@ try:
     HAS_BOTO3 = True
 except ImportError:
     HAS_BOTO3 = False
-    print("Warning: boto3 not installed. S3 functionality will be disabled.")
+import logging
+logger = logging.getLogger(__name__)
+if not HAS_BOTO3:
+    logger.warning("boto3 not installed. S3 functionality will be disabled.")
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -101,7 +104,7 @@ def delete_from_s3(image_url: str) -> bool:
         s3_client.delete_object(Bucket=bucket, Key=key)
         return True
     except ClientError as e:
-        print(f"S3 delete error for {image_url}: {e}")
+        logger.error(f"S3 delete error for {image_url}: {e}")
         return False
 
 from database import get_db, create_tables, Donor, Results, Member, Event, MeetingMinutes, Comment, Like, Reaction, EventCommentSettings, TempClubCredit, BannerImage, TrainingTip, TrainingTipUpvote, HomepageSection, MemberActivity, EventGalleryImage, EventGalleryImageLike, GalleryDeletionRequest, EventRecurrenceRule, SiteSetting, engine
@@ -128,7 +131,7 @@ from models import (
     EventGroupMergeRequest, EventGroupMergeResponse, EventGroupUpdateNameRequest, EventInGroup, EventGroup, HighlightsGroupedResponse
 )
 from utils.name_detector import detect_group_name_from_events
-from email_service import EmailService
+from email_service import EmailService, WEBSITE_URL
 import bcrypt
 
 # Import scheduler for recurring events
@@ -265,6 +268,20 @@ def get_current_committee_or_admin(
     return member
 
 
+def _time_to_seconds(time_str: str) -> float:
+    """Convert time string (H:MM:SS or MM:SS) to seconds for comparison."""
+    try:
+        parts = time_str.strip().split(':')
+        parts = [float(p) for p in parts]
+        if len(parts) == 3:
+            return parts[0] * 3600 + parts[1] * 60 + parts[2]
+        elif len(parts) == 2:
+            return parts[0] * 60 + parts[1]
+        return float(time_str)
+    except (ValueError, AttributeError):
+        return float('inf')
+
+
 @app.get("/")
 def read_root():
     return {"message": "NewBee Running Club API is running!", "database": "AWS MySQL RDS"}
@@ -308,7 +325,7 @@ def get_men_records(year: int = None, db: Session = Depends(get_db)):
     records = []
     for distance, results in distance_records.items():
         # Sort by overall_time (assuming format allows string comparison)
-        sorted_results = sorted(results, key=lambda x: x.overall_time or 'ZZ:ZZ:ZZ')[:10]
+        sorted_results = sorted(results, key=lambda x: _time_to_seconds(x.overall_time) if x.overall_time else float('inf'))[:10]
 
         for rank, result in enumerate(sorted_results, 1):
             records.append({
@@ -350,7 +367,7 @@ def get_women_records(year: int = None, db: Session = Depends(get_db)):
     records = []
     for distance, results in distance_records.items():
         # Sort by overall_time (assuming format allows string comparison)
-        sorted_results = sorted(results, key=lambda x: x.overall_time or 'ZZ:ZZ:ZZ')[:10]
+        sorted_results = sorted(results, key=lambda x: _time_to_seconds(x.overall_time) if x.overall_time else float('inf'))[:10]
 
         for rank, result in enumerate(sorted_results, 1):
             records.append({
@@ -549,7 +566,7 @@ def get_member_race_results(
     for result in results:
         distance = result.race_distance
         if distance and result.overall_time:
-            if distance not in prs or result.overall_time < prs[distance]["time"]:
+            if distance not in prs or _time_to_seconds(result.overall_time) < _time_to_seconds(prs[distance]["time"]):
                 prs[distance] = {
                     "time": result.overall_time,
                     "race": result.race,
@@ -688,7 +705,7 @@ def get_hide_amounts(db: Session = Depends(get_db)):
 
 
 @app.put("/api/donors/hide-amounts")
-def toggle_hide_amounts(db: Session = Depends(get_db)):
+def toggle_hide_amounts(db: Session = Depends(get_db), current_admin: Member = Depends(get_current_committee_or_admin)):
     """Toggle the global hide donation amounts setting (admin only)."""
     setting = db.query(SiteSetting).filter(SiteSetting.key == "donors_hide_amounts").first()
     if not setting:
@@ -723,7 +740,7 @@ def get_donors_by_type(donor_type: str, db: Session = Depends(get_db)):
     return donors
 
 @app.post("/api/donors", response_model=DonorResponse)
-def create_donor(donor: DonorCreate, db: Session = Depends(get_db)):
+def create_donor(donor: DonorCreate, db: Session = Depends(get_db), current_admin: Member = Depends(get_current_committee_or_admin)):
     """Create a new donor"""
     # Check if donor_id already exists
     existing = db.query(Donor).filter(Donor.donor_id == donor.donor_id).first()
@@ -751,7 +768,7 @@ def get_donor_by_id(donor_id: str, db: Session = Depends(get_db)):
     return donor
 
 @app.put("/api/donors/{donor_id}", response_model=DonorResponse)
-def update_donor(donor_id: str, donor_update: DonorUpdate, db: Session = Depends(get_db)):
+def update_donor(donor_id: str, donor_update: DonorUpdate, db: Session = Depends(get_db), current_admin: Member = Depends(get_current_committee_or_admin)):
     """Update a donor"""
     donor = db.query(Donor).filter(Donor.donor_id == donor_id).first()
     if not donor:
@@ -769,7 +786,7 @@ def update_donor(donor_id: str, donor_update: DonorUpdate, db: Session = Depends
     return donor
 
 @app.delete("/api/donors/{donor_id}")
-def delete_donor(donor_id: str, db: Session = Depends(get_db)):
+def delete_donor(donor_id: str, db: Session = Depends(get_db), current_admin: Member = Depends(get_current_committee_or_admin)):
     """Delete a donor"""
     donor = db.query(Donor).filter(Donor.donor_id == donor_id).first()
     if not donor:
@@ -961,6 +978,7 @@ def update_member_privacy(
     member_id: int,
     show_in_credits: bool = None,
     show_in_donors: bool = None,
+    x_firebase_uid: Optional[str] = Header(None, alias="X-Firebase-UID"),
     db: Session = Depends(get_db)
 ):
     """Update member privacy settings (for dashboard toggle)"""
@@ -970,6 +988,14 @@ def update_member_privacy(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Member with ID {member_id} not found"
         )
+
+    # Verify the caller owns this member record or is admin
+    if x_firebase_uid:
+        caller = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
+        if not caller or (caller.id != member_id and caller.status not in ('admin', 'committee')):
+            raise HTTPException(status_code=403, detail="You can only update your own privacy settings.")
+    else:
+        raise HTTPException(status_code=401, detail="Authentication required.")
 
     if show_in_credits is not None:
         member.show_in_credits = show_in_credits
@@ -1156,7 +1182,7 @@ def approve_member(
     try:
         EmailService.send_approval_notification(member.email, member.display_name or member.username)
     except Exception as e:
-        print(f"Error sending approval email: {str(e)}")
+        logger.error(f"Error sending approval email: {str(e)}")
         # Don't fail the request if email fails
 
     return {"message": f"Member {member.display_name or member.username} approved successfully", "member_id": member_id}
@@ -1196,7 +1222,7 @@ def reject_member(
     # Update status instead of deleting
     member.status = 'rejected'
     member.status_reason = request.rejection_reason.strip()
-    member.status_updated_at = datetime.utcnow()
+    member.status_updated_at = datetime.now(timezone.utc)
     member.status_updated_by = current_user.display_name or current_user.username
     db.commit()
 
@@ -1209,7 +1235,7 @@ def reject_member(
         )
     except Exception as e:
         # Log error but don't fail the rejection
-        print(f"Failed to send rejection email: {e}")
+        logger.error(f"Failed to send rejection email: {e}")
 
     return {"message": f"Member application rejected", "member_id": member_id}
 
@@ -1288,7 +1314,7 @@ def submit_join_application(application: JoinApplicationRequest, db: Session = D
             form_data
         )
     except Exception as e:
-        print(f"Error sending emails: {str(e)}")
+        logger.error(f"Error sending emails: {str(e)}")
         # Don't fail the request if email fails, just log it
 
     return {
@@ -1310,13 +1336,73 @@ def existing_member_account_request(request: ExistingMemberAccountRequest):
             request.email
         )
     except Exception as e:
-        print(f"Error sending existing member account notification email: {str(e)}")
+        logger.error(f"Error sending existing member account notification email: {str(e)}")
         # Don't fail the request if email fails
 
     return {
         "message": "Account request notification sent to committee.",
         "status": "pending"
     }
+
+
+class NewsletterRequest(BaseModel):
+    subject: str
+    content: str
+
+@app.post("/api/newsletter/send")
+def send_newsletter(
+    request: NewsletterRequest,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Send a newsletter email to all active members (admin/committee only)."""
+    subject = request.subject.strip()
+    content = request.content.strip()
+
+    if not subject or not content:
+        raise HTTPException(status_code=400, detail="Subject and content are required.")
+
+    # Get all active members with emails
+    members = db.query(Member).filter(
+        Member.status.in_(['runner', 'committee', 'admin']),
+        Member.email.isnot(None),
+        Member.email != ''
+    ).all()
+
+    if not members:
+        return {"sent": 0, "failed": 0, "message": "No active members found."}
+
+    # Build HTML email
+    import html as html_module
+    content_html = html_module.escape(content).replace('\n', '<br>')
+    body_html = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #FFA500;">{html_module.escape(subject)}</h2>
+                <div style="margin: 20px 0;">{content_html}</div>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                <p style="color: #999; font-size: 12px;">
+                    NewBee Running Club | <a href="{WEBSITE_URL}" style="color: #FFA500;">newbeerunningclub.org</a>
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+
+    sent = 0
+    failed = 0
+    for member in members:
+        try:
+            success = EmailService.send_email(member.email, subject, body_html, content)
+            if success:
+                sent += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+
+    return {"sent": sent, "failed": failed, "total": len(members)}
 
 
 # COMMITTEE ROLE MANAGEMENT ENDPOINTS (Admin only)

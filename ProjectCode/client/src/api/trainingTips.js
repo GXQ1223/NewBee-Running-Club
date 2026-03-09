@@ -110,5 +110,7 @@ export const toggleUpvote = async (tipId, anonymousId = null, firebaseUid = null
   const headers = {};
   if (firebaseUid) headers['X-Firebase-UID'] = firebaseUid;
 
-  return api.post(`/api/training-tips/${tipId}/upvote`, {}, headers, params);
+  const queryString = new URLSearchParams(params).toString();
+  const url = queryString ? `/api/training-tips/${tipId}/upvote?${queryString}` : `/api/training-tips/${tipId}/upvote`;
+  return api.post(url, {}, headers);
 };

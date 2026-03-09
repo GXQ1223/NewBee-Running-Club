@@ -48,23 +48,25 @@ export default function NavBar() {
 
   // Fetch pending applications count for admins
   useEffect(() => {
+    if (!isAdmin || !adminModeEnabled || !currentUser?.uid) {
+      setPendingCount(0);
+      return;
+    }
+
     const fetchPendingCount = async () => {
-      if (isAdmin && currentUser?.uid) {
-        try {
-          const pendingMembers = await getPendingMembers(currentUser.uid);
-          setPendingCount(pendingMembers?.length || 0);
-        } catch (error) {
-          console.error('Error fetching pending members:', error);
-          setPendingCount(0);
-        }
+      try {
+        const pendingMembers = await getPendingMembers(currentUser.uid);
+        setPendingCount(pendingMembers?.length || 0);
+      } catch (error) {
+        console.error('Error fetching pending members:', error);
+        setPendingCount(0);
       }
     };
 
     fetchPendingCount();
-    // Refresh count every 30 seconds
     const interval = setInterval(fetchPendingCount, 30000);
     return () => clearInterval(interval);
-  }, [isAdmin, currentUser?.uid]);
+  }, [isAdmin, adminModeEnabled, currentUser?.uid]);
 
   return (
     <Box sx={{

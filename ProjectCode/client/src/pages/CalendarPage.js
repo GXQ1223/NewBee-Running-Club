@@ -146,8 +146,9 @@ export default function CalendarPage() {
           .map(event => {
             // Parse the event date and time for filtering
             const [year, month, day] = event.date.split('-').map(Number);
-            const timeParts = event.time ? event.time.split(':').map(Number) : [0, 0];
-            const isPM = event.time ? event.time.toLowerCase().includes('pm') : false;
+            const timeStr = event.time || '';
+            const timeParts = timeStr ? timeStr.split(':').map(Number) : [0, 0];
+            const isPM = timeStr ? timeStr.toLowerCase().includes('pm') : false;
             const eventDate = new Date(year, month - 1, day, isPM ? timeParts[0] + 12 : timeParts[0], timeParts[1] || 0);
 
             return {
