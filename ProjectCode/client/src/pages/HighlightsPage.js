@@ -264,7 +264,7 @@ export default function HighlightsPage() {
       // Fetch engagement data for all events
       const allEventIds = [
         ...standalone.map(e => e.id),
-        ...(groupedData.groups || []).flatMap(g => g.events.map(e => e.id))
+        ...(groupedData.groups || []).flatMap(g => (g.events || []).map(e => e.id))
       ];
 
       if (allEventIds.length > 0) {

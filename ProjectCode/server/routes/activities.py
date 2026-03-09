@@ -1,7 +1,7 @@
 """Member activity tracking endpoints."""
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List
 
 from database import get_db, Member, MemberActivity
@@ -95,7 +95,7 @@ def verify_activity(
         activity.rejection_reason = request.rejection_reason
 
     activity.verified_by = current_user.id
-    activity.verified_at = func.now()
+    activity.verified_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(activity)

@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from database import get_db, create_tables, SiteSetting, engine
+from database import create_tables, SiteSetting, engine
 from scheduler import start_scheduler, shutdown_scheduler
 
 # Import all route modules
@@ -41,8 +41,9 @@ from routes import (
 
 def _seed_settings_on_startup():
     """Seed default site settings on startup."""
+    from database import SessionLocal
     from routes.settings import seed_social_links
-    db = next(get_db())
+    db = SessionLocal()
     try:
         seed_social_links(db)
         # Seed donors_hide_amounts setting
@@ -57,6 +58,10 @@ def _seed_settings_on_startup():
                 is_active=True
             ))
             db.commit()
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error seeding settings: {e}")
     finally:
         db.close()
 
@@ -102,8 +107,8 @@ app.add_middleware(
         "https://www.newbeerunning.org",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "X-Firebase-UID"],
 )
 
 

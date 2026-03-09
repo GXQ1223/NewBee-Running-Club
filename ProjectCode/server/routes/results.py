@@ -27,8 +27,10 @@ def get_available_years(db: Session = Depends(get_db)):
     return {"years": [int(year.year) for year in years]}
 
 @router.get("/men-records")
-def get_men_records(year: int = None, db: Session = Depends(get_db)):
+def get_men_records(year: Optional[int] = None, db: Session = Depends(get_db)):
     """Get men's top 10 times for each race distance"""
+    if year is not None and (year < 1900 or year > 2100):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid year")
     # Base query for male runners
     query = db.query(Results).filter(
         Results.gender_age.like('M%')  # Filter for male runners
@@ -69,8 +71,10 @@ def get_men_records(year: int = None, db: Session = Depends(get_db)):
     return {"men_records": records}
 
 @router.get("/women-records")
-def get_women_records(year: int = None, db: Session = Depends(get_db)):
+def get_women_records(year: Optional[int] = None, db: Session = Depends(get_db)):
     """Get women's top 10 times for each race distance"""
+    if year is not None and (year < 1900 or year > 2100):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid year")
     # Base query for female runners
     query = db.query(Results).filter(
         Results.gender_age.like('W%')  # Filter for female runners
