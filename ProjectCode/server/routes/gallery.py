@@ -1,4 +1,5 @@
 """Event gallery endpoints for image upload, likes, and deletion requests."""
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Header, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -547,7 +548,7 @@ def resolve_gallery_deletion_request(
         del_request.status = 'rejected'
 
     del_request.resolved_by_id = member.id
-    del_request.resolved_at = func.now()
+    del_request.resolved_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(del_request)
 
