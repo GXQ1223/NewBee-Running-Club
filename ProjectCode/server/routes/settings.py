@@ -55,6 +55,29 @@ def seed_social_links(db: Session):
     db.commit()
 
 
+@router.get("/api/settings/join-requirements")
+def get_join_requirements(db: Session = Depends(get_db)):
+    """Get join page requirements (public endpoint)."""
+    settings = db.query(SiteSetting).filter(
+        SiteSetting.category == "join",
+        SiteSetting.is_active == True
+    ).all()
+
+    result = {"min_english_words": 120, "min_chinese_chars": 240}
+    for setting in settings:
+        if setting.key == "join_min_english_words":
+            try:
+                result["min_english_words"] = int(setting.value)
+            except (ValueError, TypeError):
+                pass
+        elif setting.key == "join_min_chinese_chars":
+            try:
+                result["min_chinese_chars"] = int(setting.value)
+            except (ValueError, TypeError):
+                pass
+    return result
+
+
 @router.get("/api/settings/social-links", response_model=SocialLinksResponse)
 def get_social_links(db: Session = Depends(get_db)):
     """Get all social media links (public endpoint)."""

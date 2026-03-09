@@ -184,6 +184,10 @@ export default function AdminPanelPage() {
     heylo: '',
     shop: ''
   });
+  const [joinRequirementsForm, setJoinRequirementsForm] = useState({
+    minEnglishWords: '120',
+    minChineseChars: '240'
+  });
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -703,6 +707,21 @@ export default function AdminPanelPage() {
     }
   };
 
+  const loadJoinRequirements = async () => {
+    if (!currentUser?.uid) return;
+    try {
+      const settings = await getSettingsByCategory('join', currentUser.uid);
+      const formData = { minEnglishWords: '120', minChineseChars: '240' };
+      settings.forEach(setting => {
+        if (setting.key === 'join_min_english_words') formData.minEnglishWords = setting.value || '120';
+        if (setting.key === 'join_min_chinese_chars') formData.minChineseChars = setting.value || '240';
+      });
+      setJoinRequirementsForm(formData);
+    } catch (err) {
+      console.error('Error loading join requirements:', err);
+    }
+  };
+
   const handleSaveSettings = async () => {
     if (!currentUser?.uid) return;
     setSettingsLoading(true);
@@ -712,7 +731,9 @@ export default function AdminPanelPage() {
         updateSetting('social_instagram', { value: socialLinksForm.instagram }, currentUser.uid),
         updateSetting('social_xiaohongshu', { value: socialLinksForm.xiaohongshu }, currentUser.uid),
         updateSetting('social_heylo', { value: socialLinksForm.heylo }, currentUser.uid),
-        updateSetting('social_shop', { value: socialLinksForm.shop }, currentUser.uid)
+        updateSetting('social_shop', { value: socialLinksForm.shop }, currentUser.uid),
+        updateSetting('join_min_english_words', { value: joinRequirementsForm.minEnglishWords }, currentUser.uid),
+        updateSetting('join_min_chinese_chars', { value: joinRequirementsForm.minChineseChars }, currentUser.uid),
       ]);
       setSettingsSaved(true);
       refreshLinks(); // Refresh the global social links context
@@ -729,6 +750,7 @@ export default function AdminPanelPage() {
   useEffect(() => {
     if (tabValue === 8 && currentUser?.uid && isCommittee) {
       loadSocialLinksSettings();
+      loadJoinRequirements();
     }
   }, [tabValue, currentUser?.uid, isCommittee]);
 
@@ -1618,6 +1640,41 @@ export default function AdminPanelPage() {
                 </Alert>
               )}
             </Box>
+          </Paper>
+
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DirectionsRunIcon /> Join Requirements / 入会要求
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Configure the minimum self-introduction length for new member applications.
+              <br />
+              配置新会员申请时自我介绍的最低字数要求。
+            </Typography>
+
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Min English Words / 最少英文单词数"
+                  value={joinRequirementsForm.minEnglishWords}
+                  onChange={(e) => setJoinRequirementsForm(prev => ({ ...prev, minEnglishWords: e.target.value }))}
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Min Chinese Characters / 最少中文字符数"
+                  value={joinRequirementsForm.minChineseChars}
+                  onChange={(e) => setJoinRequirementsForm(prev => ({ ...prev, minChineseChars: e.target.value }))}
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            </Grid>
           </Paper>
         </TabPanel>
 
