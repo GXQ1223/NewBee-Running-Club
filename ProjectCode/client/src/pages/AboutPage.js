@@ -128,7 +128,7 @@ export default function AboutPage() {
         mdFiles.map(async (filename) => {
           try {
             const content = await getMeetingContent(filename);
-            const title = content.split('\n')[0].replace('# ', '');
+            const title = (content || '').split('\n')[0].replace('# ', '');
             const date = filename.split('.')[0];
             return {
               title,
@@ -167,7 +167,7 @@ export default function AboutPage() {
           mdFiles.map(async (filename) => {
             try {
               const content = await getMeetingContent(filename);
-              const title = content.split('\n')[0].replace('# ', '');
+              const title = (content || '').split('\n')[0].replace('# ', '');
               const date = filename.split('.')[0];
               return { title, content, meeting_date: date, filename, isLocal: true };
             } catch (error) {

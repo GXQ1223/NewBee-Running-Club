@@ -140,12 +140,12 @@ export default function CalendarPage() {
         const transformedEvents = events
           .filter(event => {
             // Only include events from the current year
-            const eventYear = parseInt(event.date.split('-')[0], 10);
+            const eventYear = parseInt((event.date || '').split('-')[0], 10);
             return eventYear === currentYear;
           })
           .map(event => {
             // Parse the event date and time for filtering
-            const [year, month, day] = event.date.split('-').map(Number);
+            const [year, month, day] = (event.date || '').split('-').map(Number);
             const timeStr = event.time || '';
             const timeParts = timeStr ? timeStr.split(':').map(Number) : [0, 0];
             const isPM = timeStr ? timeStr.toLowerCase().includes('pm') : false;

@@ -232,7 +232,7 @@ export default function HighlightsPage() {
 
       // Transform standalone events
       const standalone = allStandaloneEvents.map(event => {
-        const [year, month, day] = event.date.split('-').map(Number);
+        const [year, month, day] = (event.date || '').split('-').map(Number);
         const timeParts = event.time ? event.time.split(':').map(Number) : [0, 0];
         const isPM = event.time ? event.time.toLowerCase().includes('pm') : false;
         const eventDate = new Date(year, month - 1, day, isPM ? timeParts[0] + 12 : timeParts[0], timeParts[1] || 0);
@@ -264,7 +264,7 @@ export default function HighlightsPage() {
       // Fetch engagement data for all events
       const allEventIds = [
         ...standalone.map(e => e.id),
-        ...groupedData.groups.flatMap(g => g.events.map(e => e.id))
+        ...(groupedData.groups || []).flatMap(g => g.events.map(e => e.id))
       ];
 
       if (allEventIds.length > 0) {

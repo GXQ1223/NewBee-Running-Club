@@ -1,4 +1,5 @@
 """Engagement endpoints: comments, likes, reactions."""
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -114,8 +115,8 @@ def delete_comment(
     if not comment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
 
-    # Check ownership or admin
-    if comment.member_id != current_member.id and current_member.status != 'admin':
+    # Check ownership or admin/committee
+    if comment.member_id != current_member.id and current_member.status not in ('admin', 'committee'):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own comments"
@@ -156,7 +157,7 @@ def hide_comment(
 
     comment.is_hidden = True
     comment.hidden_by = current_admin.id
-    comment.hidden_at = func.now()
+    comment.hidden_at = datetime.now(timezone.utc)
     comment.hidden_reason = hide_request.reason
     db.commit()
     return {"message": "Comment hidden successfully"}

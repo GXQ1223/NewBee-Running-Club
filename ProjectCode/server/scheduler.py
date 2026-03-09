@@ -10,6 +10,7 @@ The past events transition also runs once on startup to catch any stale events.
 
 import os
 import logging
+import calendar
 from datetime import date, timedelta
 import json
 from contextlib import contextmanager
@@ -96,11 +97,12 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
     if rule.recurrence_type == 'weekly':
         # Weekly: add 7 days
         if rule.days_of_week:
-            # Find next matching day of week
-            days = [int(d) for d in rule.days_of_week.split(',')]
+            # Convert frontend weekday format (0=Sunday) to Python weekday (0=Monday)
+            frontend_days = [int(d) for d in rule.days_of_week.split(',')]
+            python_days = [(d - 1) % 7 if d > 0 else 6 for d in frontend_days]
             for i in range(1, 8):
                 next_date = current_date + timedelta(days=i)
-                if next_date.weekday() in days:
+                if next_date.weekday() in python_days:
                     return next_date
         return current_date + timedelta(weeks=1)
 
@@ -117,7 +119,8 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
                 month = 1
                 year += 1
             # Handle months with fewer days
-            day = min(rule.day_of_month, 28)  # Safe for all months
+            max_day = calendar.monthrange(year, month)[1]
+            day = min(rule.day_of_month, max_day)
             return date(year, month, day)
         elif rule.week_of_month and rule.days_of_week:
             # nth weekday of month (e.g., 3rd Saturday)
