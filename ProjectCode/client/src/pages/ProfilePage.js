@@ -398,7 +398,6 @@ const ProfilePage = () => {
   if (!currentUser) return null;
 
   const displayName = memberData?.nickname || memberData?.display_name || currentUser?.displayName || 'User';
-  const displayNameCn = memberData?.display_name_cn;
 
   return (
     <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>

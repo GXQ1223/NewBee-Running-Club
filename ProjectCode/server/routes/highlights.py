@@ -1,5 +1,5 @@
 """Event group/merge and highlights endpoints for iOS-style folder grouping."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from database import get_db, Event, Member
@@ -323,7 +323,7 @@ def update_group_name(
 @router.post("/api/events/groups/{parent_id}/undo-merge")
 def undo_group_merge(
     parent_id: int,
-    event_id: int,  # The event that was just added
+    event_id: int = Query(..., description="The event that was just added"),  # Query param
     db: Session = Depends(get_db),
     current_admin: Member = Depends(get_current_committee_or_admin)
 ):

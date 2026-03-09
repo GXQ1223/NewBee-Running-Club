@@ -94,6 +94,8 @@ class MemberStatus(str, Enum):
     committee = "committee"  # Committee members with elevated privileges (subset of admin)
     admin = "admin"       # Full admin with all privileges
     quit = "quit"         # Members who left the club
+    rejected = "rejected"  # Rejected applicants
+    suspended = "suspended"  # Suspended members
 
 
 # Member Schemas
@@ -302,7 +304,7 @@ class EventType(str, Enum):
     standard = "standard"  # Regular club events
     heylo = "heylo"        # Heylo-integrated events (weekly runs)
     race = "race"          # Race events
-    general = "General"    # General events (legacy)
+    general = "general"    # General events
 
 
 # Event Schemas

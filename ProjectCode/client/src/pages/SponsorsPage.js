@@ -79,7 +79,7 @@ export default function SponsorsPage() {
   useEffect(() => {
     fetchDonors();
     if (adminModeEnabled) {
-      getHideAmounts().then(data => setHideAmounts(data.hide_amounts)).catch(() => {});
+      getHideAmounts().then(data => setHideAmounts(data.hide_amounts)).catch(err => console.error('Error fetching hide amounts:', err));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminModeEnabled]);

@@ -206,7 +206,11 @@ def update_member_privacy(
 
 
 @router.delete("/api/members/{member_id}")
-def delete_member(member_id: int, db: Session = Depends(get_db)):
+def delete_member(
+    member_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_admin)
+):
     """Delete a member (admin only)"""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
@@ -542,7 +546,7 @@ def send_newsletter(
     current_admin: Member = Depends(get_current_committee_or_admin)
 ):
     """Send a newsletter email to all active members (admin/committee only)."""
-    subject = request.subject.strip()
+    subject = request.subject.strip().replace('\n', ' ').replace('\r', ' ')
     content = request.content.strip()
 
     if not subject or not content:

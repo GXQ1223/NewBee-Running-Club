@@ -161,7 +161,7 @@ def create_donor(donor: DonorCreate, db: Session = Depends(get_db), current_admi
             detail=f"Donor with ID {donor.donor_id} already exists"
         )
 
-    db_donor = Donor(**donor.dict())
+    db_donor = Donor(**donor.model_dump())
     db.add(db_donor)
     db.commit()
     db.refresh(db_donor)

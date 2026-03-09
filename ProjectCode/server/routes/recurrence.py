@@ -1,7 +1,11 @@
 """Event recurrence and series management endpoints."""
+import calendar
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 from database import get_db, Event, Member, EventRecurrenceRule
 from models import (
@@ -182,7 +186,8 @@ def manually_generate_recurrence(
                 if month > 12:
                     month = 1
                     year += 1
-                day = min(rule.day_of_month, 28)  # Safe for all months
+                max_day = calendar.monthrange(year, month)[1]
+                day = min(rule.day_of_month, max_day)
                 current_date = date(year, month, day)
             else:
                 current_date = current_date + timedelta(days=30)
@@ -196,7 +201,7 @@ def manually_generate_recurrence(
                     interval_days = custom.get('interval_days', 7)
                     current_date = current_date + timedelta(days=interval_days)
                 except Exception as e:
-                    print(f"Error parsing custom rule: {e}")
+                    logger.error(f"Error parsing custom rule: {e}")
                     current_date = current_date + timedelta(weeks=1)
             else:
                 current_date = current_date + timedelta(weeks=1)
