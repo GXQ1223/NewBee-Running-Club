@@ -124,7 +124,11 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
             return date(year, month, day)
         elif rule.week_of_month and rule.days_of_week:
             # nth weekday of month (e.g., 3rd Saturday)
-            target_weekday = int(rule.days_of_week.split(',')[0])
+            try:
+                target_weekday = int(rule.days_of_week.split(',')[0])
+            except (ValueError, IndexError):
+                logger.error(f"Invalid days_of_week '{rule.days_of_week}' in rule {rule.id}")
+                return current_date + timedelta(days=30)
             target_week = rule.week_of_month
 
             month = current_date.month + 1
@@ -158,7 +162,11 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
         if rule.month_of_year and rule.week_of_month and rule.days_of_week:
             target_month = rule.month_of_year
             target_week = rule.week_of_month
-            target_weekday = int(rule.days_of_week.split(',')[0])
+            try:
+                target_weekday = int(rule.days_of_week.split(',')[0])
+            except (ValueError, IndexError):
+                logger.error(f"Invalid days_of_week '{rule.days_of_week}' in rule {rule.id}")
+                return current_date + timedelta(days=365)
 
             # Determine target year
             year = current_date.year

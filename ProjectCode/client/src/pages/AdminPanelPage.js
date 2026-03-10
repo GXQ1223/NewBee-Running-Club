@@ -749,6 +749,7 @@ export default function AdminPanelPage() {
   // Load settings when Settings tab (index 8) is selected
   useEffect(() => {
     if (tabValue === 8 && currentUser?.uid && isCommittee) {
+      setError('');
       loadSocialLinksSettings();
       loadJoinRequirements();
     }

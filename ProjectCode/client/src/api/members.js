@@ -54,11 +54,12 @@ export async function updateMember(memberId, data, firebaseUid = null) {
  * @param {boolean} [showInDonors] - Show in donors page
  * @returns {Promise<Object>} Updated member data
  */
-export async function updateMemberPrivacy(memberId, showInCredits, showInDonors) {
+export async function updateMemberPrivacy(memberId, showInCredits, showInDonors, firebaseUid) {
   const params = new URLSearchParams();
   if (showInCredits !== undefined) params.append('show_in_credits', showInCredits);
   if (showInDonors !== undefined) params.append('show_in_donors', showInDonors);
-  return api.put(`/api/members/${memberId}/privacy?${params.toString()}`, {});
+  const headers = firebaseUid ? { 'X-Firebase-UID': firebaseUid } : {};
+  return api.put(`/api/members/${memberId}/privacy?${params.toString()}`, {}, headers);
 }
 
 /**
