@@ -247,6 +247,8 @@ const ProfilePage = () => {
   };
 
   const handleOpenEditDialog = () => {
+    setError('');
+    setSuccess('');
     setEditFormData({
       nickname: memberData?.nickname || '',
       display_name: memberData?.display_name || currentUser?.displayName || '',
@@ -290,7 +292,11 @@ const ProfilePage = () => {
     setSuccess('');
 
     try {
-      await updateMember(memberData.id, editFormData);
+      const dataToSave = { ...editFormData };
+      if (dataToSave.birth_year) {
+        dataToSave.birth_year = parseInt(dataToSave.birth_year, 10) || null;
+      }
+      await updateMember(memberData.id, dataToSave);
       setSuccess('Profile updated successfully! / 个人资料更新成功！');
       handleCloseEditDialog();
       fetchMemberData(); // Refresh data

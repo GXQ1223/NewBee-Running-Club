@@ -68,12 +68,16 @@ def upload_to_s3(file_content: bytes, filename: str, event_id: int, content_type
     file_ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg'
     key = f"gallery/event-{event_id}/{uuid.uuid4().hex}.{file_ext}"
 
-    s3_client.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=file_content,
-        ContentType=content_type
-    )
+    try:
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=file_content,
+            ContentType=content_type
+        )
+    except Exception as e:
+        logger.error(f"S3 upload error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image to storage")
 
     return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
 
@@ -92,6 +96,6 @@ def delete_from_s3(image_url: str) -> bool:
         key = image_url.split('.amazonaws.com/')[-1]
         s3_client.delete_object(Bucket=bucket, Key=key)
         return True
-    except ClientError as e:
+    except Exception as e:
         logger.error(f"S3 delete error for {image_url}: {e}")
         return False
