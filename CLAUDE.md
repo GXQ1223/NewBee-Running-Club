@@ -300,7 +300,7 @@ sudo systemctl status newbeerunning-api
 
 ## Code Review Status
 
-15 rounds of automated codebase review completed (March 2026). Key fixes applied:
+17 rounds of automated codebase review completed (March 2026). Key fixes applied:
 - All `func.now()` → `datetime.now(timezone.utc)` and `.dict()` → `.model_dump()` in route-level code
 - Auth added to all data-modifying endpoints; CORS tightened to specific origins/methods
 - **Security:** Member update endpoint requires ownership check; status changes restricted to admin-only
@@ -316,6 +316,8 @@ sudo systemctl status newbeerunning-api
 - ProfilePage: birth_year int conversion, stale error/success clearing
 - Unused imports cleaned across backend routes
 - User-visible error feedback added to all API call failures
+- Debug console.log statements removed across frontend
+- **Donor API:** Route ordering fixed (`/id/{donor_id}` before `/{donor_type}`); missing `X-Firebase-UID` headers added to all mutation functions
 
 ### Known Tech Debt (schema-level, needs migrations)
 - `MeetingMinutes.created_by_id` is not a ForeignKey (should be `ForeignKey('members.id', ondelete='SET NULL')`)
