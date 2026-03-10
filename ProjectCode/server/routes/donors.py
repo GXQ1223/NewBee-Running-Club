@@ -136,6 +136,17 @@ def toggle_hide_amounts(db: Session = Depends(get_db), current_admin: Member = D
     return {"hide_amounts": setting.value == "true"}
 
 
+@router.get("/id/{donor_id}", response_model=DonorResponse)
+def get_donor_by_id(donor_id: str, db: Session = Depends(get_db)):
+    """Get a specific donor by donor_id"""
+    donor = db.query(Donor).filter(Donor.donor_id == donor_id).first()
+    if not donor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Donor with ID {donor_id} not found"
+        )
+    return donor
+
 @router.get("/{donor_type}", response_model=List[DonorResponse])
 def get_donors_by_type(donor_type: str, db: Session = Depends(get_db)):
     """Get donors by type (individual or enterprise), sorted by donation_date (most recent first)"""
@@ -166,17 +177,6 @@ def create_donor(donor: DonorCreate, db: Session = Depends(get_db), current_admi
     db.commit()
     db.refresh(db_donor)
     return db_donor
-
-@router.get("/id/{donor_id}", response_model=DonorResponse)
-def get_donor_by_id(donor_id: str, db: Session = Depends(get_db)):
-    """Get a specific donor by donor_id"""
-    donor = db.query(Donor).filter(Donor.donor_id == donor_id).first()
-    if not donor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Donor with ID {donor_id} not found"
-        )
-    return donor
 
 @router.put("/{donor_id}", response_model=DonorResponse)
 def update_donor(donor_id: str, donor_update: DonorUpdate, db: Session = Depends(get_db), current_admin: Member = Depends(get_current_committee_or_admin)):

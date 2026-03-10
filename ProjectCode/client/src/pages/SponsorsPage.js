@@ -6,6 +6,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import { useEffect, useState } from 'react';
 import NavigationButtons from '../components/NavigationButtons';
 import { useAdmin } from '../context';
+import { useAuth } from '../context/AuthContext';
 import { useAutoFillOnTab } from '../hooks';
 import { getAllDonors, getPublicDonors, createDonor, updateDonor, deleteDonor, getHideAmounts, toggleHideAmounts } from '../api/donors';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -13,6 +14,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 export default function SponsorsPage() {
   const { adminModeEnabled } = useAdmin();
+  const { currentUser } = useAuth();
   const [individualDonors, setIndividualDonors] = useState([]);
   const [enterpriseDonors, setEnterpriseDonors] = useState([]);
   const [selectedTab, setSelectedTab] = useState(0);
@@ -89,7 +91,7 @@ export default function SponsorsPage() {
 
   const handleToggleHideAmounts = async () => {
     try {
-      const data = await toggleHideAmounts();
+      const data = await toggleHideAmounts(currentUser?.uid);
       setHideAmounts(data.hide_amounts);
     } catch (err) {
       console.error('Error toggling hide amounts:', err);
@@ -141,7 +143,7 @@ export default function SponsorsPage() {
           message: donorFormData.message || null,
           notes: donorFormData.notes || null,
           hide_name: donorFormData.hide_name
-        });
+        }, currentUser?.uid);
       } else {
         // Create new donor
         const donorType = selectedTab === 0 ? 'individual' : 'enterprise';
@@ -157,7 +159,7 @@ export default function SponsorsPage() {
           message: donorFormData.message || null,
           notes: donorFormData.notes || null,
           hide_name: donorFormData.hide_name
-        });
+        }, currentUser?.uid);
       }
       handleCloseEditDialog();
       fetchDonors(); // Refresh the list
@@ -177,7 +179,7 @@ export default function SponsorsPage() {
   const handleConfirmDelete = async () => {
     setSaving(true);
     try {
-      await deleteDonor(editingDonor.donor_id);
+      await deleteDonor(editingDonor.donor_id, currentUser?.uid);
       setDeleteDialogOpen(false);
       setEditingDonor(null);
       fetchDonors(); // Refresh the list

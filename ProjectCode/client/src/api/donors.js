@@ -33,29 +33,32 @@ export async function getDonorById(donorId) {
 /**
  * Create a new donor
  * @param {Object} donorData - Donor data
+ * @param {string} firebaseUid - Firebase UID of the admin user
  * @returns {Promise<Object>} Created donor
  */
-export async function createDonor(donorData) {
-  return api.post('/api/donors', donorData);
+export async function createDonor(donorData, firebaseUid) {
+  return api.post('/api/donors', donorData, { 'X-Firebase-UID': firebaseUid });
 }
 
 /**
  * Update a donor
  * @param {string} donorId - Donor ID
  * @param {Object} donorData - Updated donor data
+ * @param {string} firebaseUid - Firebase UID of the admin user
  * @returns {Promise<Object>} Updated donor
  */
-export async function updateDonor(donorId, donorData) {
-  return api.put(`/api/donors/${donorId}`, donorData);
+export async function updateDonor(donorId, donorData, firebaseUid) {
+  return api.put(`/api/donors/${donorId}`, donorData, { 'X-Firebase-UID': firebaseUid });
 }
 
 /**
  * Delete a donor
  * @param {string} donorId - Donor ID
+ * @param {string} firebaseUid - Firebase UID of the admin user
  * @returns {Promise<Object>} Deletion result
  */
-export async function deleteDonor(donorId) {
-  return api.delete(`/api/donors/${donorId}`);
+export async function deleteDonor(donorId, firebaseUid) {
+  return api.delete(`/api/donors/${donorId}`, { 'X-Firebase-UID': firebaseUid });
 }
 
 /**
@@ -87,18 +90,20 @@ export async function getHideAmounts() {
 
 /**
  * Toggle global hide donation amounts setting (admin only)
+ * @param {string} firebaseUid - Firebase UID of the admin user
  * @returns {Promise<Object>} { hide_amounts: boolean }
  */
-export async function toggleHideAmounts() {
-  return api.put('/api/donors/hide-amounts');
+export async function toggleHideAmounts(firebaseUid) {
+  return api.put('/api/donors/hide-amounts', undefined, { 'X-Firebase-UID': firebaseUid });
 }
 
 /**
  * Link a donor to a member account (admin only)
  * @param {string} donorId - Donor ID
  * @param {number} memberId - Member ID to link
+ * @param {string} firebaseUid - Firebase UID of the admin user
  * @returns {Promise<Object>} Link result
  */
-export async function linkDonorToMember(donorId, memberId) {
-  return api.put(`/api/donors/${donorId}/link-member`, { member_id: memberId });
+export async function linkDonorToMember(donorId, memberId, firebaseUid) {
+  return api.put(`/api/donors/${donorId}/link-member`, { member_id: memberId }, { 'X-Firebase-UID': firebaseUid });
 }
