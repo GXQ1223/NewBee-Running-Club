@@ -127,10 +127,13 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     // Fetch events from API
     const fetchEvents = async () => {
       try {
         const events = await getEventsByStatus('Upcoming');
+        if (cancelled) return;
 
         // Get current year
         const currentYear = new Date().getFullYear();
@@ -194,11 +197,12 @@ export default function CalendarPage() {
         })));
       } catch (error) {
         console.error('Error loading events:', error);
-        setSnackbar({ open: true, message: 'Failed to load events / 加载活动失败', severity: 'error' });
+        if (!cancelled) setSnackbar({ open: true, message: 'Failed to load events / 加载活动失败', severity: 'error' });
       }
     };
 
     fetchEvents();
+    return () => { cancelled = true; };
   }, []);
 
   // Deep-link: auto-open event modal from ?event=ID

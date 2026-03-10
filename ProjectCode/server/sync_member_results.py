@@ -18,7 +18,7 @@ Usage:
 import argparse
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
 from database import engine, Results, Member
@@ -92,7 +92,7 @@ def parse_result_data(result_row, member):
     try:
         # Parse race date/time
         race_date_str = result_row.get('RaceDate', '')
-        race_time = datetime.strptime(race_date_str, '%Y-%m-%dT%H:%M:%S') if race_date_str else datetime.now()
+        race_time = datetime.strptime(race_date_str, '%Y-%m-%dT%H:%M:%S') if race_date_str else datetime.now(timezone.utc)
 
         # Extract race info
         race_name = result_row.get('RaceName', 'Unknown Race')

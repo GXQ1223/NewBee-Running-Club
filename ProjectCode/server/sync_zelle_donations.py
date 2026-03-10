@@ -20,7 +20,7 @@ import email
 from email.header import decode_header
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from html import unescape
 
@@ -181,7 +181,7 @@ def parse_zelle_email(raw_email):
             parsed = email.utils.parsedate_to_datetime(date_header)
             donation_date = parsed.date()
         except Exception:
-            donation_date = datetime.now().date()
+            donation_date = datetime.now(timezone.utc).date()
 
     # Extract transaction number
     txn_match = re.search(r'Transaction\s+(?:number|#)\s*[:\s]*(\d+)', text, re.IGNORECASE)
@@ -285,7 +285,7 @@ def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False):
         if since_date:
             dt = datetime.strptime(since_date, "%Y-%m-%d")
         else:
-            dt = datetime.now() - timedelta(days=30)
+            dt = datetime.now(timezone.utc) - timedelta(days=30)
         # IMAP date format: DD-Mon-YYYY
         imap_since = dt.strftime("%d-%b-%Y")
 
