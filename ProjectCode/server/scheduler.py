@@ -137,23 +137,8 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
                 month = 1
                 year += 1
 
-            # Find the nth weekday of the month
-            first_of_month = date(year, month, 1)
-            first_weekday = first_of_month.weekday()
-
-            # Calculate the first occurrence of target weekday
-            days_until_weekday = (target_weekday - first_weekday) % 7
-            first_occurrence = first_of_month + timedelta(days=days_until_weekday)
-
-            # Add weeks to get to the target week
-            result = first_occurrence + timedelta(weeks=target_week - 1)
-
-            # Validate it's still in the target month
-            if result.month == month:
-                return result
-            else:
-                # Fall back to last occurrence of that weekday
-                return result - timedelta(weeks=1)
+            # Use helper that correctly converts frontend weekday (0=Sunday) to Python (0=Monday)
+            return calculate_nth_weekday(year, month, target_week, target_weekday)
         else:
             return current_date + timedelta(days=30)
 

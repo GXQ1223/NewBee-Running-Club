@@ -337,6 +337,7 @@ def undo_group_merge(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Event is not in this group")
 
     event.parent_event_id = None
+    db.flush()  # Ensure unlinked event is excluded from remaining count
 
     # Check if group should be dissolved
     remaining = db.query(Event).filter(Event.parent_event_id == parent_id).count()
