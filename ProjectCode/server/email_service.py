@@ -119,7 +119,7 @@ class EmailService:
 
             # Send email
             logger.debug(f"[EMAIL] Connecting to SMTP server {SMTP_SERVER}:{SMTP_PORT}...")
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
                 logger.debug("[EMAIL] Starting TLS...")
                 server.starttls()
                 logger.debug(f"[EMAIL] Logging in as {gmail_user}...")

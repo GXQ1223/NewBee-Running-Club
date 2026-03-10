@@ -580,7 +580,7 @@ export default function CalendarPage() {
   // Filter events based on selected filters
   const filteredEvents = upcomingEvents.filter(event => {
     if (filters.date) {
-      const referenceDate = new Date(2025, 4, 16); // May 16, 2025
+      const referenceDate = new Date();
       const thisWeek = new Date(referenceDate.getTime() + 7 * 24 * 60 * 60 * 1000);
       const thisMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
       const nextMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 2, 0);

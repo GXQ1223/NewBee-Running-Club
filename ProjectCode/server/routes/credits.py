@@ -225,10 +225,9 @@ async def bulk_upload_credits(
                     detail=f"Missing required column: {req_col}. Required columns: {', '.join(required_columns)}"
                 )
 
-    # If replace mode, delete all existing entries of this type
+    # If replace mode, delete all existing entries of this type (within same transaction as insert)
     if mode == 'replace':
         db.query(TempClubCredit).filter(TempClubCredit.credit_type == credit_type).delete()
-        db.commit()
 
     # Process rows
     rows_processed = 0
