@@ -298,6 +298,21 @@ sudo systemctl restart newbeerunning-api
 sudo systemctl status newbeerunning-api
 ```
 
+## Code Review Status
+
+10 rounds of automated codebase review completed (March 2026). Key fixes applied:
+- All `func.now()` → `datetime.now(timezone.utc)` and `.dict()` → `.model_dump()`
+- Auth added to all data-modifying endpoints; CORS tightened to specific origins/methods
+- N+1 queries fixed (gallery, banners) with `joinedload`
+- Email service lazy-loading; newsletter subject HTML-escaped
+- Null guards throughout frontend; NavBar polling abort flag; blob URL cleanup
+- Join page intro requirements made configurable via admin settings
+- Infinite loop on homepage image upload fixed (base64 → S3 migration)
+
+### Known Tech Debt (schema-level, needs migrations)
+- `MeetingMinutes.created_by_id` is not a ForeignKey (should be `ForeignKey('members.id', ondelete='SET NULL')`)
+- `GalleryDeletionRequest.requested_by_id` uses `ondelete='CASCADE'` (should be `SET NULL` to preserve audit trail)
+
 ## Notes
 
 - Bilingual UI: All major elements have English + Chinese labels
