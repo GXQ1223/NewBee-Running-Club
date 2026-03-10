@@ -300,7 +300,7 @@ sudo systemctl status newbeerunning-api
 
 ## Code Review Status
 
-18 rounds of automated codebase review completed (March 2026). Key fixes applied:
+19 rounds of automated codebase review completed (March 2026). Key fixes applied:
 - All `func.now()` → `datetime.now(timezone.utc)` and `.dict()` → `.model_dump()` in route-level code
 - Auth added to all data-modifying endpoints; CORS tightened to specific origins/methods
 - **Security:** Member update endpoint requires ownership check; status changes restricted to admin-only
@@ -321,6 +321,8 @@ sudo systemctl status newbeerunning-api
 - `updateMemberPrivacy` missing `X-Firebase-UID` header fixed (would cause 401)
 - AdminPanelPage: clear stale errors when switching to Settings tab
 - Scheduler: guard against malformed `days_of_week` in recurrence rules
+- **Scheduler:** monthly week-of-month recurrence used wrong weekday format (frontend 0=Sunday vs Python 0=Monday), generating events on wrong days
+- `db.flush()` added before count queries in activity deletion and group undo-merge (counters were off by 1)
 
 ### Known Tech Debt (schema-level, needs migrations)
 - `MeetingMinutes.created_by_id` is not a ForeignKey (should be `ForeignKey('members.id', ondelete='SET NULL')`)
