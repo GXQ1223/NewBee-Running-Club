@@ -1,7 +1,6 @@
 """Club credits endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status, Header, Request, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List, Optional
 import logging
 

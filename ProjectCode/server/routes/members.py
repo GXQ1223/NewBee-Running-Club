@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 import bcrypt
@@ -141,27 +140,34 @@ def update_member(
             detail=f"Member with ID {member_id} not found"
         )
 
-    # Check if the caller is an admin
-    is_admin = False
-    if x_firebase_uid:
-        caller = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
-        if caller and caller.status == 'admin':
-            is_admin = True
+    # Verify caller identity and permissions
+    if not x_firebase_uid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
+    caller = db.query(Member).filter(Member.firebase_uid == x_firebase_uid).first()
+    if not caller:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
+
+    is_admin = caller.status in ('admin', 'committee')
+    is_owner = caller.id == member_id
+
+    if not is_owner and not is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own profile.")
 
     update_data = member_update.model_dump(exclude_unset=True)
 
+    # Only admins can change status
+    if 'status' in update_data:
+        if caller.status != 'admin':
+            del update_data['status']
+        elif update_data['status']:
+            update_data['status'] = update_data['status'].value
+
     # Locked fields: once set, only admins can change them
-    # This prevents users from changing name/gender/birth_year to view other runners' race records
     locked_fields = ['display_name']
     if not is_admin:
         for field in locked_fields:
             if field in update_data and getattr(member, field):
-                # Field already has a value and caller is not admin — remove from update
                 del update_data[field]
-
-    # Convert enum to string if status is being updated
-    if 'status' in update_data and update_data['status']:
-        update_data['status'] = update_data['status'].value
 
     for field, value in update_data.items():
         setattr(member, field, value)

@@ -1,6 +1,6 @@
 """Engagement endpoints: comments, likes, reactions."""
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
