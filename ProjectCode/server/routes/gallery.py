@@ -433,12 +433,9 @@ def toggle_gallery_image_like(
         )
 
     if existing_like:
-        # Unlike
         db.delete(existing_like)
-        image.like_count = max(0, image.like_count - 1)
         user_liked = False
     else:
-        # Like
         new_like = EventGalleryImageLike(
             image_id=image_id,
             member_id=current_member.id if current_member else None,
@@ -446,9 +443,10 @@ def toggle_gallery_image_like(
             anonymous_id=anonymous_id if not current_member else None
         )
         db.add(new_like)
-        image.like_count += 1
         user_liked = True
 
+    db.flush()
+    image.like_count = db.query(EventGalleryImageLike).filter(EventGalleryImageLike.image_id == image_id).count()
     db.commit()
     db.refresh(image)
 

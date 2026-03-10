@@ -243,6 +243,7 @@ export default function TrainingPage() {
       ));
     } catch (err) {
       console.error('Error toggling upvote:', err);
+      setTipsError('Failed to update vote. Please try again. / 投票失败，请重试。');
     }
   };
 

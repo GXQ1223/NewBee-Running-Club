@@ -211,21 +211,19 @@ def toggle_tip_upvote(
         )
 
     if existing_upvote:
-        # Remove upvote
         db.delete(existing_upvote)
-        tip.upvotes = max(0, tip.upvotes - 1)
         user_upvoted = False
     else:
-        # Add upvote
         new_upvote = TrainingTipUpvote(
             tip_id=tip_id,
             member_id=current_member.id if current_member else None,
             anonymous_id=anonymous_id if not current_member else None
         )
         db.add(new_upvote)
-        tip.upvotes += 1
         user_upvoted = True
 
+    db.flush()
+    tip.upvotes = db.query(TrainingTipUpvote).filter(TrainingTipUpvote.tip_id == tip_id).count()
     db.commit()
     db.refresh(tip)
 
