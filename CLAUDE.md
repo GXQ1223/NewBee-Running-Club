@@ -300,18 +300,27 @@ sudo systemctl status newbeerunning-api
 
 ## Code Review Status
 
-10 rounds of automated codebase review completed (March 2026). Key fixes applied:
-- All `func.now()` → `datetime.now(timezone.utc)` and `.dict()` → `.model_dump()`
+15 rounds of automated codebase review completed (March 2026). Key fixes applied:
+- All `func.now()` → `datetime.now(timezone.utc)` and `.dict()` → `.model_dump()` in route-level code
 - Auth added to all data-modifying endpoints; CORS tightened to specific origins/methods
+- **Security:** Member update endpoint requires ownership check; status changes restricted to admin-only
 - N+1 queries fixed (gallery, banners) with `joinedload`
-- Email service lazy-loading; newsletter subject HTML-escaped
+- Counter race conditions fixed (upvotes, like_count use DB count instead of manual increment)
+- Email service lazy-loading; newsletter subject HTML-escaped; SMTP timeout added
 - Null guards throughout frontend; NavBar polling abort flag; blob URL cleanup
 - Join page intro requirements made configurable via admin settings
 - Infinite loop on homepage image upload fixed (base64 → S3 migration)
+- Calendar date filter fixed (was hardcoded to May 2025)
+- Credits bulk replace wrapped in single transaction (prevents data loss)
+- S3 upload/delete error handling added (proper HTTP errors instead of crashes)
+- ProfilePage: birth_year int conversion, stale error/success clearing
+- Unused imports cleaned across backend routes
+- User-visible error feedback added to all API call failures
 
 ### Known Tech Debt (schema-level, needs migrations)
 - `MeetingMinutes.created_by_id` is not a ForeignKey (should be `ForeignKey('members.id', ondelete='SET NULL')`)
 - `GalleryDeletionRequest.requested_by_id` uses `ondelete='CASCADE'` (should be `SET NULL` to preserve audit trail)
+- Firebase UID header is trusted without server-side token verification (architectural limitation)
 
 ## Notes
 

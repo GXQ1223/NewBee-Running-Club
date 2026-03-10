@@ -79,7 +79,10 @@ export default function SponsorsPage() {
   useEffect(() => {
     fetchDonors();
     if (adminModeEnabled) {
-      getHideAmounts().then(data => setHideAmounts(data.hide_amounts)).catch(err => console.error('Error fetching hide amounts:', err));
+      getHideAmounts().then(data => setHideAmounts(data.hide_amounts)).catch(err => {
+        console.error('Error fetching hide amounts:', err);
+        setError('Failed to load visibility settings. / 加载可见性设置失败。');
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminModeEnabled]);
