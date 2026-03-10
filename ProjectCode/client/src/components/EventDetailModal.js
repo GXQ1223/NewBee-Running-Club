@@ -67,6 +67,8 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
     const url = `${window.location.origin}/calendar?event=${event.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setShareSnackbar(true);
+    }).catch(() => {
+      setErrorSnackbar({ open: true, message: 'Failed to copy link / 复制链接失败' });
     });
   };
 

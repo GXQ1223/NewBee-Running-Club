@@ -351,43 +351,47 @@ export default function CalendarPage() {
       setEditingEventId(null);
       setImageFile(null);
       setImagePreview('');
-      // Refresh events
-      const events = await getEventsByStatus('Upcoming');
-      const transformedEvents = events.map(event => ({
-        id: event.id,
-        name: event.name,
-        chineseName: event.chinese_name,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chinese_location,
-        description: event.description,
-        chineseDescription: event.chinese_description,
-        image: event.image,
-        image_position: event.image_position,
-        signupLink: event.signup_link,
-        status: event.status,
-        eventType: event.event_type || 'standard',
-        heyloEmbed: event.heylo_embed || '',
-        wechatQrCode: event.wechat_qr_code || ''
-      })).sort((a, b) => a.date.localeCompare(b.date));
-      setUpcomingEvents(transformedEvents);
-      setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
-        id: event.id,
-        title: event.name,
-        chineseTitle: event.chineseName,
-        image: event.image,
-        image_position: event.image_position,
-        description: event.description,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chineseLocation,
-        chineseDescription: event.chineseDescription,
-        eventType: event.eventType,
-        heyloEmbed: event.heyloEmbed,
-        wechatQrCode: event.wechatQrCode
-      })));
+      // Refresh events (separate try/catch so refresh failure doesn't override success message)
+      try {
+        const events = await getEventsByStatus('Upcoming');
+        const transformedEvents = events.map(event => ({
+          id: event.id,
+          name: event.name,
+          chineseName: event.chinese_name,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+          chineseLocation: event.chinese_location,
+          description: event.description,
+          chineseDescription: event.chinese_description,
+          image: event.image,
+          image_position: event.image_position,
+          signupLink: event.signup_link,
+          status: event.status,
+          eventType: event.event_type || 'standard',
+          heyloEmbed: event.heylo_embed || '',
+          wechatQrCode: event.wechat_qr_code || ''
+        })).sort((a, b) => a.date.localeCompare(b.date));
+        setUpcomingEvents(transformedEvents);
+        setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
+          id: event.id,
+          title: event.name,
+          chineseTitle: event.chineseName,
+          image: event.image,
+          image_position: event.image_position,
+          description: event.description,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+          chineseLocation: event.chineseLocation,
+          chineseDescription: event.chineseDescription,
+          eventType: event.eventType,
+          heyloEmbed: event.heyloEmbed,
+          wechatQrCode: event.wechatQrCode
+        })));
+      } catch (refreshError) {
+        console.error('Error refreshing events after save:', refreshError);
+      }
     } catch (error) {
       console.error('Error saving event:', error);
       setSnackbar({ open: true, message: `Error: ${error.message || 'Failed to save event'}`, severity: 'error' });
@@ -408,43 +412,47 @@ export default function CalendarPage() {
       setSnackbar({ open: true, message: 'Event deleted successfully / 活动已删除', severity: 'success' });
       setDeleteDialogOpen(false);
       setEventToDelete(null);
-      // Refresh events
-      const events = await getEventsByStatus('Upcoming');
-      const transformedEvents = events.map(event => ({
-        id: event.id,
-        name: event.name,
-        chineseName: event.chinese_name,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chinese_location,
-        description: event.description,
-        chineseDescription: event.chinese_description,
-        image: event.image,
-        image_position: event.image_position,
-        signupLink: event.signup_link,
-        status: event.status,
-        eventType: event.event_type || 'standard',
-        heyloEmbed: event.heylo_embed || '',
-        wechatQrCode: event.wechat_qr_code || ''
-      })).sort((a, b) => a.date.localeCompare(b.date));
-      setUpcomingEvents(transformedEvents);
-      setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
-        id: event.id,
-        title: event.name,
-        chineseTitle: event.chineseName,
-        image: event.image,
-        image_position: event.image_position,
-        description: event.description,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chineseLocation,
-        chineseDescription: event.chineseDescription,
-        eventType: event.eventType,
-        heyloEmbed: event.heyloEmbed,
-        wechatQrCode: event.wechatQrCode
-      })));
+      // Refresh events (separate try/catch so refresh failure doesn't override success message)
+      try {
+        const events = await getEventsByStatus('Upcoming');
+        const transformedEvents = events.map(event => ({
+          id: event.id,
+          name: event.name,
+          chineseName: event.chinese_name,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+          chineseLocation: event.chinese_location,
+          description: event.description,
+          chineseDescription: event.chinese_description,
+          image: event.image,
+          image_position: event.image_position,
+          signupLink: event.signup_link,
+          status: event.status,
+          eventType: event.event_type || 'standard',
+          heyloEmbed: event.heylo_embed || '',
+          wechatQrCode: event.wechat_qr_code || ''
+        })).sort((a, b) => a.date.localeCompare(b.date));
+        setUpcomingEvents(transformedEvents);
+        setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
+          id: event.id,
+          title: event.name,
+          chineseTitle: event.chineseName,
+          image: event.image,
+          image_position: event.image_position,
+          description: event.description,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+          chineseLocation: event.chineseLocation,
+          chineseDescription: event.chineseDescription,
+          eventType: event.eventType,
+          heyloEmbed: event.heyloEmbed,
+          wechatQrCode: event.wechatQrCode
+        })));
+      } catch (refreshError) {
+        console.error('Error refreshing events after delete:', refreshError);
+      }
     } catch (error) {
       console.error('Error deleting event:', error);
       setSnackbar({ open: true, message: `Error: ${error.message || 'Failed to delete event'}`, severity: 'error' });
