@@ -323,7 +323,6 @@ export default function TrainingPage() {
   const handleSubmit = (event) => {
     event.preventDefault();
     // TODO: Send data to AI system and generate training plan
-    console.log('Form submitted:', formData);
     setPlanGenerated(true);
   };
 

@@ -131,7 +131,6 @@ export default function CalendarPage() {
     const fetchEvents = async () => {
       try {
         const events = await getEventsByStatus('Upcoming');
-        console.log('Fetched events from API:', events);
 
         // Get current year
         const currentYear = new Date().getFullYear();
@@ -174,7 +173,6 @@ export default function CalendarPage() {
             };
           }).sort((a, b) => a.date.localeCompare(b.date)); // Sort in chronological order
 
-        console.log('Transformed upcoming events:', transformedEvents);
 
         // Set upcoming events
         setUpcomingEvents(transformedEvents);
