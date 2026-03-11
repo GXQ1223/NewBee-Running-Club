@@ -300,7 +300,7 @@ sudo systemctl status newbeerunning-api
 
 ## Code Review Status
 
-22 rounds of automated codebase review completed (March 2026). Key fixes applied:
+23 rounds of automated codebase review completed (March 2026). Key fixes applied:
 - All `func.now()` → `datetime.now(timezone.utc)` and `.dict()` → `.model_dump()` in route-level code
 - Auth added to all data-modifying endpoints; CORS tightened to specific origins/methods
 - **Security:** Member update endpoint requires ownership check; status changes restricted to admin-only
@@ -328,6 +328,7 @@ sudo systemctl status newbeerunning-api
 - CalendarPage: post-save/delete refresh isolated in separate try/catch (prevents success message override)
 - EventDetailModal: clipboard writeText .catch() added for error feedback
 - GalleryLightbox: removed direct mutation of parent's `images` array props (React anti-pattern)
+- GalleryLightbox: fixed `onImageUpdate` call signature for uploader name (was passing single object instead of `(id, updates)`)
 
 ### Known Tech Debt (schema-level, needs migrations)
 - `MeetingMinutes.created_by_id` is not a ForeignKey (should be `ForeignKey('members.id', ondelete='SET NULL')`)
