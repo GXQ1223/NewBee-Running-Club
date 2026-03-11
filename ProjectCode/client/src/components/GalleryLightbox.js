@@ -414,7 +414,7 @@ const GalleryLightbox = ({
                       if (e.key === 'Enter') {
                         try {
                           await updateGalleryImage(currentImage.id, { uploaded_by_name: uploaderNameValue }, currentUser.uid);
-                          if (onImageUpdate) onImageUpdate({ ...currentImage, uploaded_by_name: uploaderNameValue });
+                          if (onImageUpdate) onImageUpdate(currentImage.id, { uploaded_by_name: uploaderNameValue });
                         } catch (err) {
                           console.error('Failed to update uploader name:', err);
                         }
@@ -426,7 +426,7 @@ const GalleryLightbox = ({
                     onBlur={async () => {
                       try {
                         await updateGalleryImage(currentImage.id, { uploaded_by_name: uploaderNameValue }, currentUser.uid);
-                        if (onImageUpdate) onImageUpdate({ ...currentImage, uploaded_by_name: uploaderNameValue });
+                        if (onImageUpdate) onImageUpdate(currentImage.id, { uploaded_by_name: uploaderNameValue });
                       } catch (err) {
                         console.error('Failed to update uploader name:', err);
                       }
