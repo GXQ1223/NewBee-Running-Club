@@ -396,8 +396,7 @@ export default function SponsorsPage() {
               mb: 3,
             }}
           >
-            新蜂已正式注册为 501(c)(3) 非营利组织，将以更专业的方式服务跑者。欢迎通过 Zelle：newbeerunningclub@gmail.com 支持跑团运作。所有款项将用于活动物资、义工补给等方面。感谢每一位支持新蜂的你！
-            以下排名按捐款日期排序，不论多少，每一笔捐款我们都非常感谢。谢谢大家的支持！
+            每一份捐赠，无论多少，都意义非凡。感谢您考虑为新蜂跑团捐赠。您的支持帮助我们组织跑步活动、更好地服务会员，共同建设一个更强大、更健康、更紧密的社区。欢迎通过 Zelle：newbeerunningclub@gmail.com 支持跑团运作。
           </Typography>
           <Typography
             variant="body1"
@@ -409,8 +408,7 @@ export default function SponsorsPage() {
               mb: 3,
             }}
           >
-            NewBee has officially registered as a 501(c)(3) non-profit organization, serving runners in a more professional manner. Support our running club via Zelle: newbeerunningclub@gmail.com. All funds will be used for event supplies and volunteer support. Thank you for supporting NewBee!
-            Below is the list of our sponsors/donors sorted by donation date. Thank you for your support!
+            Any contribution—large or small—makes a meaningful difference. Thank you for considering a gift to the NewBee Running Club. Your support enables us to organize running programs and better serve our members, fostering a stronger, healthier, and more connected community. Donate via Zelle: newbeerunningclub@gmail.com.
           </Typography>
         </Box>
       </Container>
