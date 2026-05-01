@@ -8,7 +8,8 @@ const DEFAULT_SOCIAL_LINKS = {
   instagram: 'https://www.instagram.com/newbeerunningclub/',
   xiaohongshu: 'https://xhslink.com/m/8znk8WTxhjd',
   heylo: 'https://www.heylo.com/g/b7bf1310-ca40-4d4d-9da5-2b7f4f3c197e',
-  shop: ''
+  shop: '',
+  shopDemoVideo: ''
 };
 
 export function useSocialLinks() {
@@ -31,7 +32,8 @@ export function SocialLinksProvider({ children }) {
         instagram: links.instagram || DEFAULT_SOCIAL_LINKS.instagram,
         xiaohongshu: links.xiaohongshu || DEFAULT_SOCIAL_LINKS.xiaohongshu,
         heylo: links.heylo || DEFAULT_SOCIAL_LINKS.heylo,
-        shop: links.shop || DEFAULT_SOCIAL_LINKS.shop
+        shop: links.shop || DEFAULT_SOCIAL_LINKS.shop,
+        shopDemoVideo: links.shop_demo_video || DEFAULT_SOCIAL_LINKS.shopDemoVideo
       });
     } catch (err) {
       console.error('Error fetching social links:', err);

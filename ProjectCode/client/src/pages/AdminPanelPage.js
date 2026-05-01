@@ -182,7 +182,8 @@ export default function AdminPanelPage() {
     instagram: '',
     xiaohongshu: '',
     heylo: '',
-    shop: ''
+    shop: '',
+    shopDemoVideo: ''
   });
   const [joinRequirementsForm, setJoinRequirementsForm] = useState({
     minEnglishWords: '120',
@@ -694,12 +695,13 @@ export default function AdminPanelPage() {
     if (!currentUser?.uid) return;
     try {
       const settings = await getSettingsByCategory('social', currentUser.uid);
-      const formData = { instagram: '', xiaohongshu: '', heylo: '', shop: '' };
+      const formData = { instagram: '', xiaohongshu: '', heylo: '', shop: '', shopDemoVideo: '' };
       settings.forEach(setting => {
         if (setting.key === 'social_instagram') formData.instagram = setting.value || '';
         if (setting.key === 'social_xiaohongshu') formData.xiaohongshu = setting.value || '';
         if (setting.key === 'social_heylo') formData.heylo = setting.value || '';
         if (setting.key === 'social_shop') formData.shop = setting.value || '';
+        if (setting.key === 'social_shop_demo_video') formData.shopDemoVideo = setting.value || '';
       });
       setSocialLinksForm(formData);
     } catch (err) {
@@ -732,6 +734,7 @@ export default function AdminPanelPage() {
         updateSetting('social_xiaohongshu', { value: socialLinksForm.xiaohongshu }, currentUser.uid),
         updateSetting('social_heylo', { value: socialLinksForm.heylo }, currentUser.uid),
         updateSetting('social_shop', { value: socialLinksForm.shop }, currentUser.uid),
+        updateSetting('social_shop_demo_video', { value: socialLinksForm.shopDemoVideo }, currentUser.uid),
         updateSetting('join_min_english_words', { value: joinRequirementsForm.minEnglishWords }, currentUser.uid),
         updateSetting('join_min_chinese_chars', { value: joinRequirementsForm.minChineseChars }, currentUser.uid),
       ]);
@@ -1621,6 +1624,16 @@ export default function AdminPanelPage() {
                   onChange={(e) => setSocialLinksForm(prev => ({ ...prev, shop: e.target.value }))}
                   placeholder="https://shop.newbeerunningclub.org/"
                   helperText="Leave empty to disable / 留空以禁用"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Shop Demo Video URL / 商店演示视频链接"
+                  value={socialLinksForm.shopDemoVideo}
+                  onChange={(e) => setSocialLinksForm(prev => ({ ...prev, shopDemoVideo: e.target.value }))}
+                  placeholder="https://your-bucket.s3.amazonaws.com/shop-demo.mp4"
+                  helperText="Direct video URL (S3 or other host). Shown when users click the shop icon. / 视频直链，点击商店图标时显示"
                 />
               </Grid>
             </Grid>
