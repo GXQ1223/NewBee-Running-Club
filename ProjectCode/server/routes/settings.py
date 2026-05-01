@@ -43,6 +43,13 @@ def seed_social_links(db: Session):
             "label_en": "Shop",
             "label_cn": "商店",
             "category": "social"
+        },
+        {
+            "key": "social_shop_demo_video",
+            "value": "",
+            "label_en": "Shop Demo Video",
+            "label_cn": "商店演示视频",
+            "category": "social"
         }
     ]
 
@@ -96,6 +103,8 @@ def get_social_links(db: Session = Depends(get_db)):
             result.heylo = setting.value
         elif setting.key == "social_shop":
             result.shop = setting.value
+        elif setting.key == "social_shop_demo_video":
+            result.shop_demo_video = setting.value
 
     return result
 

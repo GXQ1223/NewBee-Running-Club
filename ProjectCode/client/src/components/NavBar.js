@@ -1,8 +1,11 @@
-import { AppBar, Badge, Box, Button, Container, IconButton, SvgIcon, Switch, Toolbar, Tooltip, useMediaQuery, useTheme } from '@mui/material';
+import { AppBar, Badge, Box, Button, Container, Dialog, DialogContent, DialogTitle, IconButton, Stack, SvgIcon, Switch, Toolbar, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import PersonIcon from '@mui/icons-material/Person';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import CloseIcon from '@mui/icons-material/Close';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAdmin, useAuth, useSocialLinks } from '../context';
@@ -32,9 +35,33 @@ export default function NavBar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [pendingCount, setPendingCount] = useState(0);
+  const [shopDialogOpen, setShopDialogOpen] = useState(false);
+  const [demoVideoOpen, setDemoVideoOpen] = useState(false);
 
   // Helper to check if a social link is configured
   const hasLink = (link) => link && link.trim() !== '' && link !== '#';
+
+  const handleShopClick = (e) => {
+    if (!hasLink(socialLinks.shop) && !hasLink(socialLinks.shopDemoVideo)) {
+      // Empty: fall back to old behavior (admin can configure)
+      handleSocialClick(socialLinks.shop, e);
+      return;
+    }
+    e.preventDefault();
+    setShopDialogOpen(true);
+  };
+
+  const handleGoToStore = () => {
+    if (hasLink(socialLinks.shop)) {
+      window.open(socialLinks.shop, '_blank', 'noopener,noreferrer');
+    }
+    setShopDialogOpen(false);
+  };
+
+  const handleWatchDemo = () => {
+    setShopDialogOpen(false);
+    setDemoVideoOpen(true);
+  };
 
   // Handle social link click - navigate to settings if admin mode enabled and link empty
   const handleSocialClick = (link, event) => {
@@ -166,15 +193,13 @@ export default function NavBar() {
                     </IconButton>
                   </span>
                 </Tooltip>
-                <Tooltip title={hasLink(socialLinks.shop) ? "Shop" : (adminModeEnabled ? "Shop (Click to configure)" : "Shop (Not configured)")}>
+                <Tooltip title={hasLink(socialLinks.shop) || hasLink(socialLinks.shopDemoVideo) ? "Shop / 商店" : (adminModeEnabled ? "Shop (Click to configure)" : "Shop (Not configured)")}>
                   <span>
                     <IconButton
-                      href={hasLink(socialLinks.shop) ? socialLinks.shop : '#'}
-                      target={hasLink(socialLinks.shop) ? "_blank" : undefined}
-                      onClick={(e) => handleSocialClick(socialLinks.shop, e)}
-                      disabled={!hasLink(socialLinks.shop) && !adminModeEnabled}
+                      onClick={handleShopClick}
+                      disabled={!hasLink(socialLinks.shop) && !hasLink(socialLinks.shopDemoVideo) && !adminModeEnabled}
                       sx={{
-                        color: hasLink(socialLinks.shop) ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
+                        color: (hasLink(socialLinks.shop) || hasLink(socialLinks.shopDemoVideo)) ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
                         padding: { xs: '4px', sm: '6px' },
                         '&:hover': { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
                         '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
@@ -289,6 +314,108 @@ export default function NavBar() {
           </Toolbar>
         </Container>
       </AppBar>
+
+      {/* Shop options dialog: Store vs Demo Video */}
+      <Dialog
+        open={shopDialogOpen}
+        onClose={() => setShopDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 700, pb: 1 }}>
+          Shop / 商店
+        </DialogTitle>
+        <DialogContent sx={{ pb: 4 }}>
+          <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}>
+            How would you like to start? / 您想如何开始？
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+            <Button
+              onClick={handleGoToStore}
+              disabled={!hasLink(socialLinks.shop)}
+              variant="contained"
+              startIcon={<StorefrontIcon />}
+              sx={{
+                flex: 1,
+                py: 2,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1rem',
+                backgroundColor: '#e98f4bff',
+                '&:hover': { backgroundColor: '#d97f3bff' },
+              }}
+            >
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span>Go to Store</span>
+                <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>直接进入商店</span>
+              </Box>
+            </Button>
+            <Button
+              onClick={handleWatchDemo}
+              disabled={!hasLink(socialLinks.shopDemoVideo)}
+              variant="outlined"
+              startIcon={<PlayCircleOutlineIcon />}
+              sx={{
+                flex: 1,
+                py: 2,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1rem',
+                borderColor: '#e98f4bff',
+                color: '#e98f4bff',
+                '&:hover': { borderColor: '#d97f3bff', backgroundColor: 'rgba(233, 143, 75, 0.08)' },
+              }}
+            >
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span>Watch Demo</span>
+                <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>个性化设计演示</span>
+              </Box>
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      {/* Demo video player dialog */}
+      <Dialog
+        open={demoVideoOpen}
+        onClose={() => setDemoVideoOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, backgroundColor: '#e98f4bff', overflow: 'hidden' } }}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: 'white',
+          fontWeight: 700,
+          backgroundColor: '#e98f4bff',
+          py: 1.25,
+        }}>
+          <span>Personalized Design Demo / 个性化设计演示</span>
+          <IconButton
+            onClick={() => setDemoVideoOpen(false)}
+            sx={{
+              color: 'white',
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.15)' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, backgroundColor: '#e98f4bff' }}>
+          {hasLink(socialLinks.shopDemoVideo) && (
+            <Box
+              component="video"
+              src={socialLinks.shopDemoVideo}
+              controls
+              autoPlay
+              sx={{ width: '100%', display: 'block', maxHeight: '75vh', backgroundColor: '#e98f4bff' }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

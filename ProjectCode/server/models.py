@@ -911,6 +911,7 @@ class SocialLinksResponse(BaseModel):
     xiaohongshu: Optional[str] = None
     heylo: Optional[str] = None
     shop: Optional[str] = None
+    shop_demo_video: Optional[str] = None
 
 
 # ========== Event Group Schemas (iOS-style folder grouping) ==========
