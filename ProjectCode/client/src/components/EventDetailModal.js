@@ -14,7 +14,10 @@ import {
   IconButton,
   Snackbar,
   Alert,
-  Tooltip
+  Tooltip,
+  MenuItem,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import EditIcon from '@mui/icons-material/Edit';
@@ -40,8 +43,8 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const [loading, setLoading] = useState(true);
   const [shareSnackbar, setShareSnackbar] = useState(false);
   const [errorSnackbar, setErrorSnackbar] = useState({ open: false, message: '' });
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [descriptionText, setDescriptionText] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -93,15 +96,89 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
     }
   };
 
-  const handleDescriptionSave = async () => {
+  // Read event fields from either snake_case (server) or camelCase (page cache).
+  const readField = (snake, camel) => event?.[snake] ?? event?.[camel] ?? '';
+
+  const handleEditOpen = () => {
+    setEditForm({
+      name: event.name || event.title || '',
+      chinese_name: readField('chinese_name', 'chineseName') || readField('chinese_name', 'chineseTitle') || '',
+      date: event.date || '',
+      time: event.time || '',
+      location: event.location || '',
+      chinese_location: readField('chinese_location', 'chineseLocation'),
+      description: event.description || '',
+      chinese_description: readField('chinese_description', 'chineseDescription'),
+      image: event.image || '',
+      signup_link: readField('signup_link', 'signupLink'),
+      wechat_qr_code: readField('wechat_qr_code', 'wechatQrCode'),
+      status: event.status === 'Highlight' ? 'Past' : (event.status || 'Upcoming'),
+      is_highlight: event.is_highlight === true || event.status === 'Highlight',
+      event_type: event.event_type || event.eventType || 'standard',
+    });
+    setEditing(true);
+  };
+
+  const handleEditCancel = () => {
+    setEditing(false);
+    setEditForm(null);
+  };
+
+  const handleEditFieldChange = (field) => (e) => {
+    const value = e?.target?.type === 'checkbox' ? e.target.checked : e?.target?.value;
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditSave = async () => {
+    if (!editForm) return;
+    const trimmedName = (editForm.name || '').trim();
+    if (!trimmedName) {
+      setErrorSnackbar({ open: true, message: 'Name cannot be empty / 名称不能为空' });
+      return;
+    }
+    if (!editForm.date) {
+      setErrorSnackbar({ open: true, message: 'Date is required / 日期为必填项' });
+      return;
+    }
     setSaving(true);
     try {
-      await updateEvent(event.id, { description: descriptionText }, currentUser.uid);
-      setEditingDescription(false);
-      if (onEventUpdate) onEventUpdate({ ...event, description: descriptionText });
+      // Send every field so admins can clear values too. Empty strings → null
+      // so the server stores NULL instead of "".
+      const payload = {
+        name: trimmedName,
+        chinese_name: editForm.chinese_name?.trim() || null,
+        date: editForm.date,
+        time: editForm.time?.trim() || null,
+        location: editForm.location?.trim() || null,
+        chinese_location: editForm.chinese_location?.trim() || null,
+        description: editForm.description ?? null,
+        chinese_description: editForm.chinese_description ?? null,
+        image: editForm.image?.trim() || null,
+        signup_link: editForm.signup_link?.trim() || null,
+        wechat_qr_code: editForm.wechat_qr_code?.trim() || null,
+        status: editForm.status,
+        is_highlight: !!editForm.is_highlight,
+        event_type: editForm.event_type || 'standard',
+      };
+      const updated = await updateEvent(event.id, payload, currentUser.uid);
+      setEditing(false);
+      setEditForm(null);
+      if (onEventUpdate) {
+        // Mirror to camelCase so pages that cache that shape (CalendarPage,
+        // HighlightsPage) re-render with the new values immediately.
+        onEventUpdate({
+          ...event,
+          ...updated,
+          chineseName: updated.chinese_name,
+          chineseLocation: updated.chinese_location,
+          chineseDescription: updated.chinese_description,
+          signupLink: updated.signup_link,
+          wechatQrCode: updated.wechat_qr_code,
+        });
+      }
     } catch (error) {
-      console.error('Error updating description:', error);
-      setErrorSnackbar({ open: true, message: 'Failed to save description / 保存描述失败' });
+      console.error('Error updating event:', error);
+      setErrorSnackbar({ open: true, message: 'Failed to save event / 保存活动失败' });
     } finally {
       setSaving(false);
     }
@@ -204,117 +281,234 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
           )}
         </Box>
         <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
-              {eventTitle}
-            </Typography>
-            <Tooltip title="Share / 分享">
-              <IconButton onClick={handleShare} sx={{ color: '#FFB84D' }}>
-                <ShareIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-          {eventChineseTitle && (
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              {eventChineseTitle}
-            </Typography>
-          )}
-
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Date: {event.date}
-            </Typography>
-            {event.time && (
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Time: {event.time}
-              </Typography>
-            )}
-            {event.location && (
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Location: {event.location}
-              </Typography>
-            )}
-            {event.chineseLocation && (
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                {event.chineseLocation}
-              </Typography>
-            )}
-          </Box>
-
-          {/* Signup Link */}
-          {(event.signupLink || event.signup_link) && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                Join / 参与
-              </Typography>
-              <Button
-                variant="outlined"
+          {editing && editForm ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  label="Event Name / 活动名称"
+                  value={editForm.name}
+                  onChange={handleEditFieldChange('name')}
+                  fullWidth
+                  size="small"
+                  required
+                />
+                <TextField
+                  label="Chinese Name / 中文名称"
+                  value={editForm.chinese_name}
+                  onChange={handleEditFieldChange('chinese_name')}
+                  fullWidth
+                  size="small"
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  label="Date / 日期"
+                  type="date"
+                  value={editForm.date}
+                  onChange={handleEditFieldChange('date')}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  required
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  label="Time / 时间"
+                  value={editForm.time}
+                  onChange={handleEditFieldChange('time')}
+                  size="small"
+                  placeholder="e.g. 8:00 AM"
+                  sx={{ flex: 1 }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  label="Location / 地点"
+                  value={editForm.location}
+                  onChange={handleEditFieldChange('location')}
+                  size="small"
+                  fullWidth
+                />
+                <TextField
+                  label="Chinese Location / 中文地点"
+                  value={editForm.chinese_location}
+                  onChange={handleEditFieldChange('chinese_location')}
+                  size="small"
+                  fullWidth
+                />
+              </Box>
+              <TextField
+                label="Image URL / 图片链接"
+                value={editForm.image}
+                onChange={handleEditFieldChange('image')}
                 size="small"
-                startIcon={<OpenInNewIcon />}
-                href={event.signupLink || event.signup_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{
-                  textTransform: 'none',
-                  borderColor: '#FFB84D',
-                  color: '#FFB84D',
-                  borderRadius: '8px',
-                  '&:hover': { borderColor: '#FFA833', backgroundColor: 'rgba(255, 184, 77, 0.04)' }
-                }}
-              >
-                Sign Up / 报名
-              </Button>
+                fullWidth
+                placeholder="https://… or /path/to/image.jpg"
+              />
+              <TextField
+                label="Signup Link / 报名链接"
+                value={editForm.signup_link}
+                onChange={handleEditFieldChange('signup_link')}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="WeChat QR Code URL / 微信二维码"
+                value={editForm.wechat_qr_code}
+                onChange={handleEditFieldChange('wechat_qr_code')}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="Description / 描述"
+                value={editForm.description}
+                onChange={handleEditFieldChange('description')}
+                multiline
+                minRows={2}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="Chinese Description / 中文描述"
+                value={editForm.chinese_description}
+                onChange={handleEditFieldChange('chinese_description')}
+                multiline
+                minRows={2}
+                size="small"
+                fullWidth
+              />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <TextField
+                  select
+                  label="Status / 状态"
+                  value={editForm.status}
+                  onChange={handleEditFieldChange('status')}
+                  size="small"
+                  sx={{ flex: 1 }}
+                >
+                  <MenuItem value="Upcoming">Upcoming / 即将举行</MenuItem>
+                  <MenuItem value="Past">Past / 已结束</MenuItem>
+                  <MenuItem value="Cancelled">Cancelled / 已取消</MenuItem>
+                </TextField>
+                <TextField
+                  select
+                  label="Type / 类型"
+                  value={editForm.event_type}
+                  onChange={handleEditFieldChange('event_type')}
+                  size="small"
+                  sx={{ flex: 1 }}
+                >
+                  <MenuItem value="standard">Standard</MenuItem>
+                  <MenuItem value="heylo">Heylo</MenuItem>
+                  <MenuItem value="race">Race</MenuItem>
+                </TextField>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={!!editForm.is_highlight}
+                      onChange={(e) =>
+                        setEditForm(prev => ({ ...prev, is_highlight: e.target.checked }))
+                      }
+                      color="warning"
+                    />
+                  }
+                  label="★ Highlight"
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  onClick={handleEditCancel}
+                  disabled={saving}
+                  startIcon={<CloseIcon />}
+                  sx={{ borderColor: '#f44336', color: '#f44336' }}
+                >
+                  Cancel / 取消
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleEditSave}
+                  disabled={saving}
+                  startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                  sx={{ backgroundColor: '#4caf50', '&:hover': { backgroundColor: '#43a047' } }}
+                >
+                  Save / 保存
+                </Button>
+              </Box>
             </Box>
-          )}
+          ) : (
+            <>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h5" gutterBottom sx={{ mb: 0, flex: 1, minWidth: 0 }}>
+                  {eventTitle}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  {adminModeEnabled && event.id && (
+                    <Tooltip title="Edit event / 编辑活动">
+                      <IconButton onClick={handleEditOpen} sx={{ color: '#FFB84D' }}>
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Tooltip title="Share / 分享">
+                    <IconButton onClick={handleShare} sx={{ color: '#FFB84D' }}>
+                      <ShareIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+              {eventChineseTitle && (
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  {eventChineseTitle}
+                </Typography>
+              )}
 
-          {(event.description || (adminModeEnabled && event.id)) && (
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                {adminModeEnabled && event.id && !editingDescription && (
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      setDescriptionText(event.description || '');
-                      setEditingDescription(true);
-                    }}
-                    sx={{ color: '#FFB84D' }}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Date: {event.date}
+                </Typography>
+                {event.time && (
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Time: {event.time}
+                  </Typography>
+                )}
+                {event.location && (
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Location: {event.location}
+                  </Typography>
+                )}
+                {event.chineseLocation && (
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {event.chineseLocation}
+                  </Typography>
                 )}
               </Box>
-              {editingDescription ? (
-                <Box>
-                  <TextField
-                    multiline
-                    minRows={3}
-                    fullWidth
-                    value={descriptionText}
-                    onChange={(e) => setDescriptionText(e.target.value)}
+
+              {(event.signupLink || event.signup_link) && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                    Join / 参与
+                  </Typography>
+                  <Button
                     variant="outlined"
                     size="small"
-                    sx={{ mb: 1 }}
-                  />
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton
-                      size="small"
-                      onClick={handleDescriptionSave}
-                      disabled={saving}
-                      sx={{ color: '#4caf50' }}
-                    >
-                      {saving ? <CircularProgress size={20} /> : <SaveIcon fontSize="small" />}
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => setEditingDescription(false)}
-                      disabled={saving}
-                      sx={{ color: '#f44336' }}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
+                    startIcon={<OpenInNewIcon />}
+                    href={event.signupLink || event.signup_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#FFB84D',
+                      color: '#FFB84D',
+                      borderRadius: '8px',
+                      '&:hover': { borderColor: '#FFA833', backgroundColor: 'rgba(255, 184, 77, 0.04)' }
+                    }}
+                  >
+                    Sign Up / 报名
+                  </Button>
                 </Box>
-              ) : event.description ? (
+              )}
+
+              {event.description && (
                 <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-line' }}>
                   {event.description.split(/(@?https?:\/\/[^\s]+)/g).map((part, index) => {
                     if (part.match(/^@?https?:\/\//)) {
@@ -324,10 +518,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                           href={part.startsWith('@') ? part.substring(1) : part}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{
-                            color: '#FFB84D',
-                            textDecoration: 'none',
-                          }}
+                          style={{ color: '#FFB84D', textDecoration: 'none' }}
                         >
                           {part}
                         </a>
@@ -336,8 +527,18 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                     return part;
                   })}
                 </Typography>
-              ) : null}
-            </Box>
+              )}
+              {(event.chineseDescription || event.chinese_description) && (
+                <Typography
+                  variant="body1"
+                  paragraph
+                  color="text.secondary"
+                  sx={{ whiteSpace: 'pre-line' }}
+                >
+                  {event.chineseDescription || event.chinese_description}
+                </Typography>
+              )}
+            </>
           )}
 
           <Divider sx={{ my: 2 }} />
