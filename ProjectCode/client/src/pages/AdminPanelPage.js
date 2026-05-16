@@ -14,12 +14,14 @@ import {
   DialogContentText,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   Grid,
   IconButton,
   InputLabel,
   MenuItem,
   Paper,
   Select,
+  Switch,
   Tab,
   Table,
   TableBody,
@@ -141,7 +143,8 @@ export default function AdminPanelPage() {
     chinese_description: '',
     image: '',
     signup_link: '',
-    status: 'Upcoming'
+    status: 'Upcoming',
+    is_highlight: false
   });
 
   // Newsletter state
@@ -390,6 +393,10 @@ export default function AdminPanelPage() {
   const handleEventDialogOpen = (event = null) => {
     if (event) {
       setEditingEvent(event);
+      // Legacy 'Highlight' status maps to Past + is_highlight in the new model
+      const rawStatus = event.status || 'Upcoming';
+      const normalizedStatus = rawStatus === 'Highlight' ? 'Past' : rawStatus;
+      const isHighlight = event.is_highlight === true || rawStatus === 'Highlight';
       setEventFormData({
         name: event.name || '',
         chinese_name: event.chinese_name || '',
@@ -401,7 +408,8 @@ export default function AdminPanelPage() {
         chinese_description: event.chinese_description || '',
         image: event.image || '',
         signup_link: event.signup_link || '',
-        status: event.status || 'Upcoming'
+        status: normalizedStatus,
+        is_highlight: isHighlight
       });
     } else {
       setEditingEvent(null);
@@ -416,7 +424,8 @@ export default function AdminPanelPage() {
         chinese_description: '',
         image: '',
         signup_link: '',
-        status: 'Upcoming'
+        status: 'Upcoming',
+        is_highlight: false
       });
     }
     setEventDialogOpen(true);
@@ -770,7 +779,7 @@ export default function AdminPanelPage() {
   const getEventStats = () => {
     const total = events.length;
     const upcoming = events.filter(e => e.status === 'Upcoming').length;
-    const highlights = events.filter(e => e.status === 'Highlight').length;
+    const highlights = events.filter(e => e.is_highlight === true).length;
     return { total, upcoming, highlights };
   };
 
@@ -1207,11 +1216,21 @@ export default function AdminPanelPage() {
                     <TableCell>{event.date} {event.time}</TableCell>
                     <TableCell>{event.location || 'TBD'}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={event.status}
-                        size="small"
-                        color={event.status === 'Upcoming' ? 'primary' : event.status === 'Highlight' ? 'success' : 'default'}
-                      />
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Chip
+                          label={event.status}
+                          size="small"
+                          color={
+                            event.status === 'Upcoming' ? 'primary'
+                            : event.status === 'Past' ? 'success'
+                            : event.status === 'Cancelled' ? 'default'
+                            : 'default'
+                          }
+                        />
+                        {event.is_highlight && (
+                          <Chip label="★ Highlight" size="small" color="warning" />
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell align="right">
                       <Tooltip title="Edit">
@@ -1912,7 +1931,7 @@ export default function AdminPanelPage() {
                 onChange={handleEventFormChange}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -1921,11 +1940,25 @@ export default function AdminPanelPage() {
                   onChange={handleEventFormChange}
                   label="Status"
                 >
-                  <MenuItem value="Upcoming">Upcoming</MenuItem>
-                  <MenuItem value="Highlight">Highlight</MenuItem>
-                  <MenuItem value="Cancelled">Cancelled</MenuItem>
+                  <MenuItem value="Upcoming">Upcoming / 即将举行</MenuItem>
+                  <MenuItem value="Past">Past (Memories) / 已结束（回忆）</MenuItem>
+                  <MenuItem value="Cancelled">Cancelled / 已取消</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={!!eventFormData.is_highlight}
+                    onChange={(e) =>
+                      setEventFormData((prev) => ({ ...prev, is_highlight: e.target.checked }))
+                    }
+                    color="warning"
+                  />
+                }
+                label="Highlight / 精选"
+              />
             </Grid>
           </Grid>
         </DialogContent>

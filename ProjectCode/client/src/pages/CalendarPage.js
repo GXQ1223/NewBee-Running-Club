@@ -32,6 +32,7 @@ const initialFormData = {
   image: '',
   signup_link: '',
   status: 'Upcoming',
+  is_highlight: false,
   event_type: 'standard',
   heylo_embed: '',
   // Recurrence fields
@@ -243,7 +244,10 @@ export default function CalendarPage() {
 
   const handleEditEvent = (e, event) => {
     e.stopPropagation();
-    // Pre-fill form with event data
+    // Pre-fill form with event data — legacy 'Highlight' status maps to Past + is_highlight
+    const rawStatus = event.status || 'Upcoming';
+    const normalizedStatus = rawStatus === 'Highlight' ? 'Past' : rawStatus;
+    const isHighlight = event.is_highlight === true || rawStatus === 'Highlight';
     setFormData({
       name: event.name || event.title || '',
       chinese_name: event.chineseName || event.chineseTitle || '',
@@ -255,7 +259,8 @@ export default function CalendarPage() {
       chinese_description: event.chineseDescription || '',
       image: event.image || '',
       signup_link: event.signupLink || '',
-      status: event.status || 'Upcoming',
+      status: normalizedStatus,
+      is_highlight: isHighlight,
       event_type: event.eventType || event.event_type || 'standard',
       heylo_embed: event.heyloEmbed || event.heylo_embed || ''
     });
@@ -281,11 +286,13 @@ export default function CalendarPage() {
       return;
     }
     try {
-      await updateEvent(event.id, { status: 'Highlight' }, currentUser.uid);
+      // Move from Upcoming -> Past (Memories). Highlight curation is a
+      // separate toggle in the event edit dialog and is preserved here.
+      await updateEvent(event.id, { status: 'Past' }, currentUser.uid);
       setUpcomingEvents(prev => prev.filter(ev => ev.id !== event.id));
-      setSnackbar({ open: true, message: 'Event moved to Highlights / 活动已移至精彩回顾', severity: 'success' });
+      setSnackbar({ open: true, message: 'Event moved to Memories / 活动已移至回忆', severity: 'success' });
     } catch (error) {
-      console.error('Error moving event to highlights:', error);
+      console.error('Error moving event to memories:', error);
       setSnackbar({ open: true, message: 'Failed to move event / 移动活动失败', severity: 'error' });
     }
   };
@@ -718,7 +725,7 @@ export default function CalendarPage() {
                         <DeleteIcon fontSize="small" color="error" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Move to Highlights / 移至精彩回顾">
+                    <Tooltip title="Move to Memories / 移至回忆">
                       <IconButton
                         size="small"
                         onClick={(e) => handleMoveToHighlights(e, event)}
@@ -958,7 +965,7 @@ export default function CalendarPage() {
                       <DeleteIcon fontSize="small" color="error" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Move to Highlights / 移至精彩回顾">
+                  <Tooltip title="Move to Memories / 移至回忆">
                     <IconButton
                       size="small"
                       onClick={(e) => handleMoveToHighlights(e, event)}
@@ -1323,9 +1330,22 @@ export default function CalendarPage() {
               required
             >
               <MenuItem value="Upcoming">Upcoming / 即将举行</MenuItem>
-              <MenuItem value="Highlight">Highlight / 精选</MenuItem>
+              <MenuItem value="Past">Past (Memories) / 已结束（回忆）</MenuItem>
               <MenuItem value="Cancelled">Cancelled / 已取消</MenuItem>
             </TextField>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={!!formData.is_highlight}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, is_highlight: e.target.checked }))
+                  }
+                  color="warning"
+                />
+              }
+              label="Highlight (featured) / 精选"
+            />
+
             <TextField
               select
               label="Event Type / 活动类型"

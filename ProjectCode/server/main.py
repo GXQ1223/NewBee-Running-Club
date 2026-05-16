@@ -78,10 +78,38 @@ def _seed_settings_on_startup():
 def _run_migrations():
     """Run lightweight schema migrations for new columns."""
     inspector = inspect(engine)
-    columns = [c['name'] for c in inspector.get_columns('members')]
-    if 'nickname' not in columns:
+    member_columns = [c['name'] for c in inspector.get_columns('members')]
+    if 'nickname' not in member_columns:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE members ADD COLUMN nickname VARCHAR(100)"))
+            conn.commit()
+
+    # Split highlight curation flag out of the lifecycle status column.
+    # Legacy: status='Highlight' meant both "this is a past event" and "feature it".
+    # New: status in ('Upcoming','Past','Cancelled'); is_highlight is a separate flag.
+    event_columns = [c['name'] for c in inspector.get_columns('events')]
+    if 'is_highlight' not in event_columns:
+        dialect = engine.dialect.name
+        with engine.connect() as conn:
+            if dialect == 'sqlite':
+                conn.execute(text(
+                    "ALTER TABLE events ADD COLUMN is_highlight BOOLEAN NOT NULL DEFAULT 0"
+                ))
+            else:
+                conn.execute(text(
+                    "ALTER TABLE events ADD COLUMN is_highlight TINYINT(1) NOT NULL DEFAULT 0"
+                ))
+            # Backfill: every existing 'Highlight' event becomes Past + featured.
+            conn.execute(text(
+                "UPDATE events SET is_highlight = 1, status = 'Past' "
+                "WHERE status = 'Highlight'"
+            ))
+            try:
+                conn.execute(text(
+                    "CREATE INDEX idx_event_is_highlight ON events (is_highlight)"
+                ))
+            except Exception:
+                pass  # Index may already exist (e.g., from create_tables on fresh DB)
             conn.commit()
 
 

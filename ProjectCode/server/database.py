@@ -272,7 +272,8 @@ class Event(Base):
     image_position = Column(String(50), default='center center')  # CSS object-position value
     signup_link = Column(String(500))
     wechat_qr_code = Column(String(500))
-    status = Column(String(50), default='Upcoming')  # 'Upcoming', 'Highlight', 'Cancelled'
+    status = Column(String(50), default='Upcoming')  # 'Upcoming', 'Past', 'Cancelled' (lifecycle)
+    is_highlight = Column(Boolean, default=False, nullable=False)  # Additive curation flag
 
     # Heylo integration fields
     event_type = Column(String(20), default='standard')  # 'standard', 'heylo', 'race'
@@ -301,6 +302,7 @@ class Event(Base):
         Index('idx_event_is_recurring', 'is_recurring'),
         Index('idx_event_parent_id', 'parent_event_id'),
         Index('idx_event_group_name', 'group_name'),
+        Index('idx_event_is_highlight', 'is_highlight'),
     )
 
 

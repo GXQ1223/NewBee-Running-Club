@@ -3,7 +3,7 @@ Event Scheduler
 
 This module handles scheduled background jobs using APScheduler:
 1. Daily (2 AM): Generate recurring event instances from active recurrence rules
-2. Weekly (Monday 3 AM): Transition past Upcoming events to Highlight (Memories)
+2. Weekly (Monday 3 AM): Transition past Upcoming events to Past (Memories)
 
 The past events transition also runs once on startup to catch any stale events.
 """
@@ -324,10 +324,11 @@ def generate_recurring_events():
 
 def transition_past_events():
     """
-    Weekly job to transition past Upcoming events to Highlight (Memories).
+    Weekly job to transition past Upcoming events to Past (Memories).
 
     Scans all events with status='Upcoming' and moves any with a past date
-    to 'Highlight' so they appear on the Memories page instead of Upcoming.
+    to 'Past' so they appear on the Memories page instead of Upcoming.
+    Highlight curation is independent of this lifecycle change.
     """
     logger.info("Starting past events transition job...")
     today = date.today()
@@ -342,9 +343,9 @@ def transition_past_events():
         for event in past_upcoming:
             logger.info(
                 f"Transitioning event '{event.name}' (date: {event.date}) "
-                f"from Upcoming to Highlight"
+                f"from Upcoming to Past"
             )
-            event.status = 'Highlight'
+            event.status = 'Past'
 
         db.commit()
         logger.info(f"Past events transition complete. Transitioned {count} event(s).")

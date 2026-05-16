@@ -17,7 +17,7 @@ import EventDetailModal from '../components/EventDetailModal';
 import EventGroupCard from '../components/EventGroupCard';
 import EventGroupGalleryModal from '../components/EventGroupGalleryModal';
 import UndoSnackbar from '../components/UndoSnackbar';
-import { getEventsByStatus, getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge, deleteEvent, createEvent } from '../api';
+import { getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge, deleteEvent, createEvent } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 
@@ -101,7 +101,7 @@ export default function HighlightsPage() {
     name: '', chinese_name: '', date: '', time: '',
     location: '', chinese_location: '',
     description: '', chinese_description: '',
-    image: '', status: 'Highlight',
+    image: '', status: 'Past', is_highlight: true,
   });
 
   // Sensors: TouchSensor with 250ms delay (long press like iOS), MouseSensor with distance
@@ -194,14 +194,16 @@ export default function HighlightsPage() {
       const eventData = Object.fromEntries(
         Object.entries(addEventForm).map(([key, value]) => [key, value === '' ? null : value])
       );
-      eventData.status = 'Highlight';
+      // This dialog adds curated Featured Memories — lifecycle=Past, featured=true
+      eventData.status = 'Past';
+      eventData.is_highlight = true;
       await createEvent(eventData, currentUser.uid);
       setAddEventOpen(false);
       setAddEventForm({
         name: '', chinese_name: '', date: '', time: '',
         location: '', chinese_location: '',
         description: '', chinese_description: '',
-        image: '', status: 'Highlight',
+        image: '', status: 'Past', is_highlight: true,
       });
       setSnackbar({ open: true, message: 'Event created / 活动已创建', severity: 'success' });
       await refreshEvents();
@@ -250,6 +252,7 @@ export default function HighlightsPage() {
           image_position: event.image_position,
           signupLink: event.signup_link,
           status: event.status,
+          is_highlight: !!event.is_highlight,
           parsedDate: eventDate,
           is_recurring: event.is_recurring,
           parent_event_id: event.parent_event_id,
@@ -260,6 +263,41 @@ export default function HighlightsPage() {
 
       setStandaloneEvents(standalone);
       setPastEvents(standalone); // Keep for backwards compatibility
+
+      // Featured Memories = past + is_highlight, top 3 (covers both grouped and standalone)
+      const allPastEvents = [
+        ...standalone,
+        ...(groupedData.groups || []).flatMap(g => (g.events || []).map(e => ({
+          id: e.id,
+          name: e.name,
+          chineseName: e.chinese_name,
+          date: e.date,
+          time: e.time,
+          location: e.location,
+          chineseLocation: e.chinese_location,
+          image: e.image || '/images/2025/20250517_bk_half.jpg',
+          image_position: e.image_position,
+          is_highlight: !!e.is_highlight,
+        })))
+      ];
+      const featured = allPastEvents
+        .filter(e => e.is_highlight)
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+        .slice(0, 3)
+        .map(e => ({
+          id: e.id,
+          title: e.name,
+          chineseTitle: e.chineseName,
+          image: e.image,
+          image_position: e.image_position,
+          description: e.description,
+          date: e.date,
+          time: e.time,
+          location: e.location,
+          chineseLocation: e.chineseLocation,
+          chineseDescription: e.chineseDescription
+        }));
+      setFeaturedEvents(featured);
 
       // Fetch engagement data for all events
       const allEventIds = [
@@ -524,53 +562,7 @@ export default function HighlightsPage() {
   }, [searchParams, standaloneEvents, featuredEvents, eventGroups]);
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      await refreshEvents();
-
-      // Also fetch for featured events (first 3 from all highlight events)
-      try {
-        const events = await getEventsByStatus('Highlight');
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const transformedEvents = events
-          .filter(event => new Date(event.date) < today)
-          .map(event => ({
-            id: event.id,
-            name: event.name,
-            chineseName: event.chinese_name,
-            date: event.date,
-            time: event.time,
-            location: event.location,
-            chineseLocation: event.chinese_location,
-            description: event.description,
-            chineseDescription: event.chinese_description,
-            image: event.image || '/images/2025/20250517_bk_half.jpg',
-            image_position: event.image_position,
-          }))
-          .sort((a, b) => b.date.localeCompare(a.date));
-
-        // Set featured events (first 3)
-        const featured = transformedEvents.slice(0, 3).map(event => ({
-          id: event.id,
-          title: event.name,
-          chineseTitle: event.chineseName,
-          image: event.image,
-          image_position: event.image_position,
-          description: event.description,
-          date: event.date,
-          time: event.time,
-          location: event.location,
-          chineseLocation: event.chineseLocation,
-          chineseDescription: event.chineseDescription
-        }));
-        setFeaturedEvents(featured);
-      } catch (error) {
-        console.error('Error loading featured events:', error);
-      }
-    };
-
-    fetchEvents();
+    refreshEvents();
   }, [currentUser?.uid, refreshEvents]);
 
   const handleEventClick = (event) => {

@@ -10,6 +10,20 @@ from utils.auth import get_current_committee_or_admin
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 
+def _query_by_status_param(db: Session, event_status: str):
+    """Filter helper that supports the legacy 'Highlight' alias.
+
+    'Highlight' historically meant "past + featured." Map it to
+    status='Past' AND is_highlight=True so old callers keep working.
+    """
+    query = db.query(Event)
+    if event_status == 'Highlight':
+        query = query.filter(Event.status == 'Past', Event.is_highlight == True)
+    else:
+        query = query.filter(Event.status == event_status)
+    return query
+
+
 @router.get("", response_model=List[EventResponse])
 def get_all_events(
     event_status: Optional[str] = None,
@@ -17,21 +31,19 @@ def get_all_events(
 ):
     """
     Get all events, optionally filtered by status.
-    Status can be: 'Upcoming', 'Highlight', 'Cancelled'
+    Status can be: 'Upcoming', 'Past', 'Cancelled' (or legacy 'Highlight').
     """
     query = db.query(Event)
     if event_status:
-        query = query.filter(Event.status == event_status)
+        query = _query_by_status_param(db, event_status)
     events = query.order_by(Event.date.desc()).all()
     return events
 
 
 @router.get("/status/{event_status}", response_model=List[EventResponse])
 def get_events_by_status(event_status: str, db: Session = Depends(get_db)):
-    """Get events filtered by status (Upcoming, Highlight, Cancelled)"""
-    events = db.query(Event).filter(
-        Event.status == event_status
-    ).order_by(Event.date.desc()).all()
+    """Get events filtered by status (Upcoming, Past, Cancelled, or legacy Highlight)."""
+    events = _query_by_status_param(db, event_status).order_by(Event.date.desc()).all()
     return events
 
 
@@ -47,6 +59,23 @@ def get_event(event_id: int, db: Session = Depends(get_db)):
     return event
 
 
+def _normalize_status(event_data: dict) -> None:
+    """Coerce legacy status='Highlight' into status='Past' + is_highlight=True.
+
+    Older clients (or cached bundles) still send 'Highlight' to mean "move to
+    memories and feature it." Split that into the new lifecycle + flag.
+    """
+    if 'status' in event_data and event_data['status']:
+        status_val = event_data['status']
+        if hasattr(status_val, 'value'):
+            status_val = status_val.value
+        if status_val == 'Highlight':
+            event_data['status'] = 'Past'
+            event_data['is_highlight'] = True
+        else:
+            event_data['status'] = status_val
+
+
 @router.post("", response_model=EventResponse)
 def create_event(
     event: EventCreate,
@@ -55,9 +84,7 @@ def create_event(
 ):
     """Create a new event (committee or admin)"""
     event_data = event.model_dump()
-    # Convert enum to string value
-    if 'status' in event_data and event_data['status']:
-        event_data['status'] = event_data['status'].value
+    _normalize_status(event_data)
     if 'event_type' in event_data and event_data['event_type']:
         event_data['event_type'] = event_data['event_type'].value
 
@@ -85,9 +112,7 @@ def update_event(
 
     update_data = event_update.model_dump(exclude_unset=True)
 
-    # Convert enum to string if status is being updated
-    if 'status' in update_data and update_data['status']:
-        update_data['status'] = update_data['status'].value
+    _normalize_status(update_data)
     if 'event_type' in update_data and update_data['event_type']:
         update_data['event_type'] = update_data['event_type'].value
 
