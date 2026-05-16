@@ -88,8 +88,9 @@ def _run_migrations():
     # Legacy: status='Highlight' meant both "this is a past event" and "feature it".
     # New: status in ('Upcoming','Past','Cancelled'); is_highlight is a separate flag.
     event_columns = [c['name'] for c in inspector.get_columns('events')]
+    dialect = engine.dialect.name
+    today_fn = "CURRENT_DATE" if dialect == 'sqlite' else "CURDATE()"
     if 'is_highlight' not in event_columns:
-        dialect = engine.dialect.name
         with engine.connect() as conn:
             if dialect == 'sqlite':
                 conn.execute(text(
@@ -99,10 +100,12 @@ def _run_migrations():
                 conn.execute(text(
                     "ALTER TABLE events ADD COLUMN is_highlight TINYINT(1) NOT NULL DEFAULT 0"
                 ))
-            # Backfill: every existing 'Highlight' event becomes Past + featured.
+            # Backfill: every existing 'Highlight' event becomes featured. Lifecycle
+            # is decided by date so we don't bury a future highlight in 'Past'.
             conn.execute(text(
-                "UPDATE events SET is_highlight = 1, status = 'Past' "
-                "WHERE status = 'Highlight'"
+                f"UPDATE events SET is_highlight = 1, "
+                f"status = CASE WHEN date < {today_fn} THEN 'Past' ELSE 'Upcoming' END "
+                f"WHERE status = 'Highlight'"
             ))
             try:
                 conn.execute(text(
@@ -111,6 +114,17 @@ def _run_migrations():
             except Exception:
                 pass  # Index may already exist (e.g., from create_tables on fresh DB)
             conn.commit()
+
+    # Heal any rows that were buried in 'Past' before the migration became
+    # date-aware (e.g. the first 'is_highlight' deploy on 2026-05-16). A future
+    # date in Past means the row is invisible on both Upcoming and Memories.
+    # is_highlight is left intact.
+    with engine.connect() as conn:
+        conn.execute(text(
+            f"UPDATE events SET status = 'Upcoming' "
+            f"WHERE status = 'Past' AND date >= {today_fn}"
+        ))
+        conn.commit()
 
 
 @asynccontextmanager

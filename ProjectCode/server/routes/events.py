@@ -1,4 +1,5 @@
 """Event CRUD endpoints."""
+from datetime import date as date_type
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -59,18 +60,25 @@ def get_event(event_id: int, db: Session = Depends(get_db)):
     return event
 
 
-def _normalize_status(event_data: dict) -> None:
-    """Coerce legacy status='Highlight' into status='Past' + is_highlight=True.
+def _normalize_status(event_data: dict, current_event: Optional[Event] = None) -> None:
+    """Coerce legacy status='Highlight' into the new (status, is_highlight) pair.
 
     Older clients (or cached bundles) still send 'Highlight' to mean "move to
-    memories and feature it." Split that into the new lifecycle + flag.
+    memories and feature it." Split into lifecycle + flag, and pick lifecycle
+    based on date so a future highlight doesn't get buried in 'Past'.
     """
     if 'status' in event_data and event_data['status']:
         status_val = event_data['status']
         if hasattr(status_val, 'value'):
             status_val = status_val.value
         if status_val == 'Highlight':
-            event_data['status'] = 'Past'
+            event_date = event_data.get('date')
+            if event_date is None and current_event is not None:
+                event_date = current_event.date
+            if event_date is not None and event_date < date_type.today():
+                event_data['status'] = 'Past'
+            else:
+                event_data['status'] = 'Upcoming'
             event_data['is_highlight'] = True
         else:
             event_data['status'] = status_val
@@ -112,7 +120,7 @@ def update_event(
 
     update_data = event_update.model_dump(exclude_unset=True)
 
-    _normalize_status(update_data)
+    _normalize_status(update_data, current_event=event)
     if 'event_type' in update_data and update_data['event_type']:
         update_data['event_type'] = update_data['event_type'].value
 
