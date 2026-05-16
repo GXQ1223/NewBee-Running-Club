@@ -35,7 +35,7 @@ def get_carousel_banners(db: Session = Depends(get_db)):
     Get carousel banners for homepage.
     Returns merged list of:
     1. Manual banners (active)
-    2. Events with 'Highlight' status (auto-fetched)
+    2. Events with is_highlight=True (auto-fetched)
     Sorted by display_order
     """
     carousel_items = []
@@ -77,7 +77,8 @@ def get_carousel_banners(db: Session = Depends(get_db)):
     # Get highlight events that don't already have a banner
     existing_event_ids = [b.event_id for b in manual_banners if b.event_id]
     highlight_events = db.query(Event).filter(
-        Event.status == 'Highlight',
+        Event.is_highlight == True,
+        Event.status != 'Cancelled',
         ~Event.id.in_(existing_event_ids) if existing_event_ids else True
     ).order_by(Event.date.desc()).all()
 

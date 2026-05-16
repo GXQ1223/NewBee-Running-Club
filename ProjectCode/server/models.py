@@ -292,10 +292,14 @@ class JoinApplicationWithActivities(JoinApplicationRequest):
     activities: Optional[List[MemberActivityCreate]] = None
 
 
-# Event Status Enum
+# Event Status Enum (lifecycle state)
+# 'Highlight' is kept for backwards compatibility with old API clients but is
+# treated identically to 'Past' (legacy data is migrated to status='Past',
+# is_highlight=True). New writes should use 'Past'.
 class EventStatus(str, Enum):
     upcoming = "Upcoming"
-    highlight = "Highlight"
+    past = "Past"
+    highlight = "Highlight"  # legacy alias for 'Past'
     cancelled = "Cancelled"
 
 
@@ -324,6 +328,7 @@ class EventBase(BaseModel):
     status: EventStatus = Field(default=EventStatus.upcoming)
     event_type: EventType = Field(default=EventType.standard)
     heylo_embed: Optional[str] = None  # Heylo embed code for heylo event type
+    is_highlight: bool = Field(default=False)  # Additive curation flag
 
 
 class EventCreate(EventBase):
@@ -346,6 +351,7 @@ class EventUpdate(BaseModel):
     status: Optional[EventStatus] = None
     event_type: Optional[EventType] = None
     heylo_embed: Optional[str] = None
+    is_highlight: Optional[bool] = None
     # Recurrence fields
     is_recurring: Optional[bool] = None
 
@@ -355,6 +361,7 @@ class EventResponse(EventBase):
     event_type: str = "standard"
     heylo_embed: Optional[str] = None
     image_position: Optional[str] = None
+    is_highlight: bool = False
     # Event group fields
     group_name: Optional[str] = None
     group_name_cn: Optional[str] = None
@@ -948,6 +955,7 @@ class EventInGroup(BaseModel):
     chinese_location: Optional[str] = None
     image: Optional[str] = None
     status: str
+    is_highlight: bool = False
 
     class Config:
         from_attributes = True

@@ -188,14 +188,17 @@ def remove_event_from_group(
 
 @router.get("/api/events/highlights/grouped", response_model=HighlightsGroupedResponse)
 def get_highlights_grouped(db: Session = Depends(get_db)):
-    """Get highlight events organized by groups for the Highlights page."""
+    """Get all past (Memories) events organized by groups for the Highlights page.
+
+    Returns every non-cancelled event with a past date — `is_highlight` is a
+    separate flag the client uses to render the 'Featured Memories' subset.
+    """
     from datetime import date as date_type
 
-    # Get all highlight events that are in the past
     today = date_type.today()
     all_highlights = db.query(Event).filter(
-        Event.status == 'Highlight',
-        Event.date < today
+        Event.date < today,
+        Event.status != 'Cancelled'
     ).order_by(Event.date.desc()).all()
 
     # Separate into groups and standalone events
@@ -248,7 +251,8 @@ def get_highlights_grouped(db: Session = Depends(get_db)):
                 location=e.location,
                 chinese_location=e.chinese_location,
                 image=e.image,
-                status=e.status
+                status=e.status,
+                is_highlight=bool(e.is_highlight),
             )
             for e in events
         ]
