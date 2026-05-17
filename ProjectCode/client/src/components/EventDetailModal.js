@@ -28,7 +28,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import ImagePositionEditor from './ImagePositionEditor';
-import { getEventEngagement, updateEvent } from '../api';
+import { getEventEngagement, updateEvent, getEventById } from '../api';
 import LikeButton from './LikeButton';
 import ReactionPicker from './ReactionPicker';
 import CommentSection from './CommentSection';
@@ -96,27 +96,34 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
     }
   };
 
-  // Read event fields from either snake_case (server) or camelCase (page cache).
-  const readField = (snake, camel) => event?.[snake] ?? event?.[camel] ?? '';
-
-  const handleEditOpen = () => {
-    setEditForm({
-      name: event.name || event.title || '',
-      chinese_name: readField('chinese_name', 'chineseName') || readField('chinese_name', 'chineseTitle') || '',
-      date: event.date || '',
-      time: event.time || '',
-      location: event.location || '',
-      chinese_location: readField('chinese_location', 'chineseLocation'),
-      description: event.description || '',
-      chinese_description: readField('chinese_description', 'chineseDescription'),
-      image: event.image || '',
-      signup_link: readField('signup_link', 'signupLink'),
-      wechat_qr_code: readField('wechat_qr_code', 'wechatQrCode'),
-      status: event.status === 'Highlight' ? 'Past' : (event.status || 'Upcoming'),
-      is_highlight: event.is_highlight === true || event.status === 'Highlight',
-      event_type: event.event_type || event.eventType || 'standard',
-    });
+  const handleEditOpen = async () => {
+    // Fetch authoritative server state. The `event` prop from
+    // CalendarPage/HighlightsPage is a transformed projection that drops
+    // fields like is_highlight, so pre-filling from the prop could silently
+    // flip flags off when admin saves a no-op edit.
     setEditing(true);
+    let fresh = event;
+    try {
+      if (event?.id) fresh = await getEventById(event.id);
+    } catch (err) {
+      console.error('Failed to load event for edit, falling back to prop:', err);
+    }
+    setEditForm({
+      name: fresh.name || fresh.title || '',
+      chinese_name: fresh.chinese_name ?? fresh.chineseName ?? fresh.chineseTitle ?? '',
+      date: fresh.date || '',
+      time: fresh.time || '',
+      location: fresh.location || '',
+      chinese_location: fresh.chinese_location ?? fresh.chineseLocation ?? '',
+      description: fresh.description || '',
+      chinese_description: fresh.chinese_description ?? fresh.chineseDescription ?? '',
+      image: fresh.image || '',
+      signup_link: fresh.signup_link ?? fresh.signupLink ?? '',
+      wechat_qr_code: fresh.wechat_qr_code ?? fresh.wechatQrCode ?? '',
+      status: fresh.status === 'Highlight' ? 'Past' : (fresh.status || 'Upcoming'),
+      is_highlight: fresh.is_highlight === true || fresh.status === 'Highlight',
+      event_type: fresh.event_type || fresh.eventType || 'standard',
+    });
   };
 
   const handleEditCancel = () => {
