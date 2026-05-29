@@ -11,14 +11,13 @@ import RepeatIcon from '@mui/icons-material/Repeat';
 import ShareIcon from '@mui/icons-material/Share';
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import NavigationButtons from '../components/NavigationButtons';
 import EventDetailModal from '../components/EventDetailModal';
 import EventCardImage from '../components/EventCardImage';
 import { useAdmin, useAuth } from '../context';
 import { useAutoFillOnTab, useTranslationAutoFill } from '../hooks';
-import { storage } from '../firebase/config';
 import { getEventsByStatus, createEvent, updateEvent, deleteEvent } from '../api';
+import { uploadImage } from '../api/homepageSections';
 
 const initialFormData = {
   name: '',
@@ -487,17 +486,9 @@ export default function CalendarPage() {
 
     setUploadingImage(true);
     try {
-      // Create a unique filename
-      const timestamp = Date.now();
-      const filename = `events/${timestamp}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-      const storageRef = ref(storage, filename);
-
-      // Upload the file
-      await uploadBytes(storageRef, imageFile);
-
-      // Get the download URL
-      const downloadUrl = await getDownloadURL(storageRef);
-      return downloadUrl;
+      // Upload to S3 via the backend (Firebase Storage quota is exceeded)
+      const { url } = await uploadImage(imageFile, currentUser.uid);
+      return url;
     } catch (error) {
       console.error('Error uploading image:', error);
       throw new Error('Failed to upload image / 图片上传失败');
@@ -550,11 +541,7 @@ export default function CalendarPage() {
     if (!quickQrFile || !quickQrEventId) return;
     setQuickQrUploading(true);
     try {
-      const timestamp = Date.now();
-      const filename = `events/qr/${timestamp}_${quickQrFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-      const storageRef = ref(storage, filename);
-      await uploadBytes(storageRef, quickQrFile);
-      const url = await getDownloadURL(storageRef);
+      const { url } = await uploadImage(quickQrFile, currentUser.uid);
       await updateEvent(quickQrEventId, { wechat_qr_code: url }, currentUser.uid);
       const updateList = (list) => list.map(ev => ev.id === quickQrEventId ? { ...ev, wechatQrCode: url } : ev);
       setFeaturedEvents(updateList);
