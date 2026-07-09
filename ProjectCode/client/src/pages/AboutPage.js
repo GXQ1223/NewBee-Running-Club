@@ -28,7 +28,7 @@ import { safeMarkdown } from '../utils/markdown';
 import { useEffect, useState, useCallback } from 'react';
 import NavigationButtons from '../components/NavigationButtons';
 import CommitteeMemberCard from '../components/CommitteeMemberCard';
-import { committeeMembers } from '../data/committeeMembers';
+import { committee2026, committee2024 } from '../data/committeeMembers';
 import { getMeetingContent, getMeetingFiles } from '../api/meetings';
 import {
   getAllMeetingMinutes,
@@ -506,14 +506,55 @@ export default function AboutPage() {
         </Typography>
       </Container>
 
-      {/* Committee Members Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4, mb: 6 }}>
+      {/* Committee Members Section - 2026-2028 (Current) */}
+      <Container maxWidth="xl" sx={{ px: 2, mt: 2, mb: 6 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 600,
+            color: '#333',
+            mb: 3,
+            fontSize: { xs: '1.1rem', sm: '1.4rem' },
+            textAlign: 'center'
+          }}
+        >
+          2026 - 2028 Committee 现任委员会
+        </Typography>
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
           gap: 3
         }}>
-          {committeeMembers.map((member) => (
+          {committee2026.map((member) => (
+            <CommitteeMemberCard
+              key={member.id}
+              member={member}
+              onImageClick={handleImageClick}
+            />
+          ))}
+        </Box>
+      </Container>
+
+      {/* Committee Members Section - 2024-2026 (Past) */}
+      <Container maxWidth="xl" sx={{ px: 2, mt: 2, mb: 6 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 600,
+            color: '#333',
+            mb: 3,
+            fontSize: { xs: '1.1rem', sm: '1.4rem' },
+            textAlign: 'center'
+          }}
+        >
+          2024 - 2026 Committee 往届委员会
+        </Typography>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
+          gap: 3
+        }}>
+          {committee2024.map((member) => (
             <CommitteeMemberCard
               key={member.id}
               member={member}
