@@ -3,7 +3,7 @@ from sqlalchemy.types import DECIMAL
 from sqlalchemy.dialects.mysql import LONGTEXT
 import enum
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, backref
 from sqlalchemy.sql import func
 import os
 from dotenv import load_dotenv
@@ -590,7 +590,9 @@ class EventGalleryImageLike(Base):
     created_at = Column(DateTime, default=func.now())
 
     # Relationships
-    image = relationship("EventGalleryImage", backref="likes")
+    # cascade delete-orphan so ORM-level image deletion removes likes
+    # (image_id is NOT NULL, so the default null-out behavior would fail)
+    image = relationship("EventGalleryImage", backref=backref("likes", cascade="all, delete-orphan"))
     member = relationship("Member", backref="gallery_image_likes")
 
     __table_args__ = (
@@ -615,7 +617,9 @@ class GalleryDeletionRequest(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
-    image = relationship("EventGalleryImage", backref="deletion_requests")
+    # cascade delete-orphan so ORM-level image deletion removes its requests
+    # (image_id is NOT NULL, so the default null-out behavior would fail)
+    image = relationship("EventGalleryImage", backref=backref("deletion_requests", cascade="all, delete-orphan"))
     requested_by = relationship("Member", foreign_keys=[requested_by_id])
     resolved_by = relationship("Member", foreign_keys=[resolved_by_id])
 

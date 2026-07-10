@@ -141,6 +141,7 @@ def delete_activity(
 
     member_id = activity.member_id
     db.delete(activity)
+    db.flush()  # Ensure the delete is visible to the count query (autoflush is off)
 
     # Update member's activities_completed count
     member = db.query(Member).filter(Member.id == member_id).first()

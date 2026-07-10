@@ -1,4 +1,6 @@
 """Event gallery endpoints for image upload, likes, and deletion requests."""
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status, Header, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -534,13 +536,29 @@ def resolve_gallery_deletion_request(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This request has already been resolved")
 
     requester = db.query(Member).filter(Member.id == del_request.requested_by_id).first()
+    requester_name = (requester.display_name or requester.username) if requester else None
 
     if resolve_data.approved:
         # Delete the image from S3 and DB
         image = db.query(EventGalleryImage).filter(EventGalleryImage.id == del_request.image_id).first()
         if image:
+            # Deleting the image cascades to its likes and deletion requests
+            # (including this one), so capture the response before deleting.
+            response = GalleryDeletionRequestResponse(
+                id=del_request.id,
+                image_id=del_request.image_id,
+                requested_by_id=del_request.requested_by_id,
+                requested_by_name=requester_name,
+                reason=del_request.reason,
+                status='approved',
+                resolved_by_id=member.id,
+                resolved_at=datetime.now(timezone.utc),
+                created_at=del_request.created_at
+            )
             delete_from_s3(image.image_url)
-            db.delete(image)  # CASCADE cleans up likes and deletion requests
+            db.delete(image)
+            db.commit()
+            return response
 
         del_request.status = 'approved'
     else:
@@ -555,7 +573,7 @@ def resolve_gallery_deletion_request(
         id=del_request.id,
         image_id=del_request.image_id,
         requested_by_id=del_request.requested_by_id,
-        requested_by_name=requester.display_name or requester.username if requester else None,
+        requested_by_name=requester_name,
         reason=del_request.reason,
         status=del_request.status,
         resolved_by_id=del_request.resolved_by_id,

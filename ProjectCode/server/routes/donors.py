@@ -1,7 +1,7 @@
 """Donor management endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import List
 
 from database import get_db, Donor, Member, SiteSetting
@@ -24,7 +24,8 @@ def get_all_donors(db: Session = Depends(get_db)):
     """
     individual_donors = db.query(Donor).filter(
         Donor.donor_type == "individual",
-        Donor.notes != "Anonymous Donor"  # Exclude anonymous donors as per original logic
+        # Exclude anonymous donors as per original logic (NULL notes must still match)
+        or_(Donor.notes.is_(None), Donor.notes != "Anonymous Donor")
     ).order_by(Donor.donation_date.desc(), Donor.name).all()
 
     enterprise_donors = db.query(Donor).filter(
@@ -69,9 +70,9 @@ def get_public_donors(db: Session = Depends(get_db)):
     - Respects linked member's show_in_donors setting
     - Excludes anonymous donors
     """
-    # Get all non-anonymous donors
+    # Get all non-anonymous donors (NULL notes must still match)
     donors = db.query(Donor).filter(
-        Donor.notes != "Anonymous Donor"
+        or_(Donor.notes.is_(None), Donor.notes != "Anonymous Donor")
     ).order_by(Donor.donation_date.desc(), Donor.name).all()
 
     # Check global hide_amounts setting

@@ -60,9 +60,11 @@ def get_member_credits(member_name: str, db: Session = Depends(get_db)):
             result["volunteer_credits"] += reg + checkin
         elif credit.credit_type == 'activity':
             result["activity_credits"] += reg + checkin
-        else:
+        elif credit.credit_type == 'registration':
             result["registration_credits"] += reg
             result["checkin_credits"] += checkin
+        # 'total' rows are auto-recalculated sums of the component types
+        # (see bulk-upload), so they are skipped to avoid double counting.
 
     return result
 
