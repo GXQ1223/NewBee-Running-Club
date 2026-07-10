@@ -4,12 +4,11 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ShareIcon from '@mui/icons-material/Share';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, useSensor, useSensors, TouchSensor, MouseSensor, closestCenter } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import NavigationButtons from '../components/NavigationButtons';
 import EventCardImage from '../components/EventCardImage';
 import EventEngagementBar from '../components/EventEngagementBar';
 import EventGalleryPreview from '../components/EventGalleryPreview';
@@ -20,6 +19,36 @@ import UndoSnackbar from '../components/UndoSnackbar';
 import { getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge, deleteEvent, createEvent } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
+
+// Design tokens — match the redesigned HomePage / NavBar
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
+
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+// Parse an event date (YYYY-MM-DD) into { day, month } for the date bubble
+function parseBubbleDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(d.getTime())) return null;
+  return { day: d.getDate(), month: MONTHS[d.getMonth()] };
+}
+
+// Pill styling for the filter selects
+const filterPillSx = {
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '99px',
+    backgroundColor: 'white',
+    '& fieldset': { borderColor: LINE },
+    '&:hover fieldset': { borderColor: ORANGE },
+    '&.Mui-focused fieldset': { borderColor: ORANGE },
+  },
+  '& .MuiInputLabel-root.Mui-focused': { color: ORANGE },
+};
 
 // Draggable wrapper - only the drag handle activates dragging
 function DraggableEventCard({ id, children, disabled }) {
@@ -618,38 +647,35 @@ export default function HighlightsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {/* Navigation Buttons */}
-      <NavigationButtons />
-      
       {/* Featured Events Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Featured Memories
-          <br />
-          精选回忆
-        </Typography>
-        
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Featured Memories
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            精选回忆
+          </Typography>
+        </Box>
+
         <Grid container spacing={3}>
           {featuredEvents.map((event) => (
             <Grid item xs={12} md={4} key={event.id}>
-              <Card 
-                sx={{ 
+              <Card
+                elevation={0}
+                sx={{
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
                   cursor: 'pointer',
+                  backgroundColor: 'white',
+                  border: `1px solid ${LINE}`,
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
                   '&:hover': {
-                    transform: 'translateY(-4px)',
-                    transition: 'transform 0.3s ease-in-out'
+                    transform: 'translateY(-3px)',
+                    boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
                   }
                 }}
                 onClick={() => handleEventClick(event)}
@@ -699,24 +725,22 @@ export default function HighlightsPage() {
                   </Box>
                   <Button
                     variant="contained"
+                    disableElevation
                     sx={{
                       mt: 'auto',
-                      backgroundColor: '#FFB84D',
+                      backgroundColor: ORANGE,
                       color: 'white',
                       textTransform: 'none',
-                      fontSize: '16px',
-                      px: 2,
-                      py: 1.5,
-                      borderRadius: '12px',
-                      border: '2px solid #FFB84D',
+                      fontWeight: 600,
+                      fontSize: '0.9375rem',
+                      px: 2.5,
+                      py: 1.1,
+                      borderRadius: '99px',
                       '&:hover': {
-                        backgroundColor: '#FFA833',
-                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                        transform: 'translateY(-2px)',
+                        backgroundColor: ORANGE_DARK,
                       },
                       '&:active': {
-                        transform: 'translateY(1px) scale(0.98)',
-                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                        transform: 'scale(0.98)',
                       }
                     }}
                   >
@@ -730,19 +754,12 @@ export default function HighlightsPage() {
       </Container>
 
       {/* Past Events Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 6 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mb: { xs: 2, sm: 3 } }}>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 600,
-              color: '#FFA500',
-              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-              textAlign: 'center'
-            }}
-          >
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.75 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
             Memories
-            <br />
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
             回忆
           </Typography>
           {adminModeEnabled && (
@@ -750,9 +767,15 @@ export default function HighlightsPage() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setAddEventOpen(true)}
+              disableElevation
               sx={{
-                backgroundColor: '#FFA500',
-                '&:hover': { backgroundColor: '#e69500' },
+                ml: 'auto',
+                backgroundColor: ORANGE,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '99px',
+                boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
+                '&:hover': { backgroundColor: ORANGE_DARK },
                 flexShrink: 0,
               }}
             >
@@ -762,12 +785,14 @@ export default function HighlightsPage() {
         </Box>
 
         {/* Filters */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', mb: 3 }}>
           <Grid container spacing={2} sx={{ maxWidth: 1000 }}>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Date"
               value={filters.date}
               onChange={handleFilterChange('date')}
@@ -782,6 +807,8 @@ export default function HighlightsPage() {
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Location"
               value={filters.location}
               onChange={handleFilterChange('location')}
@@ -796,6 +823,8 @@ export default function HighlightsPage() {
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Distance"
               value={filters.distance}
               onChange={handleFilterChange('distance')}
@@ -811,6 +840,8 @@ export default function HighlightsPage() {
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Status"
               value={filters.status}
               onChange={handleFilterChange('status')}
@@ -836,9 +867,9 @@ export default function HighlightsPage() {
             <DroppableEventCard key={`drop-${group.parent_event_id}`} id={group.parent_event_id} disabled={!adminModeEnabled}>
               {({ isOver }) => (
                 <Box sx={{
-                  border: isOver ? '3px dashed #FFA500' : 'none',
-                  borderRadius: '8px',
-                  transition: 'all 0.2s ease-in-out',
+                  border: isOver ? `3px dashed ${ORANGE}` : 'none',
+                  borderRadius: '12px',
+                  transition: 'all 0.2s ease',
                 }}>
                   <EventGroupCard
                     group={group}
@@ -858,18 +889,22 @@ export default function HighlightsPage() {
                 <DraggableEventCard id={event.id} disabled={!adminModeEnabled}>
                   {({ dragHandleProps, isDragging }) => (
                     <Card
+                      elevation={0}
                       sx={{
                         display: 'flex',
                         flexDirection: { xs: 'column', sm: 'row' },
                         minHeight: { xs: 'auto', sm: '200px' },
                         overflow: 'hidden',
                         cursor: 'pointer',
-                        transition: 'all 0.2s ease-in-out',
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                        transition: 'all 0.2s ease',
                         opacity: isDragging ? 0.5 : 1,
-                        border: isOver ? '3px dashed #FFA500' : 'none',
+                        border: isOver ? `3px dashed ${ORANGE}` : `1px solid ${LINE}`,
                         '&:hover': {
-                          transform: isDragging ? 'none' : 'translateY(-2px)',
-                          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+                          transform: isDragging ? 'none' : 'translateY(-3px)',
+                          boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
                         },
                       }}
                       onClick={() => !isDragging && handleEventClick(event)}
@@ -916,7 +951,7 @@ export default function HighlightsPage() {
                         )}
                       </Box>
 
-                      {/* Time Column - hidden on mobile, shown on sm+ */}
+                      {/* Date/Time Column - hidden on mobile, shown on sm+ */}
                       <Box
                         sx={{
                           display: { xs: 'none', sm: 'flex' },
@@ -924,10 +959,10 @@ export default function HighlightsPage() {
                           flexDirection: 'column',
                           justifyContent: 'center',
                           alignItems: 'center',
+                          gap: 0.75,
                           backgroundColor: 'white',
-                          color: '#FFA500',
                           p: 2,
-                          borderRight: '1px solid #e0e0e0',
+                          borderRight: `1px solid ${LINE}`,
                           whiteSpace: 'nowrap',
                           position: 'relative'
                         }}
@@ -958,11 +993,39 @@ export default function HighlightsPage() {
                             />
                           </Box>
                         )}
-                <Typography variant="h6" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  {event.time}
+                {(() => {
+                  const bubbleDate = parseBubbleDate(event.date);
+                  return bubbleDate ? (
+                    <Box
+                      sx={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: '12px',
+                        backgroundColor: ORANGE_BG,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: ORANGE, lineHeight: 1.1 }}>
+                        {bubbleDate.day}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.59rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, textTransform: 'uppercase' }}>
+                        {bubbleDate.month}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: MUTED, whiteSpace: 'nowrap' }}>
+                      {event.date}
+                    </Typography>
+                  );
+                })()}
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', color: MUTED, whiteSpace: 'nowrap' }}>
+                  {(event.date || '').split('-')[0]}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                  {event.date}
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: ORANGE, whiteSpace: 'nowrap' }}>
+                  {event.time}
                 </Typography>
               </Box>
 
@@ -1013,7 +1076,7 @@ export default function HighlightsPage() {
                   )}
                 </Box>
                 {/* Mobile: Show date/time at top of content */}
-                <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: '#FFA500' }}>
+                <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: ORANGE }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     {event.time}
                   </Typography>
@@ -1033,24 +1096,22 @@ export default function HighlightsPage() {
                   </Box>
                   <Button
                     variant="contained"
+                    disableElevation
                     sx={{
-                      backgroundColor: '#FFB84D',
+                      backgroundColor: ORANGE,
                       color: 'white',
                       textTransform: 'none',
-                      fontSize: { xs: '14px', sm: '16px' },
-                      px: { xs: 1.5, sm: 2 },
-                      py: { xs: 1, sm: 1.5 },
-                      borderRadius: '12px',
-                      border: '2px solid #FFB84D',
+                      fontWeight: 600,
+                      fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
+                      px: { xs: 2, sm: 2.5 },
+                      py: { xs: 0.75, sm: 1 },
+                      borderRadius: '99px',
                       flexShrink: 0,
                       '&:hover': {
-                        backgroundColor: '#FFA833',
-                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                        transform: 'translateY(-2px)',
+                        backgroundColor: ORANGE_DARK,
                       },
                       '&:active': {
-                        transform: 'translateY(1px) scale(0.98)',
-                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                        transform: 'scale(0.98)',
                       }
                     }}
                     onClick={(e) => {
@@ -1087,11 +1148,14 @@ export default function HighlightsPage() {
         <DragOverlay>
           {activeId ? (
             <Card
+              elevation={0}
               sx={{
                 minHeight: '80px',
                 maxWidth: '300px',
                 p: 2,
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
                 transform: 'rotate(3deg)',
                 opacity: 0.9,
               }}

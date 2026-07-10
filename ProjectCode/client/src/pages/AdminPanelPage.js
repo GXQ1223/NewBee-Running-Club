@@ -38,7 +38,6 @@ import {
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import NavigationButtons from '../components/NavigationButtons';
 import MeetingMinutesEditor from '../components/MeetingMinutesEditor';
 import { useAuth } from '../context/AuthContext';
 import { getPendingMembers, approveMember, rejectMember, getMemberByFirebaseUid, getAllMembers, updateMember, promoteToCommittee, demoteFromCommittee } from '../api/members';
@@ -66,6 +65,29 @@ import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import GroupsIcon from '@mui/icons-material/Groups';
+
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const MUTED = '#757575';
+
+// Shared panel styling to match the redesigned homepage
+const panelSx = {
+  backgroundColor: 'white',
+  border: `1px solid ${LINE}`,
+  borderRadius: '12px',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+};
+
+// Primary action button: filled orange pill
+const orangeButtonSx = {
+  backgroundColor: ORANGE,
+  borderRadius: '99px',
+  textTransform: 'none',
+  fontWeight: 600,
+  '&:hover': { backgroundColor: ORANGE_DARK },
+};
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -218,12 +240,19 @@ export default function AdminPanelPage() {
         const isInCommitteeList = committeeMembers.some(
           cm => cm.name === memberData.display_name || cm.name === memberData.username
         );
+        const hasCommitteeAccess = hasAdminStatus || hasCommitteeStatus || isInCommitteeList;
         setIsAdmin(hasAdminStatus);
-        setIsCommittee(hasAdminStatus || hasCommitteeStatus || isInCommitteeList);
+        setIsCommittee(hasCommitteeAccess);
+        if (!hasCommitteeAccess) {
+          // The data-fetch effect only runs for committee members, so stop the
+          // loading spinner here or the Access Denied state can never render.
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Error checking committee status:', err);
         setIsCommittee(false);
         setIsAdmin(false);
+        setLoading(false);
       }
     };
 
@@ -797,7 +826,6 @@ export default function AdminPanelPage() {
   if (!currentUser) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <NavigationButtons />
         <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
           <Alert severity="warning">
             Please log in to access the admin panel.
@@ -812,9 +840,8 @@ export default function AdminPanelPage() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <NavigationButtons />
         <Container maxWidth="xl" sx={{ px: 2, mt: 4, display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress sx={{ color: '#FFA500' }} />
+          <CircularProgress sx={{ color: ORANGE }} />
         </Container>
       </Box>
     );
@@ -823,7 +850,6 @@ export default function AdminPanelPage() {
   if (!isCommittee) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <NavigationButtons />
         <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
           <Alert severity="error">
             Access Denied: You do not have permission to access this page.
@@ -841,23 +867,16 @@ export default function AdminPanelPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      <NavigationButtons />
 
       <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          {isAdmin ? 'Admin Dashboard' : 'Committee Dashboard'}
-          <br />
-          {isAdmin ? '管理面板' : '委员面板'}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: { xs: 2, sm: 3 } }}>
+          <Typography component="h1" sx={{ fontSize: '1.25rem', fontWeight: 700 }}>
+            {isAdmin ? 'Admin Dashboard' : 'Committee Dashboard'}
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            {isAdmin ? '管理面板' : '委员面板'}
+          </Typography>
+        </Box>
 
         {successMessage && (
           <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage('')}>
@@ -872,25 +891,24 @@ export default function AdminPanelPage() {
         )}
 
         {/* Tabbed Interface */}
-        <Paper sx={{ width: '100%', mb: 3 }}>
+        <Paper elevation={0} sx={{ ...panelSx, width: '100%', mb: 3, overflow: 'hidden' }}>
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
             variant="scrollable"
             scrollButtons="auto"
             sx={{
-              borderBottom: 1,
-              borderColor: 'divider',
+              borderBottom: `1px solid ${LINE}`,
               '& .MuiTab-root': {
                 minHeight: 64,
                 textTransform: 'none',
                 fontWeight: 500,
               },
               '& .Mui-selected': {
-                color: '#FFA500 !important',
+                color: `${ORANGE} !important`,
               },
               '& .MuiTabs-indicator': {
-                backgroundColor: '#FFA500',
+                backgroundColor: ORANGE,
               },
             }}
           >
@@ -920,7 +938,7 @@ export default function AdminPanelPage() {
           ) : (
             <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
               {pendingMembers.map((member) => (
-                <Card key={member.id} sx={{ border: '1px solid #FFA500' }}>
+                <Card key={member.id} elevation={0} sx={{ border: `1px solid ${ORANGE}`, borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">{member.display_name || member.username}</Typography>
@@ -953,7 +971,7 @@ export default function AdminPanelPage() {
                       variant="contained"
                       onClick={() => handleApprove(member.id, member.display_name || member.username)}
                       disabled={actionLoading === member.id}
-                      sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+                      sx={orangeButtonSx}
                     >
                       {actionLoading === member.id ? <CircularProgress size={20} /> : 'Approve'}
                     </Button>
@@ -1020,10 +1038,10 @@ export default function AdminPanelPage() {
             const paginated = sorted.slice(memberPage * memberRowsPerPage, memberPage * memberRowsPerPage + memberRowsPerPage);
 
             return (
-              <TableContainer component={Paper}>
+              <TableContainer component={Paper} elevation={0} sx={panelSx}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ backgroundColor: 'rgba(255, 165, 0, 0.1)' }}>
+                    <TableRow sx={{ backgroundColor: ORANGE_BG }}>
                       {[
                         { id: 'display_name', label: 'Name' },
                         { id: 'email', label: 'Email' },
@@ -1114,10 +1132,10 @@ export default function AdminPanelPage() {
               No pending activities awaiting verification. / 没有待验证的活动。
             </Alert>
           ) : (
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} elevation={0} sx={panelSx}>
               <Table>
                 <TableHead>
-                  <TableRow sx={{ backgroundColor: 'rgba(255, 165, 0, 0.1)' }}>
+                  <TableRow sx={{ backgroundColor: ORANGE_BG }}>
                     <TableCell><strong>Member</strong></TableCell>
                     <TableCell><strong>Activity #</strong></TableCell>
                     <TableCell><strong>Event Name</strong></TableCell>
@@ -1185,16 +1203,16 @@ export default function AdminPanelPage() {
             <Button
               variant="contained"
               onClick={() => handleEventDialogOpen()}
-              sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+              sx={orangeButtonSx}
             >
               + Create Event
             </Button>
           </Box>
 
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} elevation={0} sx={panelSx}>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'rgba(255, 165, 0, 0.1)' }}>
+                <TableRow sx={{ backgroundColor: ORANGE_BG }}>
                   <TableCell><strong>Event Name</strong></TableCell>
                   <TableCell><strong>Date</strong></TableCell>
                   <TableCell><strong>Location</strong></TableCell>
@@ -1260,7 +1278,7 @@ export default function AdminPanelPage() {
             <Button
               variant="contained"
               onClick={() => handleBannerDialogOpen()}
-              sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+              sx={orangeButtonSx}
             >
               + Add Banner
             </Button>
@@ -1272,10 +1290,10 @@ export default function AdminPanelPage() {
             横幅出现在主页的轮播图中。设置显示顺序以控制序列。
           </Alert>
 
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} elevation={0} sx={panelSx}>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'rgba(255, 165, 0, 0.1)' }}>
+                <TableRow sx={{ backgroundColor: ORANGE_BG }}>
                   <TableCell><strong>Preview</strong></TableCell>
                   <TableCell><strong>Label</strong></TableCell>
                   <TableCell><strong>Link</strong></TableCell>
@@ -1350,7 +1368,7 @@ export default function AdminPanelPage() {
             <Button
               variant="contained"
               onClick={() => handleSectionDialogOpen()}
-              sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+              sx={orangeButtonSx}
             >
               + Add Section
             </Button>
@@ -1362,10 +1380,10 @@ export default function AdminPanelPage() {
             板块显示在主页横幅轮播图下方。设置显示顺序以控制序列。
           </Alert>
 
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} elevation={0} sx={panelSx}>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'rgba(255, 165, 0, 0.1)' }}>
+                <TableRow sx={{ backgroundColor: ORANGE_BG }}>
                   <TableCell><strong>Preview</strong></TableCell>
                   <TableCell><strong>Title (EN/CN)</strong></TableCell>
                   <TableCell><strong>Link</strong></TableCell>
@@ -1453,7 +1471,7 @@ export default function AdminPanelPage() {
             Send Newsletter
           </Typography>
 
-          <Paper sx={{ p: 3 }}>
+          <Paper elevation={0} sx={{ ...panelSx, p: 3 }}>
             <Alert severity="info" sx={{ mb: 3 }}>
               Send a newsletter to all active members via email.
               <br />
@@ -1484,7 +1502,7 @@ export default function AdminPanelPage() {
                 variant="contained"
                 onClick={handleSendNewsletter}
                 disabled={sendingNewsletter || !newsletterSubject || !newsletterContent}
-                sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+                sx={orangeButtonSx}
               >
                 {sendingNewsletter ? <CircularProgress size={24} /> : 'Send Newsletter'}
               </Button>
@@ -1501,9 +1519,9 @@ export default function AdminPanelPage() {
           <Grid container spacing={3}>
             {/* Member Stats */}
             <Grid item xs={12} md={6} lg={3}>
-              <Paper sx={{ p: 3, textAlign: 'center', border: '2px solid #FFA500', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <PeopleIcon sx={{ fontSize: 48, color: '#FFA500', mb: 1 }} />
-                <Typography variant="h3" sx={{ fontWeight: 700, color: '#FFA500' }}>
+              <Paper elevation={0} sx={{ ...panelSx, p: 3, textAlign: 'center', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <PeopleIcon sx={{ fontSize: 48, color: ORANGE, mb: 1 }} />
+                <Typography variant="h3" sx={{ fontWeight: 700, color: ORANGE }}>
                   {memberStats.active}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">Active Runners</Typography>
@@ -1515,9 +1533,9 @@ export default function AdminPanelPage() {
 
             {/* Event Stats */}
             <Grid item xs={12} md={6} lg={3}>
-              <Paper sx={{ p: 3, textAlign: 'center', border: '2px solid #FFA500', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <EventIcon sx={{ fontSize: 48, color: '#FFA500', mb: 1 }} />
-                <Typography variant="h3" sx={{ fontWeight: 700, color: '#FFA500' }}>
+              <Paper elevation={0} sx={{ ...panelSx, p: 3, textAlign: 'center', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <EventIcon sx={{ fontSize: 48, color: ORANGE, mb: 1 }} />
+                <Typography variant="h3" sx={{ fontWeight: 700, color: ORANGE }}>
                   {eventStats.total}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">Total Events</Typography>
@@ -1529,9 +1547,9 @@ export default function AdminPanelPage() {
 
             {/* Donation Stats */}
             <Grid item xs={12} md={6} lg={3}>
-              <Paper sx={{ p: 3, textAlign: 'center', border: '2px solid #FFA500', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <AttachMoneyIcon sx={{ fontSize: 48, color: '#FFA500', mb: 1 }} />
-                <Typography variant="h3" sx={{ fontWeight: 700, color: '#FFA500' }}>
+              <Paper elevation={0} sx={{ ...panelSx, p: 3, textAlign: 'center', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <AttachMoneyIcon sx={{ fontSize: 48, color: ORANGE, mb: 1 }} />
+                <Typography variant="h3" sx={{ fontWeight: 700, color: ORANGE }}>
                   {donationTotals.total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">Total Donations</Typography>
@@ -1543,9 +1561,9 @@ export default function AdminPanelPage() {
 
             {/* Leadership Stats */}
             <Grid item xs={12} md={6} lg={3}>
-              <Paper sx={{ p: 3, textAlign: 'center', border: '2px solid #FFA500', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <GroupsIcon sx={{ fontSize: 48, color: '#FFA500', mb: 1 }} />
-                <Typography variant="h3" sx={{ fontWeight: 700, color: '#FFA500' }}>
+              <Paper elevation={0} sx={{ ...panelSx, p: 3, textAlign: 'center', minHeight: 180, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <GroupsIcon sx={{ fontSize: 48, color: ORANGE, mb: 1 }} />
+                <Typography variant="h3" sx={{ fontWeight: 700, color: ORANGE }}>
                   {memberStats.admins + memberStats.committee}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">Committee & Admin</Typography>
@@ -1557,13 +1575,13 @@ export default function AdminPanelPage() {
           </Grid>
 
           {/* Donation Breakdown */}
-          <Paper sx={{ p: 3, mt: 4 }}>
+          <Paper elevation={0} sx={{ ...panelSx, p: 3, mt: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
               Donation Breakdown
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <Box sx={{ p: 2, backgroundColor: 'rgba(255, 165, 0, 0.05)', borderRadius: 2 }}>
+                <Box sx={{ p: 2, backgroundColor: ORANGE_BG, borderRadius: '12px' }}>
                   <Typography variant="body2" color="text.secondary">Individual Donations</Typography>
                   <Typography variant="h5" sx={{ fontWeight: 600 }}>
                     ${donationTotals.individualTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -1571,7 +1589,7 @@ export default function AdminPanelPage() {
                 </Box>
               </Grid>
               <Grid item xs={12} sm={6}>
-                <Box sx={{ p: 2, backgroundColor: 'rgba(255, 165, 0, 0.05)', borderRadius: 2 }}>
+                <Box sx={{ p: 2, backgroundColor: ORANGE_BG, borderRadius: '12px' }}>
                   <Typography variant="body2" color="text.secondary">Enterprise Donations</Typography>
                   <Typography variant="h5" sx={{ fontWeight: 600 }}>
                     ${donationTotals.enterpriseTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -1599,7 +1617,7 @@ export default function AdminPanelPage() {
             配置社交媒体链接和其他网站设置。更改将立即在整个网站上生效。
           </Alert>
 
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <Paper elevation={0} sx={{ ...panelSx, p: 3, mb: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <GroupsIcon /> Social Media Links / 社交媒体链接
             </Typography>
@@ -1660,9 +1678,9 @@ export default function AdminPanelPage() {
             <Box sx={{ mt: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
               <Button
                 variant="contained"
-                color="primary"
                 onClick={handleSaveSettings}
                 disabled={settingsLoading}
+                sx={orangeButtonSx}
               >
                 {settingsLoading ? <CircularProgress size={24} /> : 'Save Settings / 保存设置'}
               </Button>
@@ -1674,7 +1692,7 @@ export default function AdminPanelPage() {
             </Box>
           </Paper>
 
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <Paper elevation={0} sx={{ ...panelSx, p: 3, mb: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <DirectionsRunIcon /> Join Requirements / 入会要求
             </Typography>
@@ -1726,7 +1744,7 @@ export default function AdminPanelPage() {
               Current Committee Members ({allMembers.filter(m => m.status === 'committee').length})
             </Typography>
 
-            <TableContainer component={Paper} sx={{ mb: 4 }}>
+            <TableContainer component={Paper} elevation={0} sx={{ ...panelSx, mb: 4 }}>
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'rgba(156, 39, 176, 0.1)' }}>
@@ -1778,7 +1796,7 @@ export default function AdminPanelPage() {
               Runners (Eligible for Promotion) ({allMembers.filter(m => m.status === 'runner').length})
             </Typography>
 
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} elevation={0} sx={panelSx}>
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'rgba(76, 175, 80, 0.1)' }}>
@@ -1970,7 +1988,7 @@ export default function AdminPanelPage() {
             variant="contained"
             onClick={handleSaveEvent}
             disabled={actionLoading === 'event' || !eventFormData.name || !eventFormData.date}
-            sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+            sx={orangeButtonSx}
           >
             {actionLoading === 'event' ? <CircularProgress size={24} /> : 'Save'}
           </Button>
@@ -2066,7 +2084,7 @@ export default function AdminPanelPage() {
             variant="contained"
             onClick={handleSaveBanner}
             disabled={actionLoading === 'banner' || !bannerFormData.image_url}
-            sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+            sx={orangeButtonSx}
           >
             {actionLoading === 'banner' ? <CircularProgress size={24} /> : 'Save'}
           </Button>
@@ -2154,7 +2172,7 @@ export default function AdminPanelPage() {
             variant="contained"
             onClick={handleSaveSection}
             disabled={actionLoading === 'section' || !sectionFormData.title_en || !sectionFormData.link_path}
-            sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+            sx={orangeButtonSx}
           >
             {actionLoading === 'section' ? <CircularProgress size={24} /> : 'Save'}
           </Button>
@@ -2182,7 +2200,7 @@ export default function AdminPanelPage() {
           )}
 
           {selectedActivity && (
-            <Paper sx={{ p: 2, mb: 3, backgroundColor: 'rgba(255, 165, 0, 0.05)' }}>
+            <Paper elevation={0} sx={{ p: 2, mb: 3, backgroundColor: ORANGE_BG, border: `1px solid ${LINE}`, borderRadius: '12px' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                 Activity #{selectedActivity.activity_number}
               </Typography>
@@ -2238,7 +2256,7 @@ export default function AdminPanelPage() {
             variant="contained"
             onClick={() => selectedActivity && handleVerifyActivity(selectedActivity.id, true)}
             disabled={actionLoading === `activity-${selectedActivity?.id}`}
-            sx={{ backgroundColor: '#4CAF50', '&:hover': { backgroundColor: '#45a049' } }}
+            sx={{ backgroundColor: '#4CAF50', borderRadius: '99px', textTransform: 'none', fontWeight: 600, '&:hover': { backgroundColor: '#45a049' } }}
           >
             {actionLoading === `activity-${selectedActivity?.id}` ? <CircularProgress size={20} /> : 'Verify / 验证'}
           </Button>
@@ -2418,7 +2436,7 @@ export default function AdminPanelPage() {
             variant="contained"
             onClick={handleSaveMember}
             disabled={actionLoading === editingMember?.id}
-            sx={{ backgroundColor: '#FFB84D', '&:hover': { backgroundColor: '#FFA833' } }}
+            sx={orangeButtonSx}
           >
             {actionLoading === editingMember?.id ? <CircularProgress size={20} /> : 'Save'}
           </Button>

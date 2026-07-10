@@ -181,9 +181,20 @@ const GalleryUploadButton = ({
 
     return (
       <Button
-        variant="outlined"
+        variant="contained"
         startIcon={<AddPhotoAlternateIcon />}
         onClick={handleOpen}
+        disableElevation
+        sx={{
+          backgroundColor: '#FFA500',
+          color: 'white',
+          textTransform: 'none',
+          fontWeight: 600,
+          borderRadius: '99px',
+          px: 2.25,
+          boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
+          '&:hover': { backgroundColor: '#F29400' },
+        }}
       >
         Upload Photos / 上传照片
       </Button>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Committee Option A — Accordion Stack · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option A: current term always expanded; "Previous Committees" is one
+     collapsed section, and each past term inside is its own fold. */
+  :root{--orange:#FFA500;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:40px 24px}
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:18px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+  .badge{margin-left:10px;background:var(--orange-bg);color:var(--orange);font-size:11px;font-weight:700;padding:4px 12px;border-radius:99px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-bottom:34px}
+  .member{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;transition:all .2s}
+  .member:hover{box-shadow:0 8px 24px rgba(255,165,0,.3);transform:translateY(-3px)}
+  .member img{width:84px;height:84px;border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid var(--orange-bg)}
+  .member b{display:block;font-size:13.5px;font-weight:700}
+  .member span{font-size:11.5px;color:var(--muted)}
+
+  /* previous committees accordion */
+  .prevwrap{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .prevhead{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;background:#fff;transition:background .15s;user-select:none}
+  .prevhead:hover{background:var(--orange-bg)}
+  .prevhead h3{font-size:15.5px;font-weight:700}
+  .prevhead h3 span{font-size:12.5px;color:var(--muted);font-weight:400;margin-left:8px;font-family:'Noto Sans SC'}
+  .prevhead .count{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600}
+  .prevhead .chev{font-size:14px;color:var(--orange);transition:transform .25s}
+  .open > .prevhead .chev{transform:rotate(180deg)}
+  .prevbody{max-height:0;overflow:hidden;transition:max-height .35s ease}
+  .open > .prevbody{max-height:2000px}
+
+  /* nested term folds */
+  .term{border-top:1px solid var(--line)}
+  .termhead{display:flex;align-items:center;gap:12px;padding:13px 20px 13px 28px;cursor:pointer;user-select:none;transition:background .15s}
+  .termhead:hover{background:var(--orange-bg)}
+  .termhead b{font-size:14px;font-weight:700}
+  .termhead b span{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px;font-family:'Noto Sans SC'}
+  .avatars{display:flex;margin-left:12px}
+  .avatars img{width:26px;height:26px;border-radius:50%;object-fit:cover;border:2px solid #fff;margin-left:-8px}
+  .termhead .chev{margin-left:auto;font-size:12px;color:var(--orange);transition:transform .25s}
+  .term.open .termhead .chev{transform:rotate(180deg)}
+  .termbody{max-height:0;overflow:hidden;transition:max-height .35s ease;padding:0 20px 0 28px}
+  .term.open .termbody{max-height:1200px;padding-bottom:18px}
+  .termbody .grid{margin-bottom:0;margin-top:6px}
+
+  /* admin affordance */
+  .addterm{margin-top:16px;border:2px dashed var(--orange);border-radius:12px;color:var(--orange);
+      font-weight:700;font-size:13.5px;text-align:center;padding:14px;cursor:pointer;background:rgba(255,165,0,.03)}
+  .addterm:hover{background:var(--orange-bg)}
+  .note{margin-top:8px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="pagehead"><h2>Committee</h2><span>委员会</span><span class="badge">2026–2028 · Current 现任</span></div>
+<div class="grid">
+  <div class="member"><img src="../ProjectCode/client/public/Brandon Shen.png"><b>Brandon Shen</b><span>Board Member</span></div>
+  <div class="member"><img src="../ProjectCode/client/public/Shawn Tian.png"><b>Shawn Tian</b><span>Board Member</span></div>
+  <div class="member"><img src="../ProjectCode/client/public/Ciping Wu.png"><b>Ciping Wu</b><span>Board Member</span></div>
+  <div class="member"><img src="../ProjectCode/client/public/Nian Zhao.png"><b>Nian Zhao</b><span>Board Member</span></div>
+  <div class="member"><img src="../ProjectCode/client/public/Tiffany Qiu.png"><b>Tiffany Qiu</b><span>Board Member</span></div>
+  <div class="member"><img src="../ProjectCode/client/public/Chengcheng Zhao.png"><b>ChengCheng Zhao</b><span>Board Member</span></div>
+  <div class="member"><img src="../ProjectCode/client/public/Ruicong Ni.png"><b>Ruicong Ni</b><span>Board Member</span></div>
+  <div class="member"><img src="../ProjectCode/client/public/Miles Guo.png"><b>Miles Guo</b><span>Software Engineer</span></div>
+</div>
+
+<div class="prevwrap" id="prev">
+  <div class="prevhead" onclick="document.getElementById('prev').classList.toggle('open')">
+    <h3>Previous Committees<span>历届委员会</span></h3>
+    <span class="count">1 term · 12 members</span>
+    <span class="chev">▼</span>
+  </div>
+  <div class="prevbody">
+    <div class="term open" id="t2024">
+      <div class="termhead" onclick="document.getElementById('t2024').classList.toggle('open')">
+        <b>2024–2026<span>第四届</span></b>
+        <div class="avatars">
+          <img src="../ProjectCode/client/public/Caroline Wang.png">
+          <img src="../ProjectCode/client/public/Junxiao Yi.png">
+          <img src="../ProjectCode/client/public/Venessa Tang.png">
+          <img src="../ProjectCode/client/public/Yue Ma.png">
+        </div>
+        <span class="chev">▼</span>
+      </div>
+      <div class="termbody">
+        <div class="grid">
+          <div class="member"><img src="../ProjectCode/client/public/Caroline Wang.png"><b>Caroline Wang</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Junxiao Yi.png"><b>Junxiao Yi</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Venessa Tang.png"><b>Venessa Tang</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Yue Ma.png"><b>Yue Ma</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Ruicong Ni.png"><b>Ruicong Ni</b><span>Founder</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Cheng Chen.png"><b>Cheng Chen</b><span>Board Member</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- future terms stack here automatically: 2022–2024, 2020–2022, ... each its own fold -->
+  </div>
+</div>
+
+<div class="addterm">+ New Committee Term / 新建一届委员会（仅管理员可见）</div>
+<div class="note">Admin-only affordance: creates a new term, which becomes "Current"; the old current term folds into Previous Committees automatically.</div>
+
+</body>
+</html>

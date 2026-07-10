@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules Option C — Sectioned Folds + Version Select · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option C: master fold + each rule SECTION (一/二/三…) is its own
+     mini-fold, with a year selector in the header. Best for long rules —
+     readers open only the part they need. */
+  :root{--orange:#FFA500;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:40px 24px}
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted)}
+
+  .card{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.05);overflow:hidden}
+  .cardhead{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;user-select:none;transition:background .15s}
+  .cardhead:hover{background:var(--orange-bg)}
+  .cardhead b{font-size:15.5px;font-weight:700}
+  .cardhead b span{font-size:12.5px;color:var(--muted);font-weight:400;margin-left:8px}
+  select.year{margin-left:auto;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--orange);
+      border:1.5px solid var(--orange);border-radius:99px;padding:6px 12px;background:#fff;cursor:pointer}
+  .edit{font-size:12px;color:var(--orange);font-weight:700}
+  .chev{font-size:13px;color:var(--orange);transition:transform .25s}
+  .open > .cardhead .chev{transform:rotate(180deg)}
+  .body{max-height:0;overflow:hidden;transition:max-height .45s ease}
+  .open > .body{max-height:4000px}
+  .inner{padding:8px 20px 20px}
+
+  .intro{font-size:14.5px;line-height:1.75;color:#3a3a3a;padding:8px 2px 14px}
+
+  .sec{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .sechead{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;user-select:none;transition:background .15s}
+  .sechead:hover{background:var(--orange-bg)}
+  .sechead .num{width:26px;height:26px;border-radius:50%;background:var(--orange-bg);color:var(--orange);
+      font-size:12px;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+  .sechead b{font-size:14px;font-weight:700}
+  .sechead .chev{margin-left:auto;font-size:11px}
+  .sec.open .chev{transform:rotate(180deg)}
+  .secbody{max-height:0;overflow:hidden;transition:max-height .3s ease;padding:0 16px 0 52px}
+  .sec.open .secbody{max-height:800px;padding-bottom:14px}
+  .secbody p{font-size:14px;line-height:1.75;color:#3a3a3a;margin-bottom:8px}
+  .secbody ul,.secbody ol{padding-left:22px;margin-bottom:8px}
+  .secbody li{font-size:14px;line-height:1.75;color:#3a3a3a;margin-bottom:5px}
+  .note{margin-top:12px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="pagehead"><h2>Club Entry Rules</h2><span>俱乐部积分规则</span></div>
+
+<div class="card open" id="card">
+  <div class="cardhead" onclick="if(event.target.tagName!=='SELECT')document.getElementById('card').classList.toggle('open')">
+    <b>Club Entry 名额分配规则<span>新蜂跑团管理组</span></b>
+    <select class="year" onclick="event.stopPropagation()">
+      <option>2025 年赛事（现行）</option>
+      <option>2024 年赛事（存档）</option>
+      <option>＋ 新版本（管理员）</option>
+    </select>
+    <span class="edit">✎ 编辑</span>
+    <span class="chev">▼</span>
+  </div>
+  <div class="body">
+    <div class="inner">
+      <div class="intro">为了鼓励更多跑友代表新蜂跑团参与 NYRR 官方赛事，新蜂跑团获得了本次 4 个 NYRR Club Entry 名额。名额申请与分配规则如下——点击各条展开细则。</div>
+
+      <div class="sec" id="s1">
+        <div class="sechead" onclick="document.getElementById('s1').classList.toggle('open')">
+          <span class="num">一</span><b>什么是 Club Entry？</b><span class="chev">▼</span>
+        </div>
+        <div class="secbody">
+          <p>Club Entry 是 NYRR 面向注册俱乐部分配的官方参赛名额，适用于名额紧张、需抽签或成绩达标的热门赛事：</p>
+          <ul><li>无需抽签、直接参赛</li><li>由跑团统一提交报名信息</li><li>属于跑团整体参赛配额</li></ul>
+        </div>
+      </div>
+
+      <div class="sec open" id="s2">
+        <div class="sechead" onclick="document.getElementById('s2').classList.toggle('open')">
+          <span class="num">二</span><b>基本原则</b><span class="chev">▼</span>
+        </div>
+        <div class="secbody">
+          <ul>
+            <li><strong>确保参赛，不浪费名额</strong> — 报名即确认参赛计划。</li>
+            <li><strong>公开透明，兼顾多元考量</strong> — 综合竞技成绩、参与度、历史获得情况。</li>
+            <li><strong>鼓励轮换，优先未曾获名额者</strong></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="sec" id="s3">
+        <div class="sechead" onclick="document.getElementById('s3').classList.toggle('open')">
+          <span class="num">三</span><b>分配规则与说明</b><span class="chev">▼</span>
+        </div>
+        <div class="secbody">
+          <p>每次比赛共 4 个名额，优先考虑过去 6 个月内未获得过名额的成员。</p>
+          <ol>
+            <li><strong>竞技积分维度</strong> — 年度积分榜排序择优。</li>
+            <li><strong>活动参与维度</strong> — Heylo 平台活动积分。</li>
+            <li><strong>历史获得记录</strong> — 首次出赛机会优先。</li>
+            <li><strong>新人参与年限建议</strong> — 至少六个月参与记录。</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="sec" id="s4">
+        <div class="sechead" onclick="document.getElementById('s4').classList.toggle('open')">
+          <span class="num">四</span><b>报名方式</b><span class="chev">▼</span>
+        </div>
+        <div class="secbody">
+          <p>发送 Legal Name、NYRR 注册邮箱、是否曾获得 Club Entry、Heylo 昵称至 newbeerunningclub@gmail.com。</p>
+        </div>
+      </div>
+
+      <div class="sec" id="s5">
+        <div class="sechead" onclick="document.getElementById('s5').classList.toggle('open')">
+          <span class="num">📊</span><b>Heylo 积分系统说明</b><span class="chev">▼</span>
+        </div>
+        <div class="secbody">
+          <ul>
+            <li>参赛 / 义工 / 活动积分（每次 1 分）</li>
+            <li>滚动制：近 6 个月 1:1，6~12 个月 0.5:1，超 12 个月不计</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">Year dropdown switches revision (admins get "＋ 新版本"); each numbered section folds independently so readers open only what they need.</div>
+
+</body>
+</html>

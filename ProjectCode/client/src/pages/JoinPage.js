@@ -30,10 +30,16 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
 import EventIcon from '@mui/icons-material/Event';
 import React, { useEffect, useRef, useState } from 'react';
-import NavigationButtons from '../components/NavigationButtons';
 import { submitJoinApplication } from '../api/members';
 import { submitActivity } from '../api/activities';
 import { getJoinRequirements } from '../api/settings';
+
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
 
 const steps = ['Read Terms', 'Complete Application', 'Record Activities', 'Complete'];
 
@@ -330,9 +336,14 @@ export default function JoinPage() {
 
   const renderTerms = () => (
     <Box sx={{ mt: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        Welcome to NewBee Running Club! 欢迎加入新蜂跑团！
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.5, flexWrap: 'wrap' }}>
+        <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
+          Welcome to NewBee Running Club!
+        </Typography>
+        <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+          欢迎加入新蜂跑团！
+        </Typography>
+      </Box>
 
       <Box
         ref={termsContainerRef}
@@ -340,9 +351,10 @@ export default function JoinPage() {
           height: '40vh',
           overflowY: 'auto',
           px: 2,
+          pt: 2,
           mb: 3,
-          border: '1px solid rgba(255, 165, 0, 0.2)',
-          borderRadius: '8px',
+          border: `1px solid ${LINE}`,
+          borderRadius: '12px',
           position: 'relative',
           '&::-webkit-scrollbar': {
             width: '8px',
@@ -533,8 +545,13 @@ export default function JoinPage() {
           onClick={() => setOpenDialog(true)}
           disabled={!hasScrolledToBottom}
           sx={{
-            backgroundColor: '#FFA500',
-            '&:hover': { backgroundColor: '#FF8C00' },
+            backgroundColor: ORANGE,
+            borderRadius: '99px',
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 4,
+            py: 1,
+            '&:hover': { backgroundColor: ORANGE_DARK },
             '&.Mui-disabled': {
               backgroundColor: 'rgba(255, 165, 0, 0.3)',
               color: 'rgba(255, 255, 255, 0.7)',
@@ -566,18 +583,36 @@ export default function JoinPage() {
       </Typography>
 
       {/* Activity submission status */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <Chip
           icon={activity1.submitted ? <CheckCircleIcon /> : <EventIcon />}
           label={`First Run: ${activity1.submitted ? 'Submitted' : 'Not submitted'}`}
-          color={activity1.submitted ? 'success' : 'warning'}
+          color={activity1.submitted ? 'success' : 'default'}
           variant="filled"
+          sx={{
+            borderRadius: '99px',
+            fontWeight: 700,
+            ...(activity1.submitted ? {} : {
+              backgroundColor: ORANGE_BG,
+              color: ORANGE,
+              '& .MuiChip-icon': { color: ORANGE },
+            }),
+          }}
         />
         <Chip
           icon={activity2.submitted ? <CheckCircleIcon /> : <EventIcon />}
           label={`Second Run: ${activity2.submitted ? 'Submitted' : 'Not submitted'}`}
-          color={activity2.submitted ? 'success' : 'warning'}
+          color={activity2.submitted ? 'success' : 'default'}
           variant="filled"
+          sx={{
+            borderRadius: '99px',
+            fontWeight: 700,
+            ...(activity2.submitted ? {} : {
+              backgroundColor: ORANGE_BG,
+              color: ORANGE,
+              '& .MuiChip-icon': { color: ORANGE },
+            }),
+          }}
         />
       </Box>
 
@@ -608,11 +643,16 @@ export default function JoinPage() {
         variant="outlined"
         onClick={handleStartOver}
         sx={{
-          color: '#FFA500',
-          borderColor: '#FFA500',
+          color: ORANGE,
+          border: `1.5px solid ${ORANGE}`,
+          borderRadius: '99px',
+          textTransform: 'none',
+          fontWeight: 600,
+          px: 3,
           '&:hover': {
-            borderColor: '#FF8C00',
-            backgroundColor: 'rgba(255, 165, 0, 0.1)',
+            border: `1.5px solid ${ORANGE}`,
+            backgroundColor: ORANGE,
+            color: 'white',
           },
         }}
       >
@@ -795,8 +835,13 @@ export default function JoinPage() {
           type="submit"
           disabled={submitting || !introValidation.valid}
           sx={{
-            backgroundColor: '#FFA500',
-            '&:hover': { backgroundColor: '#FF8C00' },
+            backgroundColor: ORANGE,
+            borderRadius: '99px',
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 4,
+            py: 1,
+            '&:hover': { backgroundColor: ORANGE_DARK },
             '&.Mui-disabled': {
               backgroundColor: 'rgba(255, 165, 0, 0.3)',
               color: 'rgba(255, 255, 255, 0.7)',
@@ -811,12 +856,14 @@ export default function JoinPage() {
 
   const renderActivities = () => (
     <Box sx={{ mt: 2 }}>
-      <Typography variant="h6" gutterBottom sx={{ color: '#FFA500' }}>
-        Record Your Two Offline Runs with NewBee
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        记录您与新蜂的两次线下跑步活动
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 2, flexWrap: 'wrap' }}>
+        <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
+          Record Your Two Offline Runs with NewBee
+        </Typography>
+        <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+          记录您与新蜂的两次线下跑步活动
+        </Typography>
+      </Box>
 
       <Alert severity="info" sx={{ mb: 3 }}>
         <Typography variant="body2">
@@ -833,8 +880,16 @@ export default function JoinPage() {
         </Alert>
       )}
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs value={activityTab} onChange={(e, v) => setActivityTab(v)}>
+      <Box sx={{ borderBottom: `1px solid ${LINE}`, mb: 2 }}>
+        <Tabs
+          value={activityTab}
+          onChange={(e, v) => setActivityTab(v)}
+          sx={{
+            '& .MuiTabs-indicator': { backgroundColor: ORANGE },
+            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
+            '& .MuiTab-root.Mui-selected': { color: ORANGE },
+          }}
+        >
           <Tab
             icon={activity1.submitted ? <CheckCircleIcon color="success" /> : <DirectionsRunIcon />}
             iconPosition="start"
@@ -853,7 +908,16 @@ export default function JoinPage() {
       {/* First Activity Tab */}
       <Box sx={{ display: activityTab === 0 ? 'block' : 'none' }}>
         {activity1.submitted ? (
-          <Card sx={{ backgroundColor: 'rgba(76, 175, 80, 0.1)', p: 2 }}>
+          <Card
+            elevation={0}
+            sx={{
+              backgroundColor: 'rgba(76, 175, 80, 0.08)',
+              border: `1px solid ${LINE}`,
+              borderRadius: '12px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              p: 2,
+            }}
+          >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <CheckCircleIcon color="success" />
@@ -909,8 +973,12 @@ export default function JoinPage() {
                 onClick={() => handleSubmitActivity(1)}
                 disabled={activitySubmitting || !activity1.event_name || !activity1.event_date}
                 sx={{
-                  backgroundColor: '#FFA500',
-                  '&:hover': { backgroundColor: '#FF8C00' },
+                  backgroundColor: ORANGE,
+                  borderRadius: '99px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 3,
+                  '&:hover': { backgroundColor: ORANGE_DARK },
                   '&.Mui-disabled': { backgroundColor: 'rgba(255, 165, 0, 0.3)' },
                 }}
               >
@@ -924,7 +992,16 @@ export default function JoinPage() {
       {/* Second Activity Tab */}
       <Box sx={{ display: activityTab === 1 ? 'block' : 'none' }}>
         {activity2.submitted ? (
-          <Card sx={{ backgroundColor: 'rgba(76, 175, 80, 0.1)', p: 2 }}>
+          <Card
+            elevation={0}
+            sx={{
+              backgroundColor: 'rgba(76, 175, 80, 0.08)',
+              border: `1px solid ${LINE}`,
+              borderRadius: '12px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              p: 2,
+            }}
+          >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <CheckCircleIcon color="success" />
@@ -980,8 +1057,12 @@ export default function JoinPage() {
                 onClick={() => handleSubmitActivity(2)}
                 disabled={activitySubmitting || !activity2.event_name || !activity2.event_date}
                 sx={{
-                  backgroundColor: '#FFA500',
-                  '&:hover': { backgroundColor: '#FF8C00' },
+                  backgroundColor: ORANGE,
+                  borderRadius: '99px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 3,
+                  '&:hover': { backgroundColor: ORANGE_DARK },
                   '&.Mui-disabled': { backgroundColor: 'rgba(255, 165, 0, 0.3)' },
                 }}
               >
@@ -993,28 +1074,50 @@ export default function JoinPage() {
       </Box>
 
       {/* Summary and Finish */}
-      <Divider sx={{ my: 3 }} />
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+      <Divider sx={{ my: 3, borderColor: LINE }} />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Chip
             icon={activity1.submitted ? <CheckCircleIcon /> : <EventIcon />}
             label={`First Run: ${activity1.submitted ? 'Submitted' : 'Pending'}`}
             color={activity1.submitted ? 'success' : 'default'}
-            variant={activity1.submitted ? 'filled' : 'outlined'}
+            variant="filled"
+            sx={{
+              borderRadius: '99px',
+              fontWeight: 700,
+              ...(activity1.submitted ? {} : {
+                backgroundColor: ORANGE_BG,
+                color: ORANGE,
+                '& .MuiChip-icon': { color: ORANGE },
+              }),
+            }}
           />
           <Chip
             icon={activity2.submitted ? <CheckCircleIcon /> : <EventIcon />}
             label={`Second Run: ${activity2.submitted ? 'Submitted' : 'Pending'}`}
             color={activity2.submitted ? 'success' : 'default'}
-            variant={activity2.submitted ? 'filled' : 'outlined'}
+            variant="filled"
+            sx={{
+              borderRadius: '99px',
+              fontWeight: 700,
+              ...(activity2.submitted ? {} : {
+                backgroundColor: ORANGE_BG,
+                color: ORANGE,
+                '& .MuiChip-icon': { color: ORANGE },
+              }),
+            }}
           />
         </Box>
         <Button
           variant="contained"
           onClick={handleFinishActivities}
           sx={{
-            backgroundColor: '#4CAF50',
-            '&:hover': { backgroundColor: '#45a049' },
+            backgroundColor: ORANGE,
+            borderRadius: '99px',
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 3,
+            '&:hover': { backgroundColor: ORANGE_DARK },
           }}
         >
           {activity1.submitted && activity2.submitted
@@ -1033,35 +1136,35 @@ export default function JoinPage() {
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      <NavigationButtons />
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
 
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: 3,
-            textAlign: 'center'
-          }}
-        >
-          Join NewBee Running Club
-          <br />
-          加入新蜂跑团
-        </Typography>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 3, mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 2 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Join NewBee Running Club
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            加入新蜂跑团
+          </Typography>
+        </Box>
 
         <Stepper
           activeStep={activeStep}
           alternativeLabel
           sx={{
-            mb: 4,
+            mb: 3,
             '& .MuiStepLabel-label': {
               fontSize: { xs: '0.65rem', sm: '0.875rem' },
               mt: { xs: 0.5, sm: 1 }
             },
             '& .MuiStepIcon-root': {
               fontSize: { xs: '1.2rem', sm: '1.5rem' }
+            },
+            '& .MuiStepIcon-root.Mui-active': {
+              color: ORANGE
+            },
+            '& .MuiStepIcon-root.Mui-completed': {
+              color: ORANGE
             }
           }}
         >
@@ -1072,7 +1175,16 @@ export default function JoinPage() {
           ))}
         </Stepper>
 
-        <Paper sx={{ p: 3 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            backgroundColor: 'white',
+            border: `1px solid ${LINE}`,
+            borderRadius: '12px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+          }}
+        >
           {/* Step 0: Read Terms */}
           {activeStep === 0 && renderTerms()}
 
@@ -1097,9 +1209,26 @@ export default function JoinPage() {
             点击"同意"即表示您已阅读并理解加入新蜂跑团的所有条款和条件。
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel 取消</Button>
-          <Button onClick={handleAgree} variant="contained" color="primary">
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setOpenDialog(false)}
+            sx={{ textTransform: 'none', fontWeight: 600, color: MUTED, borderRadius: '99px' }}
+          >
+            Cancel 取消
+          </Button>
+          <Button
+            onClick={handleAgree}
+            variant="contained"
+            color="primary"
+            sx={{
+              backgroundColor: ORANGE,
+              borderRadius: '99px',
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              '&:hover': { backgroundColor: ORANGE_DARK },
+            }}
+          >
             Agree 同意
           </Button>
         </DialogActions>

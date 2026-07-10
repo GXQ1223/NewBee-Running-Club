@@ -171,6 +171,7 @@ def manually_generate_recurrence(
     generated_events = []
     base_date = rule.last_generated_date or event.date
     current_date = base_date
+    last_generated = None
 
     for i in range(count):
         # Calculate next occurrence based on recurrence type
@@ -192,7 +193,10 @@ def manually_generate_recurrence(
             else:
                 current_date = current_date + timedelta(days=30)
         elif rule.recurrence_type == 'yearly':
-            current_date = date(current_date.year + 1, current_date.month, current_date.day)
+            next_year = current_date.year + 1
+            # Clamp day for Feb 29 -> Feb 28 on non-leap years
+            max_day = calendar.monthrange(next_year, current_date.month)[1]
+            current_date = date(next_year, current_date.month, min(current_date.day, max_day))
         else:
             # Custom: try to parse custom_rule JSON
             if rule.custom_rule:
@@ -238,10 +242,11 @@ def manually_generate_recurrence(
             "date": str(current_date),
             "name": event.name
         })
+        last_generated = current_date
 
     # Update rule tracking
     if generated_events:
-        rule.last_generated_date = current_date
+        rule.last_generated_date = last_generated
         rule.occurrences_created += len(generated_events)
 
     db.commit()

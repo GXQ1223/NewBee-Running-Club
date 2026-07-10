@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 
+// Design tokens (match HomePage / NavBar design language)
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
+
 export default function CommitteeMemberCard({ member, onImageClick }) {
   const [imageError, setImageError] = useState(false);
 
@@ -13,18 +18,23 @@ export default function CommitteeMemberCard({ member, onImageClick }) {
     <Box sx={{
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      gap: 1
+      backgroundColor: 'white',
+      border: `1px solid ${LINE}`,
+      borderRadius: '12px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+      overflow: 'hidden',
+      transition: 'all 0.2s ease',
+      '&:hover': {
+        boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+        transform: 'translateY(-3px)'
+      }
     }}>
       {imageError || !member.image ? (
         <Box
           onClick={() => member.image && onImageClick(member.image)}
           sx={{
             width: '100%',
-            maxWidth: '300px',
             aspectRatio: '1',
-            borderRadius: '12px',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
             backgroundColor: '#e0e0e0',
             display: 'flex',
             alignItems: 'center',
@@ -43,44 +53,41 @@ export default function CommitteeMemberCard({ member, onImageClick }) {
           onClick={() => onImageClick(member.image)}
           onError={handleImageError}
           sx={{
-          width: '100%',
-          maxWidth: '300px',
-          aspectRatio: '1',
-          objectFit: 'cover',
-          borderRadius: '12px',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-          transition: 'transform 0.2s',
-          cursor: 'pointer',
-          '&:hover': {
-            transform: 'scale(1.05)'
-          }
-        }}
-      />
+            width: '100%',
+            aspectRatio: '1',
+            objectFit: 'cover',
+            display: 'block',
+            transition: 'transform 0.2s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'scale(1.04)'
+            }
+          }}
+        />
       )}
-      <Typography
-        variant="h6"
-        sx={{
-          textAlign: 'center',
-          color: '#333',
-          fontWeight: 600,
-          fontSize: '0.9rem',
-          mt: 0.5
-        }}
-      >
-        {member.name}
-      </Typography>
-      <Typography
-        variant="body1"
-        sx={{
-          textAlign: 'center',
-          color: '#666',
-          fontSize: '0.8rem'
-        }}
-      >
-        {member.position.en}
-        <br />
-        {member.position.zh}
-      </Typography>
+      <Box sx={{ px: 1.5, pt: 1.25, pb: 1.5, textAlign: 'center' }}>
+        <Typography
+          sx={{
+            color: INK,
+            fontWeight: 700,
+            fontSize: '0.9rem'
+          }}
+        >
+          {member.name}
+        </Typography>
+        <Typography
+          sx={{
+            color: MUTED,
+            fontSize: '0.78rem',
+            lineHeight: 1.4,
+            mt: 0.25
+          }}
+        >
+          {member.position.en}
+          <br />
+          {member.position.zh}
+        </Typography>
+      </Box>
     </Box>
   );
 }

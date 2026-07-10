@@ -124,7 +124,9 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
             return date(year, month, day)
         elif rule.week_of_month and rule.days_of_week:
             # nth weekday of month (e.g., 3rd Saturday)
-            target_weekday = int(rule.days_of_week.split(',')[0])
+            # Convert frontend weekday format (0=Sunday) to Python weekday (0=Monday)
+            frontend_weekday = int(rule.days_of_week.split(',')[0])
+            target_weekday = (frontend_weekday - 1) % 7 if frontend_weekday > 0 else 6
             target_week = rule.week_of_month
 
             month = current_date.month + 1

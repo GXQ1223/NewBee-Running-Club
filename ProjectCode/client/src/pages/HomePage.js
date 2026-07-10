@@ -36,10 +36,9 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import NavigationButtons from '../components/NavigationButtons';
 import EventModal from '../components/EventModal';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
@@ -48,6 +47,11 @@ import { updateBanner } from '../api/banners';
 import { getActiveSections, updateSection, reorderSections, uploadImage } from '../api/homepageSections';
 import ImagePositionEditor from '../components/ImagePositionEditor';
 import { updateEvent, getEventsByStatus } from '../api';
+
+const ORANGE = '#FFA500';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const MUTED = '#757575';
 
 // Fallback carousel images if API fails
 const fallbackCarouselImages = [
@@ -81,8 +85,19 @@ const fallbackSections = [
   { id: 6, title_en: 'Training With Us', title_cn: '与我们训练', link_path: '/training', image_url: null }
 ];
 
-// Sortable Section Component
-function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit, upcomingEvents }) {
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+// Parse a banner's event_date (YYYY-MM-DD) into { day, month } for the date bubble
+function parseEventDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(d.getTime())) return null;
+  return { day: d.getDate(), month: MONTHS[d.getMonth()] };
+}
+
+// Sortable Section Card — featured grid card with title overlaid on the image.
+// The first two sections render as large (span-2) cards.
+function SortableSection({ section, isBig, adminModeEnabled, onEdit, onPositionEdit, upcomingEvents }) {
   const [isHovered, setIsHovered] = useState(false);
   const [eventImageIndex, setEventImageIndex] = useState(0);
 
@@ -116,237 +131,166 @@ function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit, up
   };
 
   return (
-    <Box ref={setNodeRef} style={style} sx={{ mt: { xs: 2, sm: 3 } }}>
-      {/* Section Title - Above Image */}
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mb: { xs: 1, sm: 1.5 } }}>
-        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Drag Handle - Only for admins */}
-          {adminModeEnabled && (
-            <Tooltip title="Drag to reorder">
-              <IconButton
-                {...attributes}
-                {...listeners}
-                sx={{
-                  position: 'absolute',
-                  left: 0,
-                  cursor: 'grab',
-                  color: '#FFA500',
-                  '&:active': { cursor: 'grabbing' },
-                }}
-                size="small"
-              >
-                <DragIndicatorIcon />
-              </IconButton>
-            </Tooltip>
-          )}
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 600,
-              color: '#FFA500',
-              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-              textAlign: 'center'
-            }}
-          >
-            {section.title_en}
-            <br />
-            {section.title_cn}
-          </Typography>
-          {/* Admin Edit Button */}
-          {adminModeEnabled && (
-            <Tooltip title="Edit Section">
-              <IconButton
-                onClick={(e) => onEdit(e, section)}
-                sx={{
-                  position: 'absolute',
-                  right: 0,
-                  backgroundColor: 'rgba(255, 165, 0, 0.9)',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: '#FF8C00',
-                  },
-                }}
-                size="small"
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Box>
-      </Container>
-
-      {/* Section Image/Link */}
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 } }}>
-        <Box
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          sx={{
-            width: '100%',
-            height: { xs: '200px', sm: '350px', md: '500px' },
-            overflow: 'hidden',
-            position: 'relative',
-            borderRadius: { xs: '8px', sm: '12px' },
-            cursor: 'pointer',
-            backgroundColor: '#4a4a4a',
-            display: (isEventRegistration ? eventsWithImages.length > 0 : section.image_url) ? 'block' : 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: isHovered
-              ? '0 8px 24px rgba(255, 165, 0, 0.3)'
-              : '0 2px 4px rgba(0, 0, 0, 0.1)',
-            transition: 'box-shadow 0.3s ease, transform 0.3s ease',
-            transform: isHovered ? 'scale(1.005)' : 'scale(1)',
-            '&:active': {
-              transform: 'scale(0.995)',
-            },
-          }}
-          component="a"
-          href={isEventRegistration && eventsWithImages.length > 0
-            ? `/calendar?event=${eventsWithImages[eventImageIndex].id}`
-            : section.link_path}
-        >
-          {isEventRegistration && eventsWithImages.length > 0 ? (
-            /* Event Registration: cycle through upcoming event images */
-            <>
-              {eventsWithImages.map((ev, index) => (
-                <Box
-                  key={ev.id}
-                  component="img"
-                  src={ev.poster_url || ev.image_url}
-                  alt={ev.title || ev.name}
-                  loading="lazy"
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: ev.image_position || 'center center',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    opacity: index === eventImageIndex ? 1 : 0,
-                    transition: 'opacity 1s ease-in-out, filter 0.3s ease',
-                    borderRadius: { xs: '8px', sm: '12px' },
-                    filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
-                />
-              ))}
-              {/* Dot indicators */}
-              {eventsWithImages.length > 1 && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    bottom: { xs: 50, sm: 65, md: 80 },
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    display: 'flex',
-                    gap: 1,
-                    zIndex: 5,
-                  }}
-                >
-                  {eventsWithImages.map((_, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        width: { xs: 8, sm: 10 },
-                        height: { xs: 8, sm: 10 },
-                        borderRadius: '50%',
-                        backgroundColor: index === eventImageIndex ? '#FFA500' : 'rgba(255,255,255,0.5)',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          transform: 'scale(1.2)',
-                          backgroundColor: index === eventImageIndex ? '#FFA500' : 'rgba(255,255,255,0.8)',
-                        },
-                      }}
-                    />
-                  ))}
-                </Box>
-              )}
-            </>
-          ) : section.image_url ? (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      component="a"
+      href={isEventRegistration && eventsWithImages.length > 0
+        ? `/calendar?event=${eventsWithImages[eventImageIndex].id}`
+        : section.link_path}
+      sx={{
+        gridColumn: isBig ? 'span 2' : 'auto',
+        height: isBig ? { xs: '200px', md: '250px' } : { xs: '150px', md: '170px' },
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: '12px',
+        cursor: 'pointer',
+        display: 'block',
+        textDecoration: 'none',
+        backgroundColor: '#4a4a4a',
+        boxShadow: isHovered
+          ? '0 8px 24px rgba(255, 165, 0, 0.35)'
+          : '0 2px 4px rgba(0, 0, 0, 0.08)',
+        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+        transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
+      }}
+    >
+      {isEventRegistration && eventsWithImages.length > 0 ? (
+        /* Event Registration: cycle through upcoming event images */
+        <>
+          {eventsWithImages.map((ev, index) => (
             <Box
+              key={ev.id}
               component="img"
-              src={section.image_url}
-              alt={section.title_en}
+              src={ev.poster_url || ev.image_url}
+              alt={ev.title || ev.name}
               loading="lazy"
               sx={{
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                objectPosition: section.image_position || 'center center',
-                borderRadius: { xs: '8px', sm: '12px' },
-                transition: 'filter 0.3s ease',
-                filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
+                objectPosition: ev.image_position || 'center center',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                opacity: index === eventImageIndex ? 1 : 0,
+                transition: 'opacity 1s ease-in-out, transform 0.3s ease',
+                transform: isHovered ? 'scale(1.04)' : 'scale(1)',
               }}
               onError={(e) => {
                 e.target.style.display = 'none';
               }}
             />
-          ) : (
-            <Typography
-              sx={{
-                color: 'rgba(255,255,255,0.5)',
-                fontSize: { xs: '1rem', sm: '1.5rem' },
-                textAlign: 'center'
-              }}
-            >
-              {section.title_en} Image Coming Soon
-            </Typography>
-          )}
-
-          {/* Hover Overlay with Label */}
+          ))}
+          {/* Open registration badge */}
           <Box
             sx={{
               position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)',
-              padding: { xs: 2, sm: 3, md: 4 },
-              opacity: isHovered ? 1 : 0,
-              transition: 'opacity 0.3s ease',
-              borderRadius: { xs: '0 0 8px 8px', sm: '0 0 12px 12px' },
+              top: 12,
+              left: 12,
+              backgroundColor: ORANGE,
+              color: 'white',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: '99px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+              zIndex: 3,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    color: 'white',
-                    fontWeight: 600,
-                    fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
-                    textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  {section.title_en}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: 'rgba(255,255,255,0.9)',
-                    fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  {section.title_cn}
-                </Typography>
-              </Box>
-              <ArrowForwardIcon
-                sx={{
-                  color: '#FFA500',
-                  fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-                  transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
-                  transition: 'transform 0.3s ease',
-                }}
-              />
-            </Box>
+            Open 报名中
           </Box>
+        </>
+      ) : section.image_url ? (
+        <Box
+          component="img"
+          src={section.image_url}
+          alt={section.title_en}
+          loading="lazy"
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: section.image_position || 'center center',
+            transition: 'transform 0.3s ease',
+            transform: isHovered ? 'scale(1.04)' : 'scale(1)',
+          }}
+          onError={(e) => {
+            e.target.style.display = 'none';
+          }}
+        />
+      ) : (
+        <Box
+          sx={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', textAlign: 'center', px: 2 }}>
+            {section.title_en} Image Coming Soon
+          </Typography>
+        </Box>
+      )}
 
-          {/* Admin: crop button for section image position */}
-          {adminModeEnabled && section.image_url && (
+      {/* Title overlay — always visible */}
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.25) 65%, transparent 100%)',
+          px: 2,
+          pt: 3,
+          pb: 1.5,
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              color: 'white',
+              fontWeight: 600,
+              fontSize: isBig ? { xs: '1rem', md: '1.25rem' } : { xs: '0.875rem', md: '0.9375rem' },
+              lineHeight: 1.3,
+              textShadow: '1px 1px 3px rgba(0,0,0,0.5)',
+            }}
+          >
+            {section.title_en}
+          </Typography>
+          <Typography
+            sx={{
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: { xs: '0.6875rem', md: '0.75rem' },
+              textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+            }}
+          >
+            {section.title_cn}
+          </Typography>
+        </Box>
+        <ArrowForwardIcon
+          sx={{
+            color: ORANGE,
+            fontSize: '1.25rem',
+            opacity: isHovered ? 1 : 0,
+            transform: isHovered ? 'translateX(0)' : 'translateX(-4px)',
+            transition: 'all 0.2s ease',
+          }}
+        />
+      </Box>
+
+      {/* Admin controls */}
+      {adminModeEnabled && (
+        <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5, zIndex: 10 }}>
+          {section.image_url && (
             <Tooltip title="Adjust image position / 调整图片位置">
               <IconButton
                 size="small"
@@ -356,20 +300,52 @@ function SortableSection({ section, adminModeEnabled, onEdit, onPositionEdit, up
                   if (onPositionEdit) onPositionEdit(section);
                 }}
                 sx={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
                   backgroundColor: 'rgba(255, 255, 255, 0.9)',
                   '&:hover': { backgroundColor: 'white' },
-                  zIndex: 10,
                 }}
               >
                 <CropIcon fontSize="small" sx={{ color: '#FFB84D' }} />
               </IconButton>
             </Tooltip>
           )}
+          <Tooltip title="Edit Section">
+            <IconButton
+              onClick={(e) => onEdit(e, section)}
+              sx={{
+                backgroundColor: 'rgba(255, 165, 0, 0.9)',
+                color: 'white',
+                '&:hover': { backgroundColor: '#FF8C00' },
+              }}
+              size="small"
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
-      </Container>
+      )}
+      {adminModeEnabled && (
+        <Tooltip title="Drag to reorder">
+          <IconButton
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.preventDefault()}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              zIndex: 10,
+              cursor: 'grab',
+              color: ORANGE,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              '&:hover': { backgroundColor: 'white' },
+              '&:active': { cursor: 'grabbing' },
+            }}
+            size="small"
+          >
+            <DragIndicatorIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
     </Box>
   );
 }
@@ -443,18 +419,20 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [carouselImages.length]);
 
-  const handleBannerClick = () => {
-    const currentImage = carouselImages[currentImageIndex];
-    if (!currentImage) return;
-
+  const openBanner = (banner) => {
+    if (!banner) return;
     // If banner is linked to an event, open event modal
-    if (currentImage.event_id || currentImage.source_type === 'event_highlight') {
-      setSelectedEvent(currentImage);
+    if (banner.event_id || banner.source_type === 'event_highlight') {
+      setSelectedEvent(banner);
       setEventModalOpen(true);
-    } else if (currentImage.link_path) {
+    } else if (banner.link_path) {
       // Otherwise navigate to the link path
-      navigate(currentImage.link_path);
+      navigate(banner.link_path);
     }
+  };
+
+  const handleBannerClick = () => {
+    openBanner(carouselImages[currentImageIndex]);
   };
 
   const handleCloseEventModal = () => {
@@ -592,288 +570,435 @@ export default function HomePage() {
     }
   };
 
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
-      {/* Buttons Section */}
-      <NavigationButtons variant="outlined" />
+  const currentBanner = carouselImages[currentImageIndex];
 
-      {/* Carousel loading placeholder */}
-      {carouselLoading ? (
-        <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0 }}>
+  const renderSectionCard = (section, index) => (
+    <SortableSection
+      key={section.id}
+      section={section}
+      isBig={index < 2}
+      adminModeEnabled={adminModeEnabled}
+      onEdit={handleEditSection}
+      onPositionEdit={(s) => setSectionPositionEditing(s)}
+      upcomingEvents={upcomingEvents}
+    />
+  );
+
+  const sectionsGridSx = {
+    display: 'grid',
+    gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+    gap: 2,
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Full-width club photo banner */}
+      <Box sx={{ position: 'relative', height: { xs: '220px', sm: '300px', md: '420px' }, overflow: 'hidden' }}>
+        <Box
+          component="img"
+          src="/master-image-2.jpg"
+          alt="NewBee Running Club"
+          onError={(e) => { e.target.src = '/master-image-1.jpg'; }}
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 35%',
+            display: 'block',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.3) 100%)',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            px: 2,
+          }}
+        >
+          <Typography
+            variant="h1"
+            sx={{
+              color: 'white',
+              fontWeight: 900,
+              fontSize: { xs: '1.875rem', sm: '2.75rem', md: '3.5rem' },
+              letterSpacing: '-0.015em',
+              textShadow: '2px 3px 12px rgba(0,0,0,0.55)',
+            }}
+          >
+            NewBee Running Club
+          </Typography>
+          <Typography
+            sx={{
+              color: 'rgba(255,255,255,0.95)',
+              fontSize: { xs: '0.9375rem', md: '1.25rem' },
+              mt: 1,
+              textShadow: '1px 1px 6px rgba(0,0,0,0.55)',
+            }}
+          >
+            纽约新蜂跑团 · 一起奔跑，一起成长
+          </Typography>
+          <Box sx={{ width: 64, height: 4, borderRadius: 2, backgroundColor: ORANGE, mt: 2.25 }} />
+        </Box>
+      </Box>
+
+      {/* Fold: event carousel + latest events calendar panel */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 2 }}>
+        {carouselLoading ? (
           <Box sx={{
             width: '100%',
-            height: { xs: '200px', sm: '350px', md: '500px' },
-            borderRadius: { xs: '8px', sm: '12px' },
+            height: { xs: '260px', md: '440px' },
+            borderRadius: '12px',
             backgroundColor: '#e0e0e0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            <CircularProgress sx={{ color: '#FFA500' }} />
+            <CircularProgress sx={{ color: ORANGE }} />
           </Box>
-        </Container>
-      ) : carouselImages.length > 0 && (
-        <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0 }}>
+        ) : carouselImages.length > 0 && (
           <Box
-            onClick={handleBannerClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             sx={{
-              width: '100%',
-              height: { xs: '200px', sm: '350px', md: '500px' },
-              overflow: 'hidden',
-              position: 'relative',
-              borderRadius: { xs: '8px', sm: '12px' },
-              boxShadow: isHovered
-                ? '0 8px 24px rgba(255, 165, 0, 0.3)'
-                : '0 2px 4px rgba(0, 0, 0, 0.1)',
-              cursor: 'pointer',
-              transition: 'box-shadow 0.3s ease, transform 0.3s ease',
-              transform: isHovered ? 'scale(1.005)' : 'scale(1)',
-              '&:active': {
-                transform: 'scale(0.995)',
-              },
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
+              gap: 2,
+              alignItems: 'stretch',
             }}
           >
-            {carouselImages.map((image, index) => (
-              <Box
-                key={image.id || index}
-                component="img"
-                src={image.image_url}
-                alt={image.alt_text || image.label_en}
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: image.image_position || 'center center',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  opacity: index === currentImageIndex ? 1 : 0,
-                  transition: 'opacity 1s ease-in-out, filter 0.3s ease',
-                  borderRadius: { xs: '8px', sm: '12px' },
-                  filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
-                }}
-                onError={(e) => {
-                  e.target.src = '/master-image-1.jpg';
-                }}
-              />
-            ))}
-
-            {/* Hover Overlay with Label */}
+            {/* Carousel */}
             <Box
+              onClick={handleBannerClick}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
               sx={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)',
-                padding: { xs: 2, sm: 3, md: 4 },
-                opacity: isHovered ? 1 : 0,
-                transition: 'opacity 0.3s ease',
-                borderRadius: { xs: '0 0 8px 8px', sm: '0 0 12px 12px' },
+                width: '100%',
+                height: { xs: '260px', sm: '350px', md: '440px' },
+                overflow: 'hidden',
+                position: 'relative',
+                borderRadius: '12px',
+                boxShadow: isHovered
+                  ? '0 8px 24px rgba(255, 165, 0, 0.3)'
+                  : '0 2px 4px rgba(0, 0, 0, 0.1)',
+                cursor: 'pointer',
+                transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+                transform: isHovered ? 'scale(1.005)' : 'scale(1)',
+                '&:active': {
+                  transform: 'scale(0.995)',
+                },
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      color: 'white',
-                      fontWeight: 600,
-                      fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
-                      textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-                    }}
-                  >
-                    {carouselImages[currentImageIndex]?.label_en || carouselImages[currentImageIndex]?.event_name}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color: 'rgba(255,255,255,0.9)',
-                      fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                    }}
-                  >
-                    {carouselImages[currentImageIndex]?.label_cn || carouselImages[currentImageIndex]?.event_chinese_name}
-                  </Typography>
-                </Box>
-                <ArrowForwardIcon
-                  sx={{
-                    color: '#FFA500',
-                    fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-                    transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
-                    transition: 'transform 0.3s ease',
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {/* Carousel Indicators */}
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: { xs: 8, sm: 12 },
-                left: '50%',
-                transform: 'translateX(-50%)',
-                display: 'flex',
-                gap: 1,
-                zIndex: 2,
-                opacity: isHovered ? 0 : 1,
-                transition: 'opacity 0.3s ease',
-              }}
-            >
-              {carouselImages.map((_, index) => (
+              {carouselImages.map((image, index) => (
                 <Box
-                  key={index}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentImageIndex(index);
-                  }}
+                  key={image.id || index}
+                  component="img"
+                  src={image.image_url}
+                  alt={image.alt_text || image.label_en}
                   sx={{
-                    width: { xs: 8, sm: 10 },
-                    height: { xs: 8, sm: 10 },
-                    borderRadius: '50%',
-                    backgroundColor: index === currentImageIndex ? '#FFA500' : 'rgba(255,255,255,0.5)',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.3s ease, transform 0.2s ease',
-                    '&:hover': {
-                      transform: 'scale(1.2)',
-                      backgroundColor: index === currentImageIndex ? '#FFA500' : 'rgba(255,255,255,0.8)',
-                    },
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: image.image_position || 'center center',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    opacity: index === currentImageIndex ? 1 : 0,
+                    transition: 'opacity 1s ease-in-out, filter 0.3s ease',
+                    filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
+                  }}
+                  onError={(e) => {
+                    e.target.src = '/master-image-1.jpg';
                   }}
                 />
               ))}
+
+              {/* Label overlay — always visible */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)',
+                  padding: { xs: 2, sm: 3 },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        color: 'white',
+                        fontWeight: 600,
+                        fontSize: { xs: '1.125rem', sm: '1.375rem', md: '1.5rem' },
+                        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      {currentBanner?.label_en || currentBanner?.event_name}
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: 'rgba(255,255,255,0.9)',
+                        fontSize: { xs: '0.875rem', sm: '1rem' },
+                        textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      {currentBanner?.label_cn || currentBanner?.event_chinese_name}
+                    </Typography>
+                  </Box>
+                  <ArrowForwardIcon
+                    sx={{
+                      color: ORANGE,
+                      fontSize: { xs: '1.5rem', sm: '2rem' },
+                      transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
+                      transition: 'transform 0.3s ease',
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Carousel Indicators */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: { xs: 8, sm: 12 },
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'flex',
+                  gap: 1,
+                  zIndex: 2,
+                }}
+              >
+                {carouselImages.map((_, index) => (
+                  <Box
+                    key={index}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentImageIndex(index);
+                    }}
+                    sx={{
+                      width: { xs: 8, sm: 10 },
+                      height: { xs: 8, sm: 10 },
+                      borderRadius: '50%',
+                      backgroundColor: index === currentImageIndex ? ORANGE : 'rgba(255,255,255,0.5)',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.3s ease, transform 0.2s ease',
+                      '&:hover': {
+                        transform: 'scale(1.2)',
+                        backgroundColor: index === currentImageIndex ? ORANGE : 'rgba(255,255,255,0.8)',
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
+
+              {/* Admin: crop button to open position editor dialog */}
+              {adminModeEnabled && carouselImages[currentImageIndex] && (
+                <Tooltip title="Adjust image position / 调整图片位置">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCarouselPositionEditing(true);
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      '&:hover': { backgroundColor: 'white' },
+                      zIndex: 10,
+                    }}
+                  >
+                    <CropIcon fontSize="small" sx={{ color: '#FFB84D' }} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Box>
 
-            {/* Admin: crop button to open position editor dialog */}
-            {adminModeEnabled && carouselImages[currentImageIndex] && (
-              <Tooltip title="Adjust image position / 调整图片位置">
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCarouselPositionEditing(true);
-                  }}
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    '&:hover': { backgroundColor: 'white' },
-                    zIndex: 10,
-                  }}
-                >
-                  <CropIcon fontSize="small" sx={{ color: '#FFB84D' }} />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-        </Container>
-      )}
+            {/* Latest Events calendar panel */}
+            <Box
+              sx={{
+                backgroundColor: 'white',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                p: 2.25,
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                minHeight: { xs: 'auto', md: '440px' },
+              }}
+            >
+              <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', mb: 0.5 }}>
+                Latest Events
+                <Box component="span" sx={{ ml: 1, fontWeight: 400, fontSize: '0.78rem', color: MUTED }}>
+                  最新活动
+                </Box>
+              </Typography>
 
-      {/* Latest Events List - Below Carousel */}
-      {carouselImages.length > 0 && (
-        <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 2, sm: 3 } }}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-            }}
-          >
-            {carouselImages.map((banner, index) => (
-              <Box
-                key={banner.id || index}
-                onClick={() => {
-                  setCurrentImageIndex(index);
-                  if (banner.event_id || banner.source_type === 'event_highlight') {
-                    setSelectedEvent(banner);
-                    setEventModalOpen(true);
-                  } else if (banner.link_path) {
-                    navigate(banner.link_path);
-                  }
-                }}
+              {carouselImages.slice(0, 5).map((banner, index) => {
+                const date = parseEventDate(banner.event_date);
+                const isActive = index === currentImageIndex;
+                return (
+                  <Box
+                    key={banner.id || index}
+                    onClick={() => {
+                      setCurrentImageIndex(index);
+                      openBanner(banner);
+                    }}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      py: 1.25,
+                      px: 0.75,
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      backgroundColor: isActive ? ORANGE_BG : 'transparent',
+                      borderTop: index > 0 ? `1px solid ${LINE}` : 'none',
+                      transition: 'background-color 0.15s ease',
+                      '&:hover': { backgroundColor: ORANGE_BG },
+                      '&:hover .go-arrow': { opacity: 1 },
+                    }}
+                  >
+                    {date ? (
+                      <Box
+                        sx={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: '12px',
+                          backgroundColor: ORANGE_BG,
+                          flexShrink: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: ORANGE, lineHeight: 1.1 }}>
+                          {date.day}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.59rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED }}>
+                          {date.month}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Box
+                        component="img"
+                        src={banner.image_url}
+                        alt=""
+                        sx={{ width: 46, height: 46, borderRadius: '12px', objectFit: 'cover', flexShrink: 0 }}
+                        onError={(e) => { e.target.style.visibility = 'hidden'; }}
+                      />
+                    )}
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '0.84rem',
+                          fontWeight: 600,
+                          lineHeight: 1.3,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {banner.label_en || banner.event_name}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.72rem', color: MUTED }} noWrap>
+                        {banner.label_cn || banner.event_chinese_name}
+                      </Typography>
+                    </Box>
+                    <ArrowForwardIcon
+                      className="go-arrow"
+                      sx={{ ml: 'auto', color: ORANGE, fontSize: '1rem', opacity: 0, transition: 'opacity 0.15s ease', flexShrink: 0 }}
+                    />
+                  </Box>
+                );
+              })}
+
+              <Button
+                onClick={() => navigate('/calendar')}
                 sx={{
-                  py: { xs: 1, sm: 1.5 },
-                  px: { xs: 2, sm: 3 },
-                  borderRadius: 1,
-                  backgroundColor: index === currentImageIndex
-                    ? 'rgba(255, 165, 0, 0.2)'
-                    : 'rgba(255, 165, 0, 0.08)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  mt: 'auto',
+                  pt: 1,
+                  textTransform: 'none',
+                  color: ORANGE,
+                  fontWeight: 700,
+                  fontSize: '0.8125rem',
+                  border: `1.5px solid ${ORANGE}`,
+                  borderRadius: '99px',
+                  py: 1,
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 165, 0, 0.15)',
+                    backgroundColor: ORANGE,
+                    color: 'white',
                   },
                 }}
               >
-                <Typography
-                  sx={{
-                    fontWeight: index === currentImageIndex ? 600 : 500,
-                    color: '#FFA500',
-                    fontSize: { xs: '0.9rem', sm: '1rem' },
-                  }}
-                >
-                  {banner.label_en || banner.event_name} {(banner.label_cn || banner.event_chinese_name) && `/ ${banner.label_cn || banner.event_chinese_name}`}
-                </Typography>
-              </Box>
-            ))}
+                View Calendar 查看日历 →
+              </Button>
+            </Box>
           </Box>
-        </Container>
-      )}
+        )}
+      </Container>
 
-      {/* Dynamic Homepage Sections with Drag-and-Drop for Admins */}
-      {sectionsLoading ? (
-        /* Placeholder boxes while sections load */
-        [0, 1, 2].map((i) => (
-          <Box key={i} sx={{ mt: { xs: 2, sm: 3 } }}>
-            <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mb: { xs: 1, sm: 1.5 } }}>
-              <Box sx={{ height: '2rem', width: '40%', mx: 'auto', borderRadius: 1, backgroundColor: '#e0e0e0' }} />
-            </Container>
-            <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 } }}>
-              <Box sx={{
-                width: '100%',
-                height: { xs: '200px', sm: '350px', md: '500px' },
-                borderRadius: { xs: '8px', sm: '12px' },
-                backgroundColor: '#e0e0e0',
-              }} />
-            </Container>
-          </Box>
-        ))
-      ) : adminModeEnabled ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={sections.map(s => s.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {sections.map((section) => (
-              <SortableSection
-                key={section.id}
-                section={section}
-                adminModeEnabled={adminModeEnabled}
-                onEdit={handleEditSection}
-                onPositionEdit={(section) => setSectionPositionEditing(section)}
-                upcomingEvents={upcomingEvents}
+      {/* Explore NewBee — featured sections grid */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700 }}>
+            Explore NewBee
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            探索新蜂
+          </Typography>
+        </Box>
+
+        {sectionsLoading ? (
+          <Box sx={sectionsGridSx}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Box
+                key={i}
+                sx={{
+                  gridColumn: i < 2 ? 'span 2' : 'auto',
+                  height: i < 2 ? { xs: '200px', md: '250px' } : { xs: '150px', md: '170px' },
+                  borderRadius: '12px',
+                  backgroundColor: '#e0e0e0',
+                }}
               />
             ))}
-          </SortableContext>
-        </DndContext>
-      ) : (
-        sections.map((section) => (
-          <SortableSection
-            key={section.id}
-            section={section}
-            adminModeEnabled={false}
-            onEdit={() => {}}
-            upcomingEvents={upcomingEvents}
-          />
-        ))
-      )}
+          </Box>
+        ) : adminModeEnabled ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sections.map(s => s.id)}
+              strategy={rectSortingStrategy}
+            >
+              <Box sx={sectionsGridSx}>
+                {sections.map(renderSectionCard)}
+              </Box>
+            </SortableContext>
+          </DndContext>
+        ) : (
+          <Box sx={sectionsGridSx}>
+            {sections.map(renderSectionCard)}
+          </Box>
+        )}
+      </Container>
 
       {/* Carousel Position Editor Dialog */}
       {carouselPositionEditing && carouselImages[currentImageIndex] && (

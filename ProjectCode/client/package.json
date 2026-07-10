@@ -47,6 +47,22 @@
       "react-app/jest"
     ]
   },
+  "jest": {
+    "moduleNameMapper": {
+      "^firebase/(.*)$": "<rootDir>/src/test-utils/firebaseStub.js",
+      "^react-quill$": "<rootDir>/src/test-utils/reactQuillStub.js"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/index.js",
+      "!src/setupTests.js",
+      "!src/test-utils/**"
+    ],
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\](?!(@dnd-kit|d3|d3-[^/]+|internmap|delaunator|robust-predicates)[/\\\\]).+\\.(js|mjs|jsx|ts|tsx)$",
+      "^.+\\.module\\.(css|sass|scss)$"
+    ]
+  },
   "browserslist": {
     "production": [
       ">0.2%",

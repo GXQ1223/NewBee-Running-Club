@@ -54,6 +54,30 @@ import { getMemberByFirebaseUid, updateMember } from '../api/members';
 import { getMemberRaceResults } from '../api/results';
 import { getMemberCredits } from '../api/credits';
 
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
+
+// Spec panel style: white card with hairline border + soft shadow
+const panelSx = {
+  backgroundColor: 'white',
+  border: `1px solid ${LINE}`,
+  borderRadius: '12px',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+};
+
+// Compact bilingual section header (English primary + Chinese secondary)
+const SectionHeader = ({ icon, en, cn }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+    {icon}
+    <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>{en}</Typography>
+    <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>{cn}</Typography>
+  </Box>
+);
+
 const ProfilePage = () => {
   const { currentUser } = useAuth();
   const [error, setError] = useState('');
@@ -400,7 +424,7 @@ const ProfilePage = () => {
   const displayName = memberData?.nickname || memberData?.display_name || currentUser?.displayName || 'User';
 
   return (
-    <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
+    <Container maxWidth="xl" sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
       {/* Hidden file input for photo upload */}
       <input
         type="file"
@@ -411,7 +435,7 @@ const ProfilePage = () => {
       />
 
       {/* Header Section */}
-      <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, mb: 3 }}>
+      <Paper elevation={0} sx={{ ...panelSx, p: { xs: 2, sm: 4 }, mb: 3 }}>
         <Box sx={{
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
@@ -436,11 +460,11 @@ const ProfilePage = () => {
                     onClick={handlePhotoClick}
                     disabled={uploadingPhoto}
                     sx={{
-                      backgroundColor: '#FFB84D',
+                      backgroundColor: ORANGE,
                       color: 'white',
                       width: { xs: 28, sm: 32 },
                       height: { xs: 28, sm: 32 },
-                      '&:hover': { backgroundColor: '#FFA833' }
+                      '&:hover': { backgroundColor: ORANGE_DARK }
                     }}
                   >
                     {uploadingPhoto ? <CircularProgress size={16} color="inherit" /> : <CameraIcon fontSize="small" />}
@@ -461,10 +485,10 @@ const ProfilePage = () => {
               </Badge>
             </Tooltip>
             <Box>
-              <Typography variant="h4" component="h1" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 700, color: INK, fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
                 {displayName}
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+              <Typography variant="body1" sx={{ mt: 0.5, color: MUTED, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                 {memberData?.email || currentUser?.email}
               </Typography>
               {memberData?.status && (
@@ -472,10 +496,14 @@ const ProfilePage = () => {
                   label={memberData.status === 'runner' ? 'Member / 会员' :
                          memberData.status === 'admin' ? 'Admin / 管理员' :
                          memberData.status === 'pending' ? 'Pending / 待审核' : memberData.status}
-                  color={memberData.status === 'admin' ? 'primary' :
-                         memberData.status === 'runner' ? 'success' : 'default'}
                   size="small"
-                  sx={{ mt: 1 }}
+                  sx={{
+                    mt: 1,
+                    backgroundColor: ORANGE_BG,
+                    color: ORANGE,
+                    fontWeight: 700,
+                    borderRadius: '99px',
+                  }}
                 />
               )}
             </Box>
@@ -494,8 +522,17 @@ const ProfilePage = () => {
                 onClick={handleOpenEditDialog}
                 sx={{
                   textTransform: 'none',
+                  fontWeight: 600,
                   fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  px: { xs: 1.5, sm: 2 }
+                  px: { xs: 1.5, sm: 2.25 },
+                  borderRadius: '99px',
+                  borderColor: ORANGE,
+                  color: ORANGE,
+                  '&:hover': {
+                    borderColor: ORANGE_DARK,
+                    color: ORANGE_DARK,
+                    backgroundColor: ORANGE_BG,
+                  }
                 }}
               >
                 Edit Profile
@@ -504,14 +541,18 @@ const ProfilePage = () => {
             <Button
               variant="contained"
               onClick={handleLogout}
+              disableElevation
               sx={{
-                backgroundColor: '#FFB84D',
+                backgroundColor: ORANGE,
                 color: 'white',
                 textTransform: 'none',
+                fontWeight: 600,
                 fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                px: { xs: 1.5, sm: 2 },
+                px: { xs: 1.5, sm: 2.25 },
+                borderRadius: '99px',
+                boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
                 '&:hover': {
-                  backgroundColor: '#FFA833',
+                  backgroundColor: ORANGE_DARK,
                 }
               }}
             >
@@ -548,7 +589,7 @@ const ProfilePage = () => {
                    memberData.gender === 'F' ? 'Female / 女' : '-'}
                 </Typography>
                 {!memberData.gender && (
-                  <Typography variant="caption" sx={{ color: '#FFB84D', fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: ORANGE_DARK, fontSize: '0.7rem' }}>
                     Fill in to see your NYRR records / 填写后可查看NYRR比赛记录
                   </Typography>
                 )}
@@ -557,7 +598,7 @@ const ProfilePage = () => {
                 <Typography variant="caption" color="text.secondary">Birth Year / 出生年份</Typography>
                 <Typography variant="body1">{memberData.birth_year || '-'}</Typography>
                 {!memberData.birth_year && (
-                  <Typography variant="caption" sx={{ color: '#FFB84D', fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: ORANGE_DARK, fontSize: '0.7rem' }}>
                     Fill in to see your NYRR records / 填写后可查看NYRR比赛记录
                   </Typography>
                 )}
@@ -580,10 +621,12 @@ const ProfilePage = () => {
 
       {/* Running Profile Section */}
       {memberData && (memberData.location || memberData.weekly_frequency || memberData.monthly_mileage || memberData.running_experience || memberData.goals) && (
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <LocationIcon color="primary" /> Running Profile / 跑步档案
-          </Typography>
+        <Paper elevation={0} sx={{ ...panelSx, p: 3, mb: 3 }}>
+          <SectionHeader
+            icon={<LocationIcon sx={{ color: ORANGE }} />}
+            en="Running Profile"
+            cn="跑步档案"
+          />
           <Grid container spacing={2}>
             {memberData.location && (
               <Grid item xs={12} sm={6} md={4}>
@@ -621,31 +664,33 @@ const ProfilePage = () => {
 
       {/* Club Credits Section */}
       {memberData && (
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <StarsIcon sx={{ color: '#FFB84D' }} /> Club Credits / 俱乐部积分
-          </Typography>
+        <Paper elevation={0} sx={{ ...panelSx, p: 3, mb: 3 }}>
+          <SectionHeader
+            icon={<StarsIcon sx={{ color: ORANGE }} />}
+            en="Club Credits"
+            cn="俱乐部积分"
+          />
           <Grid container spacing={2}>
             <Grid item xs={12} sm={3}>
-              <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
+              <Card elevation={0} sx={{ ...panelSx, textAlign: 'center', p: 2 }}>
                 <Typography variant="h4" color="primary">{clubCredits.registration_credits || 0}</Typography>
                 <Typography variant="body2" color="text.secondary">Registration / 比赛积分</Typography>
               </Card>
             </Grid>
             <Grid item xs={12} sm={3}>
-              <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
+              <Card elevation={0} sx={{ ...panelSx, textAlign: 'center', p: 2 }}>
                 <Typography variant="h4" color="primary">{clubCredits.checkin_credits || 0}</Typography>
                 <Typography variant="body2" color="text.secondary">Check-in / 签到积分</Typography>
               </Card>
             </Grid>
             <Grid item xs={12} sm={3}>
-              <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
+              <Card elevation={0} sx={{ ...panelSx, textAlign: 'center', p: 2 }}>
                 <Typography variant="h4" color="primary">{clubCredits.volunteer_credits || 0}</Typography>
                 <Typography variant="body2" color="text.secondary">Volunteer / 志愿者积分</Typography>
               </Card>
             </Grid>
             <Grid item xs={12} sm={3}>
-              <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
+              <Card elevation={0} sx={{ ...panelSx, textAlign: 'center', p: 2 }}>
                 <Typography variant="h4" color="primary">{clubCredits.activity_credits || 0}</Typography>
                 <Typography variant="body2" color="text.secondary">Activity / 活动积分</Typography>
               </Card>
@@ -657,7 +702,7 @@ const ProfilePage = () => {
       {/* Race Statistics Section */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
-          <Card elevation={2}>
+          <Card elevation={0} sx={panelSx}>
             <CardContent sx={{ textAlign: 'center' }}>
               <RunIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
               <Typography variant="h3" component="div">
@@ -670,7 +715,7 @@ const ProfilePage = () => {
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card elevation={2}>
+          <Card elevation={0} sx={panelSx}>
             <CardContent sx={{ textAlign: 'center' }}>
               <TrophyIcon sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
               <Typography variant="h3" component="div">
@@ -683,7 +728,7 @@ const ProfilePage = () => {
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card elevation={2}>
+          <Card elevation={0} sx={panelSx}>
             <CardContent sx={{ textAlign: 'center' }}>
               <TimerIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
               <Typography variant="h3" component="div">
@@ -699,16 +744,38 @@ const ProfilePage = () => {
 
       {/* Personal Records Section */}
       {Object.keys(raceData.stats.prs).length > 0 && (
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TrophyIcon color="warning" /> NYRR Personal Records / 纽约路跑协会比赛个人最佳
-          </Typography>
+        <Paper elevation={0} sx={{ ...panelSx, p: 3, mb: 3 }}>
+          <SectionHeader
+            icon={<TrophyIcon sx={{ color: ORANGE }} />}
+            en="NYRR Personal Records"
+            cn="纽约路跑协会比赛个人最佳"
+          />
           <Grid container spacing={2}>
             {Object.entries(raceData.stats.prs).map(([distance, pr]) => (
               <Grid item xs={12} sm={6} md={4} key={distance}>
-                <Card variant="outlined">
+                <Card
+                  elevation={0}
+                  sx={{
+                    ...panelSx,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                      transform: 'translateY(-3px)',
+                    },
+                  }}
+                >
                   <CardContent>
-                    <Typography variant="subtitle2" color="text.secondary">{distance}</Typography>
+                    <Chip
+                      label={distance}
+                      size="small"
+                      sx={{
+                        mb: 0.5,
+                        backgroundColor: ORANGE_BG,
+                        color: ORANGE,
+                        fontWeight: 700,
+                        borderRadius: '99px',
+                      }}
+                    />
                     <Typography variant="h5" color="primary">{pr.time}</Typography>
                     <Typography variant="body2">{pr.race}</Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -723,10 +790,12 @@ const ProfilePage = () => {
       )}
 
       {/* Race History Section */}
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <RunIcon color="primary" /> Race History / 比赛历史
-        </Typography>
+      <Paper elevation={0} sx={{ ...panelSx, p: 3 }}>
+        <SectionHeader
+          icon={<RunIcon sx={{ color: ORANGE }} />}
+          en="Race History"
+          cn="比赛历史"
+        />
 
         {loadingRaces ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -1056,16 +1125,25 @@ const ProfilePage = () => {
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={handleCloseEditDialog} disabled={saving}>
+          <Button
+            onClick={handleCloseEditDialog}
+            disabled={saving}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '99px', color: MUTED }}
+          >
             Cancel / 取消
           </Button>
           <Button
             variant="contained"
             onClick={handleSaveProfile}
             disabled={saving}
+            disableElevation
             sx={{
-              backgroundColor: '#FFB84D',
-              '&:hover': { backgroundColor: '#FFA833' }
+              backgroundColor: ORANGE,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '99px',
+              px: 3,
+              '&:hover': { backgroundColor: ORANGE_DARK }
             }}
           >
             {saving ? <CircularProgress size={20} /> : 'Save / 保存'}

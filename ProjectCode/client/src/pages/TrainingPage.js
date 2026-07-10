@@ -27,7 +27,6 @@ import {
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import NavigationButtons from '../components/NavigationButtons';
 import { useAuth } from '../context/AuthContext';
 import { getApprovedTips, submitTip, toggleUpvote } from '../api/trainingTips';
 import { getAnonymousId } from '../api/engagement';
@@ -39,6 +38,13 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
 
 const steps = ['Introduction', 'Race Info', 'Fitness', 'Duration'];
 
@@ -90,18 +96,6 @@ const popularRoutes = [
     description: 'Challenging hill workout with the famous Harlem Hill. Great for marathon training.'
   }
 ];
-
-const getCategoryColor = (category) => {
-  const colors = {
-    recovery: '#4CAF50',
-    nutrition: '#FF9800',
-    technique: '#2196F3',
-    mental: '#9C27B0',
-    gear: '#795548'
-  };
-  return colors[category] || '#FFA500';
-};
-
 
 // Helper to extract video embed URL
 const getVideoEmbedUrl = (url, platform) => {
@@ -345,11 +339,14 @@ export default function TrainingPage() {
       case 0:
         return (
           <Box sx={{ maxWidth: 800, mx: 'auto', px: { xs: 1, sm: 2 } }}>
-            <Typography variant="h5" sx={{ mb: { xs: 2, sm: 3 }, color: '#333', fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
-              Our Training Philosophy
-              <br />
-              <span style={{ color: '#666' }}>我们的训练理念</span>
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: { xs: 2, sm: 3 }, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
+                Our Training Philosophy
+              </Typography>
+              <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+                我们的训练理念
+              </Typography>
+            </Box>
             <Typography variant="body1" sx={{ mb: { xs: 2, sm: 3 }, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
               Our AI-powered training system is built on proven methodologies from renowned running coaches and scientific research. We incorporate principles from:
             </Typography>
@@ -422,7 +419,7 @@ export default function TrainingPage() {
             <Typography variant="subtitle1" sx={{ mb: 2 }}>
               Please provide your current best times (if available):
               <br />
-              <span style={{ color: '#666' }}>请提供您目前的最佳成绩（如有）：</span>
+              <span style={{ color: MUTED, fontSize: '0.875rem' }}>请提供您目前的最佳成绩（如有）：</span>
             </Typography>
 
             <TextField
@@ -494,26 +491,17 @@ export default function TrainingPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
-      {/* Navigation Buttons */}
-      <NavigationButtons />
-
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       {/* Training Section */}
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 2, sm: 4 } }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Training with Us
-          <br />
-          和我们一起训练
-        </Typography>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 3, mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 2 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Training with Us
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            和我们一起训练
+          </Typography>
+        </Box>
 
         {/* Feature Cards */}
         <Grid container spacing={2} sx={{ mb: 4 }}>
@@ -523,14 +511,20 @@ export default function TrainingPage() {
               sx={{
                 height: '100%',
                 textAlign: 'center',
-                border: '2px solid #FFA500',
-                transition: 'transform 0.2s',
+                backgroundColor: 'white',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer',
-                '&:hover': { transform: 'translateY(-4px)' }
+                '&:hover': {
+                  boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                  transform: 'translateY(-3px)',
+                },
               }}
             >
               <CardContent>
-                <SmartToyIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
+                <SmartToyIcon sx={{ fontSize: 40, color: ORANGE, mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>AI Training Partner</Typography>
                 <Typography variant="body2" color="text.secondary">智能训练伙伴</Typography>
               </CardContent>
@@ -542,14 +536,20 @@ export default function TrainingPage() {
               sx={{
                 height: '100%',
                 textAlign: 'center',
-                border: '2px solid #FFA500',
-                transition: 'transform 0.2s',
+                backgroundColor: 'white',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer',
-                '&:hover': { transform: 'translateY(-4px)' }
+                '&:hover': {
+                  boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                  transform: 'translateY(-3px)',
+                },
               }}
             >
               <CardContent>
-                <CalendarMonthIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
+                <CalendarMonthIcon sx={{ fontSize: 40, color: ORANGE, mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>Custom Plans</Typography>
                 <Typography variant="body2" color="text.secondary">定制计划</Typography>
               </CardContent>
@@ -561,14 +561,20 @@ export default function TrainingPage() {
               sx={{
                 height: '100%',
                 textAlign: 'center',
-                border: '2px solid #FFA500',
-                transition: 'transform 0.2s',
+                backgroundColor: 'white',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer',
-                '&:hover': { transform: 'translateY(-4px)' }
+                '&:hover': {
+                  boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                  transform: 'translateY(-3px)',
+                },
               }}
             >
               <CardContent>
-                <GroupsIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
+                <GroupsIcon sx={{ fontSize: 40, color: ORANGE, mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>Community</Typography>
                 <Typography variant="body2" color="text.secondary">社区智慧</Typography>
               </CardContent>
@@ -580,14 +586,20 @@ export default function TrainingPage() {
               sx={{
                 height: '100%',
                 textAlign: 'center',
-                border: '2px solid #FFA500',
-                transition: 'transform 0.2s',
+                backgroundColor: 'white',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer',
-                '&:hover': { transform: 'translateY(-4px)' }
+                '&:hover': {
+                  boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                  transform: 'translateY(-3px)',
+                },
               }}
             >
               <CardContent>
-                <RouteIcon sx={{ fontSize: 40, color: '#FFA500', mb: 1 }} />
+                <RouteIcon sx={{ fontSize: 40, color: ORANGE, mb: 1 }} />
                 <Typography variant="subtitle1" fontWeight={600}>NYC Routes</Typography>
                 <Typography variant="body2" color="text.secondary">纽约跑步路线</Typography>
               </CardContent>
@@ -608,9 +620,10 @@ export default function TrainingPage() {
           </Alert>
           <Box sx={{
             backgroundColor: 'white',
-            borderRadius: { xs: '8px', sm: '12px' },
+            border: `1px solid ${LINE}`,
+            borderRadius: '12px',
             p: { xs: 2, sm: 3, md: 6 },
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
           }}>
             {!planGenerated ? (
               <>
@@ -628,10 +641,10 @@ export default function TrainingPage() {
                         fontSize: { xs: '1.1rem', sm: '1.5rem' }
                       },
                       '& .MuiStepIcon-root.Mui-active': {
-                        color: '#FFA500'
+                        color: ORANGE
                       },
                       '& .MuiStepIcon-root.Mui-completed': {
-                        color: '#FFA500'
+                        color: ORANGE
                       },
                       '& .MuiStepConnector-line': {
                         minWidth: { xs: 20, sm: 40 }
@@ -654,11 +667,15 @@ export default function TrainingPage() {
                       variant="outlined"
                       onClick={handleBack}
                       sx={{
-                        color: '#FFA500',
-                        borderColor: '#FFA500',
+                        color: ORANGE,
+                        border: `1.5px solid ${ORANGE}`,
+                        borderRadius: '99px',
+                        textTransform: 'none',
+                        fontWeight: 600,
                         '&:hover': {
-                          borderColor: '#FFA500',
-                          backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                          border: `1.5px solid ${ORANGE}`,
+                          backgroundColor: ORANGE,
+                          color: 'white',
                         },
                         px: { xs: 2, sm: 4 },
                         py: { xs: 1, sm: 1.5 },
@@ -674,9 +691,12 @@ export default function TrainingPage() {
                       onClick={handleNext}
                       disabled={!isStepValid()}
                       sx={{
-                        backgroundColor: '#FFA500',
+                        backgroundColor: ORANGE,
+                        borderRadius: '99px',
+                        textTransform: 'none',
+                        fontWeight: 600,
                         '&:hover': {
-                          backgroundColor: '#FF8C00',
+                          backgroundColor: ORANGE_DARK,
                         },
                         '&.Mui-disabled': {
                           backgroundColor: 'rgba(255, 165, 0, 0.5)',
@@ -695,9 +715,12 @@ export default function TrainingPage() {
                       onClick={handleSubmit}
                       disabled={!isStepValid()}
                       sx={{
-                        backgroundColor: '#FFA500',
+                        backgroundColor: ORANGE,
+                        borderRadius: '99px',
+                        textTransform: 'none',
+                        fontWeight: 600,
                         '&:hover': {
-                          backgroundColor: '#FF8C00',
+                          backgroundColor: ORANGE_DARK,
                         },
                         '&.Mui-disabled': {
                           backgroundColor: 'rgba(255, 165, 0, 0.5)',
@@ -743,11 +766,16 @@ export default function TrainingPage() {
                   variant="outlined"
                   onClick={handleReset}
                   sx={{
-                    color: '#FFA500',
-                    borderColor: '#FFA500',
+                    color: ORANGE,
+                    border: `1.5px solid ${ORANGE}`,
+                    borderRadius: '99px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 3,
                     '&:hover': {
-                      borderColor: '#FFA500',
-                      backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                      border: `1.5px solid ${ORANGE}`,
+                      backgroundColor: ORANGE,
+                      color: 'white',
                     },
                   }}
                 >
@@ -763,14 +791,26 @@ export default function TrainingPage() {
         {currentPath === '/training/community' && (
         <Box sx={{ py: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Community Training Tips / 社区训练技巧
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25 }}>
+              <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
+                Community Training Tips
+              </Typography>
+              <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+                社区训练技巧
+              </Typography>
+            </Box>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleSubmitDialogOpen}
-              sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+              sx={{
+                backgroundColor: ORANGE,
+                borderRadius: '99px',
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                '&:hover': { backgroundColor: ORANGE_DARK },
+              }}
             >
               Submit a Tip
             </Button>
@@ -796,7 +836,7 @@ export default function TrainingPage() {
 
           {tipsLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress sx={{ color: '#FFA500' }} />
+              <CircularProgress sx={{ color: ORANGE }} />
             </Box>
           ) : (
             <Grid container spacing={3}>
@@ -804,8 +844,15 @@ export default function TrainingPage() {
                 <Grid item xs={12} md={6} key={tip.id}>
                   <Card sx={{
                     height: '100%',
-                    transition: 'transform 0.2s',
-                    '&:hover': { transform: 'translateY(-2px)', boxShadow: 3 }
+                    backgroundColor: 'white',
+                    border: `1px solid ${LINE}`,
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-3px)',
+                      boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                    }
                   }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -815,17 +862,23 @@ export default function TrainingPage() {
                               label={tip.category}
                               size="small"
                               sx={{
-                                backgroundColor: getCategoryColor(tip.category),
-                                color: 'white'
+                                backgroundColor: ORANGE_BG,
+                                color: ORANGE,
+                                borderRadius: '99px',
+                                fontWeight: 700
                               }}
                             />
                             {tip.video_url && (
                               <Chip
-                                icon={<PlayCircleOutlineIcon sx={{ fontSize: 14 }} />}
+                                icon={<PlayCircleOutlineIcon sx={{ fontSize: 14, color: `${ORANGE} !important` }} />}
                                 label="Video"
                                 size="small"
-                                variant="outlined"
-                                sx={{ borderColor: '#FFA500', color: '#FFA500' }}
+                                sx={{
+                                  backgroundColor: ORANGE_BG,
+                                  color: ORANGE,
+                                  borderRadius: '99px',
+                                  fontWeight: 700
+                                }}
                               />
                             )}
                           </Box>
@@ -842,8 +895,8 @@ export default function TrainingPage() {
                           <IconButton
                             onClick={() => handleUpvote(tip.id)}
                             sx={{
-                              color: tip.user_upvoted ? '#FFA500' : 'inherit',
-                              '&:hover': { backgroundColor: 'rgba(255, 165, 0, 0.1)' }
+                              color: tip.user_upvoted ? ORANGE : MUTED,
+                              '&:hover': { color: ORANGE, backgroundColor: ORANGE_BG }
                             }}
                           >
                             {tip.user_upvoted ? <ThumbUpIcon /> : <ThumbUpOutlinedIcon />}
@@ -887,9 +940,16 @@ export default function TrainingPage() {
                               startIcon={<PlayCircleOutlineIcon />}
                               onClick={() => setExpandedVideo(tip.id)}
                               sx={{
-                                color: '#FFA500',
-                                borderColor: '#FFA500',
-                                '&:hover': { borderColor: '#FF8C00', backgroundColor: 'rgba(255, 165, 0, 0.1)' }
+                                color: ORANGE,
+                                border: `1.5px solid ${ORANGE}`,
+                                borderRadius: '99px',
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                '&:hover': {
+                                  border: `1.5px solid ${ORANGE}`,
+                                  backgroundColor: ORANGE,
+                                  color: 'white',
+                                }
                               }}
                             >
                               Watch Video
@@ -903,10 +963,15 @@ export default function TrainingPage() {
                           Shared by {tip.author_name || 'Anonymous'}
                         </Typography>
                         <Chip
-                          icon={<ThumbUpIcon sx={{ fontSize: 14 }} />}
+                          icon={<ThumbUpIcon sx={{ fontSize: 14, color: `${ORANGE} !important` }} />}
                           label={`${tip.upvotes} upvotes`}
-                          variant="outlined"
                           size="small"
+                          sx={{
+                            backgroundColor: ORANGE_BG,
+                            color: ORANGE,
+                            borderRadius: '99px',
+                            fontWeight: 700
+                          }}
                         />
                       </Box>
                     </CardContent>
@@ -930,9 +995,14 @@ export default function TrainingPage() {
         {/* Routes */}
         {currentPath === '/training/routes' && (
         <Box sx={{ py: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
-            Popular NYC Running Routes / 热门纽约跑步路线
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 3, flexWrap: 'wrap' }}>
+            <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
+              Popular NYC Running Routes
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+              热门纽约跑步路线
+            </Typography>
+          </Box>
 
           <Alert severity="info" sx={{ mb: 3 }}>
             Discover the best running routes in New York City, contributed by NewBee members.
@@ -945,17 +1015,24 @@ export default function TrainingPage() {
               <Grid item xs={12} md={4} key={route.id}>
                 <Card sx={{
                   height: '100%',
-                  transition: 'transform 0.2s',
-                  '&:hover': { transform: 'translateY(-2px)', boxShadow: 3 }
+                  backgroundColor: 'white',
+                  border: `1px solid ${LINE}`,
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                    boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                  }
                 }}>
                   <Box sx={{
                     height: 150,
-                    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                    backgroundColor: ORANGE_BG,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    <RouteIcon sx={{ fontSize: 60, color: '#FFA500' }} />
+                    <RouteIcon sx={{ fontSize: 60, color: ORANGE }} />
                   </Box>
                   <CardContent>
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -964,18 +1041,22 @@ export default function TrainingPage() {
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       {route.nameCn}
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                      <Chip label={route.distance} size="small" variant="outlined" />
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                      <Chip
+                        label={route.distance}
+                        size="small"
+                        sx={{ backgroundColor: ORANGE_BG, color: ORANGE, borderRadius: '99px', fontWeight: 700 }}
+                      />
                       <Chip
                         label={route.difficulty}
                         size="small"
-                        sx={{
-                          backgroundColor: route.difficulty === 'Easy' ? '#4CAF50' :
-                            route.difficulty === 'Moderate' ? '#FF9800' : '#F44336',
-                          color: 'white'
-                        }}
+                        sx={{ backgroundColor: ORANGE_BG, color: ORANGE, borderRadius: '99px', fontWeight: 700 }}
                       />
-                      <Chip label={`${route.rating} stars`} size="small" variant="outlined" />
+                      <Chip
+                        label={`${route.rating} stars`}
+                        size="small"
+                        sx={{ backgroundColor: ORANGE_BG, color: ORANGE, borderRadius: '99px', fontWeight: 700 }}
+                      />
                     </Box>
                     <Typography variant="body2" color="text.secondary">
                       {route.description}
@@ -1091,7 +1172,10 @@ export default function TrainingPage() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleSubmitDialogClose}>
+          <Button
+            onClick={handleSubmitDialogClose}
+            sx={{ textTransform: 'none', fontWeight: 600, color: MUTED, borderRadius: '99px' }}
+          >
             {submitSuccess ? 'Close' : 'Cancel'}
           </Button>
           {!submitSuccess && (
@@ -1099,7 +1183,14 @@ export default function TrainingPage() {
               variant="contained"
               onClick={handleSubmitTip}
               disabled={submitting || !tipFormData.category || !tipFormData.title || !tipFormData.content}
-              sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#FF8C00' } }}
+              sx={{
+                backgroundColor: ORANGE,
+                borderRadius: '99px',
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                '&:hover': { backgroundColor: ORANGE_DARK },
+              }}
             >
               {submitting ? <CircularProgress size={24} /> : 'Submit'}
             </Button>

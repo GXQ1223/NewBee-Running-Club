@@ -18,6 +18,21 @@ import {
 } from '../firebase/auth';
 import { submitExistingMemberAccountRequest } from '../api/members';
 
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
+
+const authCardSx = {
+  p: 4,
+  backgroundColor: 'white',
+  border: `1px solid ${LINE}`,
+  borderRadius: '12px',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+};
+
 const RegisterPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -95,19 +110,24 @@ const RegisterPage = () => {
   // Success state after registration
   if (submitted) {
     return (
-      <Container maxWidth="sm" sx={{ mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+      <Container maxWidth="sm" sx={{ mt: 8, px: { xs: 1, sm: 2 } }}>
+        <Paper elevation={0} sx={{ ...authCardSx, textAlign: 'center' }}>
           <CheckCircleOutlineIcon sx={{ fontSize: 64, color: '#4CAF50', mb: 2 }} />
-          <Typography variant="h5" gutterBottom sx={{ color: 'black' }}>
-            Account Created! 账号已创建！
-          </Typography>
-          <Typography sx={{ color: '#666', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1.25, mb: 2 }}>
+            <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+              Account Created!
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+              账号已创建！
+            </Typography>
+          </Box>
+          <Typography sx={{ color: INK, mb: 2 }}>
             Your account request has been sent to the NewBee Running Club committee for approval.
           </Typography>
-          <Typography sx={{ color: '#666', mb: 3 }}>
+          <Typography sx={{ color: MUTED, mb: 3 }}>
             您的账号申请已发送给新蜂跑团委员会审核。
           </Typography>
-          <Typography sx={{ color: '#999', fontSize: '0.9rem', mb: 3 }}>
+          <Typography sx={{ color: MUTED, fontSize: '0.9rem', mb: 3 }}>
             You will be able to log in once your account has been approved. This typically takes 1-3 business days.
             <br />
             账号审核通过后即可登录，通常需要1-3个工作日。
@@ -116,16 +136,19 @@ const RegisterPage = () => {
             component={Link}
             to="/login"
             variant="contained"
+            disableElevation
             sx={{
-              backgroundColor: '#FFB84D',
+              backgroundColor: ORANGE,
               color: 'white',
               textTransform: 'none',
+              fontWeight: 600,
               fontSize: '16px',
               px: 3,
               py: 1.2,
-              borderRadius: '12px',
+              borderRadius: '99px',
+              boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
               '&:hover': {
-                backgroundColor: '#FFA833',
+                backgroundColor: ORANGE_DARK,
               }
             }}
           >
@@ -137,26 +160,31 @@ const RegisterPage = () => {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" align="center" gutterBottom sx={{ color: 'black' }}>
-          Create Account 创建账号
-        </Typography>
+    <Container maxWidth="sm" sx={{ mt: 8, px: { xs: 1, sm: 2 } }}>
+      <Paper elevation={0} sx={authCardSx}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1.25, mb: 2 }}>
+          <Typography component="h1" sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Create Account
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            创建账号
+          </Typography>
+        </Box>
 
-        <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(255, 184, 77, 0.1)', border: '1px solid #FFB84D', '& .MuiAlert-icon': { color: '#FFB84D' } }}>
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+        <Alert severity="info" sx={{ mb: 2, borderRadius: '12px', backgroundColor: ORANGE_BG, border: `1px solid ${LINE}`, '& .MuiAlert-icon': { color: ORANGE } }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: INK }}>
             For existing NewBee Running Club members only.
           </Typography>
-          <Typography variant="body2" sx={{ color: '#666' }}>
+          <Typography variant="body2" sx={{ color: MUTED }}>
             仅限新蜂跑团现有成员使用。
           </Typography>
-          <Typography variant="body2" sx={{ mt: 0.5, fontSize: '0.8rem', color: '#999' }}>
+          <Typography variant="body2" sx={{ mt: 0.5, fontSize: '0.8rem', color: MUTED }}>
             Your request will be sent to the committee for verification. /
             您的请求将发送给委员会验证。
           </Typography>
         </Alert>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>{error}</Alert>}
 
         <form onSubmit={handleRegister}>
           <TextField
@@ -206,25 +234,22 @@ const RegisterPage = () => {
             fullWidth
             size="large"
             disabled={loading}
+            disableElevation
             sx={{
               mt: 2,
-              backgroundColor: '#FFB84D',
+              backgroundColor: ORANGE,
               color: 'white',
               textTransform: 'none',
-              fontSize: '17.5px',
-              px: 2.75,
-              py: 1.85,
-              borderRadius: '12px',
-              border: '2px solid #FFB84D',
+              fontWeight: 600,
+              fontSize: '16px',
+              px: 2,
+              py: 1.5,
+              borderRadius: '99px',
+              boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
               '&:hover': {
-                backgroundColor: '#FFA833',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                transform: 'translateY(-2px)',
+                backgroundColor: ORANGE_DARK,
+                boxShadow: '0 4px 12px rgba(255, 165, 0, 0.35)',
               },
-              '&:active': {
-                transform: 'translateY(1px) scale(0.98)',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-              }
             }}
           >
             Create Account 创建账号
@@ -232,8 +257,8 @@ const RegisterPage = () => {
         </form>
 
         <Box sx={{ mt: 2, mb: 2 }}>
-          <Divider sx={{ '&::before, &::after': { borderColor: '#FFB84D' } }}>
-            <Typography sx={{ color: '#FFB84D' }}>OR</Typography>
+          <Divider sx={{ '&::before, &::after': { borderColor: LINE } }}>
+            <Typography sx={{ color: MUTED, fontSize: '0.85rem' }}>OR</Typography>
           </Divider>
         </Box>
 
@@ -244,34 +269,30 @@ const RegisterPage = () => {
           onClick={handleGoogleSignIn}
           disabled={loading}
           sx={{
-            borderColor: '#FFB84D',
-            color: '#FFB84D',
+            borderColor: ORANGE,
+            color: ORANGE,
             textTransform: 'none',
-            fontSize: '17.5px',
-            px: 2.75,
-            py: 1.85,
-            borderRadius: '12px',
+            fontWeight: 600,
+            fontSize: '16px',
+            px: 2,
+            py: 1.5,
+            borderRadius: '99px',
             '&:hover': {
-              borderColor: '#FFA833',
-              backgroundColor: 'rgba(255, 184, 77, 0.04)',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-              transform: 'translateY(-2px)',
+              borderColor: ORANGE_DARK,
+              color: ORANGE_DARK,
+              backgroundColor: ORANGE_BG,
             },
-            '&:active': {
-              transform: 'translateY(1px) scale(0.98)',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-            }
           }}
         >
           Google
         </Button>
 
         <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontSize: '0.9rem' }}>
-            Already have an account? <Link to="/login" style={{ color: '#FFB84D', textDecoration: 'none' }}>Sign In 登录</Link>
+          <Typography sx={{ fontSize: '0.9rem', color: MUTED }}>
+            Already have an account? <Link to="/login" style={{ color: ORANGE, fontWeight: 600, textDecoration: 'none' }}>Sign In 登录</Link>
           </Typography>
-          <Typography sx={{ fontSize: '0.9rem' }}>
-            New to the club? <Link to="/join" style={{ color: '#4CAF50', textDecoration: 'none' }}>Apply to join 申请加入</Link>
+          <Typography sx={{ fontSize: '0.9rem', color: MUTED }}>
+            New to the club? <Link to="/join" style={{ color: ORANGE, fontWeight: 600, textDecoration: 'none' }}>Apply to join 申请加入</Link>
           </Typography>
         </Box>
       </Paper>

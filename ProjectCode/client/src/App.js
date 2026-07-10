@@ -1,7 +1,7 @@
 // src/App.js
 import React, { Suspense } from "react";
 import { Box, CircularProgress, Container, CssBaseline, ThemeProvider, Typography } from "@mui/material";
-import { amber, indigo } from "@mui/material/colors";
+import { amber } from "@mui/material/colors";
 import { createTheme } from "@mui/material/styles";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
@@ -23,11 +23,14 @@ const RegisterPage = React.lazy(() => import("./pages/RegisterPage"));
 const SponsorsPage = React.lazy(() => import("./pages/SponsorsPage"));
 const TrainingPage = React.lazy(() => import("./pages/TrainingPage"));
 
-// Create the theme
+// Create the theme — brand orange primary matching the homepage design language
 export const theme = createTheme({
   palette: {
-    primary: indigo,
+    primary: { main: '#FFA500', dark: '#F29400', light: '#FFB84D', contrastText: '#FFFFFF' },
     secondary: amber,
+  },
+  shape: {
+    borderRadius: 12,
   },
 });
 

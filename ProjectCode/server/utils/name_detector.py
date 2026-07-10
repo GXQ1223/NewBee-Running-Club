@@ -28,7 +28,9 @@ ANNUAL_PATTERN = re.compile(r'\bannual\b', re.IGNORECASE)
 EDITION_PATTERN = re.compile(r'\b(edition|ed\.?)\b', re.IGNORECASE)
 
 # Chinese patterns
-CN_YEAR_PATTERN = re.compile(r'\b(19|20)\d{2}年?\b')
+# NOTE: \b does not work here — CJK characters count as \w, so there is no
+# word boundary between "2024年" and "布鲁克林". Use digit lookarounds instead.
+CN_YEAR_PATTERN = re.compile(r'(?<!\d)(19|20)\d{2}(?!\d)年?')
 CN_ORDINAL_PATTERN = re.compile(r'第\d+届')
 
 

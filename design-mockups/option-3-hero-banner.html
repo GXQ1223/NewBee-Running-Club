@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option 3 — Hero Banner · NewBee Running Club</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Boldest of the three but same ingredients: the carousel becomes a
+     full-bleed hero with the label/CTA on it, nav buttons float on top,
+     latest events become a horizontal photo strip, sections stay stacked
+     full-width (like today) but at half the height with text beside image. */
+  :root{
+    --orange:#FFA500; --orange-soft:#FFB84D; --orange-bg:#FFF6E8;
+    --ink:#212121; --muted:#757575; --line:#EEE7DC;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#FFFDFA;color:var(--ink)}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:1280px;margin:0 auto;padding:0 16px}
+
+  /* ---- Transparent top bar over hero ---- */
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:30}
+  .topbar .container{display:flex;align-items:center;height:68px;gap:10px}
+  .topbar img.logo{height:46px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+  .navpills{margin-left:auto;display:flex;gap:2px;flex-wrap:wrap}
+  .np{font-size:13.5px;font-weight:600;color:#fff;padding:8px 14px;border-radius:99px;
+      text-shadow:0 1px 3px rgba(0,0,0,.5);transition:all .15s}
+  .np:hover{background:rgba(255,255,255,.18)}
+  .np.active{background:var(--orange);text-shadow:none}
+  .join{background:#fff;color:var(--orange);font-weight:700;font-size:13px;padding:9px 20px;
+      border-radius:99px;margin-left:8px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .join:hover{background:var(--orange-bg)}
+
+  /* ---- Full-bleed hero carousel ---- */
+  .hero{position:relative;height:560px;overflow:hidden}
+  .hero img.bg{width:100%;height:100%;object-fit:cover;display:block}
+  .hero .shade{position:absolute;inset:0;
+      background:linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.25) 45%,rgba(0,0,0,.35) 100%)}
+  .hero .content{position:absolute;left:0;right:0;bottom:0}
+  .hero .content .container{padding-bottom:44px}
+  .hero .tag{display:inline-block;background:var(--orange);color:#fff;font-size:12px;font-weight:700;
+      letter-spacing:.05em;padding:6px 14px;border-radius:99px;margin-bottom:14px}
+  .hero h1{color:#fff;font-size:44px;font-weight:900;letter-spacing:-.01em;line-height:1.05;
+      text-shadow:2px 2px 8px rgba(0,0,0,.5)}
+  .hero .cn-sub{color:rgba(255,255,255,.92);font-size:18px;margin-top:8px;font-family:'Noto Sans SC';
+      text-shadow:1px 1px 4px rgba(0,0,0,.5)}
+  .hero .ctas{margin-top:22px;display:flex;gap:12px}
+  .hero .b1{background:var(--orange);color:#fff;font-weight:700;font-size:14px;padding:12px 26px;
+      border-radius:99px;box-shadow:0 4px 14px rgba(255,165,0,.45);transition:all .15s}
+  .hero .b1:hover{background:#F29400;transform:translateY(-1px)}
+  .hero .b2{border:1.5px solid rgba(255,255,255,.75);color:#fff;font-weight:600;font-size:14px;
+      padding:12px 24px;border-radius:99px}
+  .hero .b2:hover{background:rgba(255,255,255,.15)}
+  .hero .dots{position:absolute;right:32px;bottom:28px;display:flex;gap:8px}
+  .hero .dots i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.5);cursor:pointer}
+  .hero .dots i.on{background:var(--orange)}
+
+  /* ---- Latest events: horizontal photo strip ---- */
+  .striphead{display:flex;align-items:baseline;gap:10px;margin:28px 2px 14px}
+  .striphead h2{font-size:20px;font-weight:700}
+  .striphead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+  .striphead a{margin-left:auto;color:var(--orange);font-weight:700;font-size:13px}
+  .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .evt{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+      cursor:pointer;transition:all .2s;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  .evt:hover{box-shadow:0 8px 24px rgba(255,165,0,.3);transform:translateY(-3px)}
+  .evt img{width:100%;height:120px;object-fit:cover;display:block}
+  .evt .body{padding:12px 14px}
+  .evt b{display:block;font-size:14px;font-weight:600;line-height:1.3}
+  .evt span{font-size:12px;color:var(--muted);font-family:'Noto Sans SC'}
+  .evt .date{display:block;font-size:11.5px;color:var(--orange);font-weight:700;margin-top:6px}
+
+  /* ---- Sections: stacked full-width like today, but half height, image + text split ---- */
+  .sections{margin-top:36px;display:flex;flex-direction:column;gap:18px;padding-bottom:44px}
+  .section{display:grid;grid-template-columns:1fr 1fr;background:#fff;border:1px solid var(--line);
+      border-radius:14px;overflow:hidden;height:210px;cursor:pointer;transition:all .2s;
+      box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  .section:hover{box-shadow:0 8px 24px rgba(255,165,0,.3);transform:translateY(-2px)}
+  .section:nth-child(even){grid-template-columns:1fr 1fr}
+  .section:nth-child(even) .txt{order:1}
+  .section:nth-child(even) img{order:2}
+  .section img{width:100%;height:100%;object-fit:cover;display:block}
+  .section .txt{padding:30px 36px;display:flex;flex-direction:column;justify-content:center}
+  .section .txt h3{font-size:24px;font-weight:700;letter-spacing:-.01em}
+  .section .txt .cn{font-size:15px;color:var(--muted);margin-top:4px;font-family:'Noto Sans SC'}
+  .section .txt .go{margin-top:18px;color:var(--orange);font-weight:700;font-size:14px;
+      display:flex;align-items:center;gap:6px;transition:gap .15s}
+  .section:hover .txt .go{gap:12px}
+
+  footer{border-top:1px solid var(--line);background:#fff;padding:20px 0}
+  footer .container{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--muted)}
+  footer img{height:28px}
+  footer .right{margin-left:auto;display:flex;gap:18px}
+  @media(max-width:900px){
+    .navpills{display:none}
+    .hero{height:420px}
+    .hero h1{font-size:30px}
+    .strip{grid-template-columns:1fr 1fr}
+    .section{grid-template-columns:1fr;height:auto}
+    .section img{height:160px;order:1}
+    .section .txt{order:2;padding:20px 22px}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <img class="bg" src="../ProjectCode/client/public/Master-Image-1.jpg" alt="NewBee Running Club">
+  <div class="shade"></div>
+
+  <div class="topbar">
+    <div class="container">
+      <a href="#"><img class="logo" src="../ProjectCode/client/public/PageLogo.png" alt="NewBee Running Club"></a>
+      <div class="navpills">
+        <a class="np active" href="#">Home 主页</a>
+        <a class="np" href="#">About Us 关于我们</a>
+        <a class="np" href="#">Upcoming 即将到来</a>
+        <a class="np" href="#">Memories 活动回忆</a>
+        <a class="np" href="#">Credits/Records 积分</a>
+        <a class="np" href="#">Training 训练</a>
+        <a class="np" href="#">Sponsors 赞助者</a>
+      </div>
+      <a class="join" href="#">Join NewBee 加入新蜂</a>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="container">
+      <span class="tag">FEATURED · 精选</span>
+      <h1>Brooklyn Half Marathon 2025</h1>
+      <div class="cn-sub">布鲁克林半程马拉松 · 纽约新蜂跑团</div>
+      <div class="ctas">
+        <a class="b1" href="#">Event Registration 活动报名 →</a>
+        <a class="b2" href="#">Memories 活动回忆</a>
+      </div>
+    </div>
+  </div>
+  <div class="dots"><i class="on"></i><i></i><i></i></div>
+</div>
+
+<div class="container">
+  <div class="striphead"><h2>Latest Events</h2><span>最新活动</span><a href="#">View Calendar 查看日历 →</a></div>
+  <div class="strip">
+    <div class="evt">
+      <img src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg" alt="">
+      <div class="body"><b>NYRR Team Championships</b><span>团队锦标赛</span><span class="date">Jul 27, 2025</span></div>
+    </div>
+    <div class="evt">
+      <img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="">
+      <div class="body"><b>Queens 10K</b><span>皇后区10公里</span><span class="date">Jun 20, 2025</span></div>
+    </div>
+    <div class="evt">
+      <img src="../ProjectCode/client/public/images/2025/20250604_9th_anniversary_run.jpg" alt="">
+      <div class="body"><b>9th Anniversary Run</b><span>九周年纪念跑</span><span class="date">Jun 4, 2025</span></div>
+    </div>
+    <div class="evt">
+      <img src="../ProjectCode/client/public/images/2025/20250517_bk_half.jpg" alt="">
+      <div class="body"><b>Brooklyn Half</b><span>布鲁克林半马</span><span class="date">May 17, 2025</span></div>
+    </div>
+  </div>
+
+  <div class="sections">
+    <a class="section" href="#">
+      <img src="../ProjectCode/client/public/EventRegistration.png" alt="Event Registration">
+      <div class="txt"><h3>Event Registration</h3><div class="cn">活动报名</div><span class="go">Register now 立即报名 <b>→</b></span></div>
+    </a>
+    <a class="section" href="#">
+      <img src="../ProjectCode/client/public/Highlights.png" alt="Memories">
+      <div class="txt"><h3>Memories</h3><div class="cn">回忆</div><span class="go">Browse highlights 浏览回忆 <b>→</b></span></div>
+    </a>
+    <a class="section" href="#">
+      <img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="Club Credits/Records">
+      <div class="txt"><h3>Club Credits/Records</h3><div class="cn">俱乐部积分/记录</div><span class="go">See records 查看记录 <b>→</b></span></div>
+    </a>
+    <a class="section" href="#">
+      <img src="../ProjectCode/client/public/AboutUs.png" alt="Join NewBee">
+      <div class="txt"><h3>Join NewBee</h3><div class="cn">加入新蜂</div><span class="go">Become a member 成为会员 <b>→</b></span></div>
+    </a>
+    <a class="section" href="#">
+      <img src="../ProjectCode/client/public/images/2025/20250503_bk_half_preview_run.jpg" alt="Training With Us">
+      <div class="txt"><h3>Training With Us</h3><div class="cn">与我们训练</div><span class="go">Train with us 一起训练 <b>→</b></span></div>
+    </a>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <img src="../ProjectCode/client/public/PageLogo.png" alt="">
+    <span>© 2026 NewBee Running Club · newbeerunningclub.org</span>
+    <div class="right"><a href="#">Our Sponsors/Donors 我们的赞助者</a><a href="#">About Us 关于我们</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

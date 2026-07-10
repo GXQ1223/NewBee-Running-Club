@@ -1,4 +1,3 @@
-import FilterListIcon from '@mui/icons-material/FilterList';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -6,18 +5,47 @@ import InfoIcon from '@mui/icons-material/Info';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import StarIcon from '@mui/icons-material/Star';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
-import { Alert, Box, Button, Card, CardContent, CardMedia, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, IconButton, MenuItem, Snackbar, Switch, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, IconButton, MenuItem, Snackbar, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import ShareIcon from '@mui/icons-material/Share';
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import NavigationButtons from '../components/NavigationButtons';
 import EventDetailModal from '../components/EventDetailModal';
 import EventCardImage from '../components/EventCardImage';
 import { useAdmin, useAuth } from '../context';
 import { useAutoFillOnTab, useTranslationAutoFill } from '../hooks';
 import { getEventsByStatus, createEvent, updateEvent, deleteEvent } from '../api';
 import { uploadImage } from '../api/homepageSections';
+
+// Design tokens — match the redesigned HomePage / NavBar
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
+
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+// Parse an event date (YYYY-MM-DD) into { day, month } for the date bubble
+function parseBubbleDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(d.getTime())) return null;
+  return { day: d.getDate(), month: MONTHS[d.getMonth()] };
+}
+
+// Pill styling for the filter selects
+const filterPillSx = {
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '99px',
+    backgroundColor: 'white',
+    '& fieldset': { borderColor: LINE },
+    '&:hover fieldset': { borderColor: ORANGE },
+    '&.Mui-focused fieldset': { borderColor: ORANGE },
+  },
+  '& .MuiInputLabel-root.Mui-focused': { color: ORANGE },
+};
 
 const initialFormData = {
   name: '',
@@ -192,6 +220,10 @@ export default function CalendarPage() {
           location: event.location,
           chineseLocation: event.chineseLocation,
           chineseDescription: event.chineseDescription,
+          signupLink: event.signupLink,
+          status: event.status,
+          eventType: event.eventType,
+          heyloEmbed: event.heyloEmbed,
           wechatQrCode: event.wechatQrCode
         })));
       } catch (error) {
@@ -388,6 +420,8 @@ export default function CalendarPage() {
         location: event.location,
         chineseLocation: event.chineseLocation,
         chineseDescription: event.chineseDescription,
+        signupLink: event.signupLink,
+        status: event.status,
         eventType: event.eventType,
         heyloEmbed: event.heyloEmbed,
         wechatQrCode: event.wechatQrCode
@@ -445,6 +479,8 @@ export default function CalendarPage() {
         location: event.location,
         chineseLocation: event.chineseLocation,
         chineseDescription: event.chineseDescription,
+        signupLink: event.signupLink,
+        status: event.status,
         eventType: event.eventType,
         heyloEmbed: event.heyloEmbed,
         wechatQrCode: event.wechatQrCode
@@ -574,7 +610,8 @@ export default function CalendarPage() {
   // Filter events based on selected filters
   const filteredEvents = upcomingEvents.filter(event => {
     if (filters.date) {
-      const referenceDate = new Date(2025, 4, 16); // May 16, 2025
+      const referenceDate = new Date();
+      referenceDate.setHours(0, 0, 0, 0);
       const thisWeek = new Date(referenceDate.getTime() + 7 * 24 * 60 * 60 * 1000);
       const thisMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
       const nextMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 2, 0);
@@ -607,12 +644,9 @@ export default function CalendarPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {/* Navigation Buttons */}
-      <NavigationButtons />
-
       {/* Admin Mode Alert */}
       {adminModeEnabled && (
-        <Container maxWidth="xl" sx={{ px: 2, mt: 2 }}>
+        <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 2 }}>
           <Alert
             severity="info"
             icon={<InfoIcon />}
@@ -623,21 +657,15 @@ export default function CalendarPage() {
       )}
 
       {/* Upcoming Events Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Upcoming Events
-          <br />
-          即将举行的活动
-        </Typography>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Upcoming Events
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            即将举行的活动
+          </Typography>
+        </Box>
 
         {adminModeEnabled && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
@@ -645,12 +673,16 @@ export default function CalendarPage() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleAddEvent}
+              disableElevation
               sx={{
-                backgroundColor: '#FFB84D',
+                backgroundColor: ORANGE,
                 color: 'white',
                 textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '99px',
+                boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
                 '&:hover': {
-                  backgroundColor: '#FFA833',
+                  backgroundColor: ORANGE_DARK,
                 }
               }}
             >
@@ -663,15 +695,21 @@ export default function CalendarPage() {
           {featuredEvents.map((event) => (
             <Grid item xs={12} md={4} key={event.id}>
               <Card
+                elevation={0}
                 sx={{
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
                   cursor: 'pointer',
                   position: 'relative',
+                  backgroundColor: 'white',
+                  border: `1px solid ${LINE}`,
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
                   '&:hover': {
-                    transform: 'translateY(-4px)',
-                    transition: 'transform 0.3s ease-in-out'
+                    transform: 'translateY(-3px)',
+                    boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
                   }
                 }}
                 onClick={() => handleEventClick(event)}
@@ -786,24 +824,22 @@ export default function CalendarPage() {
                   </Typography>
                   <Button
                     variant="contained"
+                    disableElevation
                     sx={{
-                      backgroundColor: '#FFB84D',
+                      backgroundColor: ORANGE,
                       color: 'white',
                       textTransform: 'none',
-                      fontSize: '16px',
-                      px: 2,
-                      py: 1.5,
-                      borderRadius: '12px',
-                      border: '2px solid #FFB84D',
+                      fontWeight: 600,
+                      fontSize: '0.9375rem',
+                      px: 2.5,
+                      py: 1.1,
+                      borderRadius: '99px',
                       mt: 'auto',
                       '&:hover': {
-                        backgroundColor: '#FFA833',
-                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                        transform: 'translateY(-2px)',
+                        backgroundColor: ORANGE_DARK,
                       },
                       '&:active': {
-                        transform: 'translateY(1px) scale(0.98)',
-                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                        transform: 'scale(0.98)',
                       }
                     }}
                   >
@@ -817,29 +853,25 @@ export default function CalendarPage() {
       </Container>
 
       {/* Event Calendar Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 6 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Upcoming
-          <br />
-          即将到来
-        </Typography>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
+          <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
+            Upcoming
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            即将到来
+          </Typography>
+        </Box>
 
         {/* Filters */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', mb: 3 }}>
           <Grid container spacing={2} sx={{ maxWidth: 1000 }}>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Date"
               value={filters.date}
               onChange={handleFilterChange('date')}
@@ -854,6 +886,8 @@ export default function CalendarPage() {
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Location"
               value={filters.location}
               onChange={handleFilterChange('location')}
@@ -868,6 +902,8 @@ export default function CalendarPage() {
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Distance"
               value={filters.distance}
               onChange={handleFilterChange('distance')}
@@ -883,6 +919,8 @@ export default function CalendarPage() {
             <TextField
               select
               fullWidth
+              size="small"
+              sx={filterPillSx}
               label="Status"
               value={filters.status}
               onChange={handleFilterChange('status')}
@@ -901,6 +939,7 @@ export default function CalendarPage() {
           {filteredEvents.map((event) => (
             <Card
               key={event.id}
+              elevation={0}
               sx={{
                 display: 'flex',
                 flexDirection: { xs: 'column', sm: 'row' },
@@ -908,10 +947,14 @@ export default function CalendarPage() {
                 overflow: 'hidden',
                 cursor: 'pointer',
                 position: 'relative',
+                backgroundColor: 'white',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                transition: 'all 0.2s ease',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  transition: 'transform 0.3s ease-in-out',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
                 }
               }}
               onClick={() => handleEventClick(event)}
@@ -990,7 +1033,7 @@ export default function CalendarPage() {
                 <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
               </Box>
 
-              {/* Time Column - hidden on mobile, shown on sm+ */}
+              {/* Date/Time Column - hidden on mobile, shown on sm+ */}
               <Box
                 sx={{
                   display: { xs: 'none', sm: 'flex' },
@@ -998,18 +1041,43 @@ export default function CalendarPage() {
                   flexDirection: 'column',
                   justifyContent: 'center',
                   alignItems: 'center',
+                  gap: 0.75,
                   backgroundColor: 'white',
-                  color: '#FFA500',
                   p: 2,
-                  borderRight: '1px solid #e0e0e0',
+                  borderRight: `1px solid ${LINE}`,
                   whiteSpace: 'nowrap'
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {(() => {
+                  const bubbleDate = parseBubbleDate(event.date);
+                  return bubbleDate ? (
+                    <Box
+                      sx={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: '12px',
+                        backgroundColor: ORANGE_BG,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: ORANGE, lineHeight: 1.1 }}>
+                        {bubbleDate.day}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.59rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, textTransform: 'uppercase' }}>
+                        {bubbleDate.month}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: MUTED, whiteSpace: 'nowrap' }}>
+                      {event.date}
+                    </Typography>
+                  );
+                })()}
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: ORANGE, whiteSpace: 'nowrap' }}>
                   {event.time}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                  {event.date}
                 </Typography>
               </Box>
 
@@ -1048,7 +1116,7 @@ export default function CalendarPage() {
                   </IconButton>
                 </Box>
                 {/* Mobile: Show date/time at top of content */}
-                <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: '#FFA500' }}>
+                <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: ORANGE }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     {event.time}
                   </Typography>
@@ -1068,24 +1136,22 @@ export default function CalendarPage() {
                   </Box>
                   <Button
                     variant="contained"
+                    disableElevation
                     sx={{
-                      backgroundColor: '#FFB84D',
+                      backgroundColor: ORANGE,
                       color: 'white',
                       textTransform: 'none',
-                      fontSize: { xs: '14px', sm: '16px' },
-                      px: { xs: 1.5, sm: 2 },
-                      py: { xs: 1, sm: 1.5 },
-                      borderRadius: '12px',
-                      border: '2px solid #FFB84D',
+                      fontWeight: 600,
+                      fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
+                      px: { xs: 2, sm: 2.5 },
+                      py: { xs: 0.75, sm: 1 },
+                      borderRadius: '99px',
                       flexShrink: 0,
                       '&:hover': {
-                        backgroundColor: '#FFA833',
-                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                        transform: 'translateY(-2px)',
+                        backgroundColor: ORANGE_DARK,
                       },
                       '&:active': {
-                        transform: 'translateY(1px) scale(0.98)',
-                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                        transform: 'scale(0.98)',
                       }
                     }}
                     onClick={(e) => {

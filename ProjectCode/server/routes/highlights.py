@@ -63,6 +63,7 @@ def merge_events_to_group(
     # Add child to group
     child_event.parent_event_id = parent_event.id
     child_event.is_recurring = False
+    db.flush()  # session has autoflush=False; make pending change visible to queries below
 
     # Auto-detect group name
     group_events = db.query(Event).filter(
@@ -108,6 +109,7 @@ def remove_event_from_group(
         event.parent_event_id = None
         event.group_name = None
         event.group_name_cn = None
+        db.flush()  # session has autoflush=False; make removal visible to the count below
 
         # Check remaining children
         remaining_children = db.query(Event).filter(Event.parent_event_id == parent_id).count()
@@ -341,6 +343,7 @@ def undo_group_merge(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Event is not in this group")
 
     event.parent_event_id = None
+    db.flush()  # session has autoflush=False; make removal visible to the count below
 
     # Check if group should be dissolved
     remaining = db.query(Event).filter(Event.parent_event_id == parent_id).count()

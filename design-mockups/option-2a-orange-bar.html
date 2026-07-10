@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option 2A — Orange Bar (closest to current) · NewBee Running Club</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Variation A: keeps today's orange NavBar (#e98f4b) exactly — nav pills live
+     inside it in white. Below the bar everything matches the side-by-side layout. */
+  :root{
+    --orange:#FFA500; --bar:#e98f4b; --orange-bg:#FFF6E8;
+    --ink:#212121; --muted:#757575; --line:#EEE7DC;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#FFFDFA;color:var(--ink)}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:1280px;margin:0 auto;padding:0 16px}
+
+  /* ---- Orange top bar, same color as current NavBar ---- */
+  .topbar{background:var(--bar);position:sticky;top:0;z-index:40}
+  .topbar .container{display:flex;align-items:center;height:60px;gap:8px}
+  .topbar img.logo{height:38px;filter:invert(1);mix-blend-mode:screen}
+  .navpills{display:flex;gap:2px;flex-wrap:wrap;margin-left:10px}
+  .np{font-size:13px;font-weight:600;color:rgba(255,255,255,.88);padding:7px 13px;border-radius:99px;transition:all .15s}
+  .np small{font-size:10.5px;font-weight:400;opacity:.8;margin-left:5px;font-family:'Noto Sans SC'}
+  .np:hover{background:rgba(255,255,255,.15);color:#fff}
+  .np.active{background:#fff;color:var(--bar)}
+  .topbar .right{margin-left:auto;display:flex;gap:4px;align-items:center}
+  .topbar .right a.soc{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+      font-size:14px;color:rgba(255,255,255,.8)}
+  .topbar .right a.soc:hover{background:rgba(255,255,255,.15);color:#fff}
+  .topbar .profile{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;
+      font-weight:600;font-size:13px;padding:7px 16px;border-radius:8px;margin-left:8px}
+  .topbar .profile:hover{background:rgba(255,255,255,.2)}
+
+  /* ---- Fold: carousel 2/3 + latest 1/3 ---- */
+  .fold{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px}
+  .carousel{position:relative;height:440px;border-radius:12px;overflow:hidden;cursor:pointer;
+      box-shadow:0 2px 4px rgba(0,0,0,.1);transition:box-shadow .3s}
+  .carousel:hover{box-shadow:0 8px 24px rgba(255,165,0,.3)}
+  .carousel img{width:100%;height:100%;object-fit:cover;display:block}
+  .carousel .overlay{position:absolute;left:0;right:0;bottom:0;padding:24px 28px;
+      background:linear-gradient(to top,rgba(0,0,0,.7),rgba(0,0,0,.3) 55%,transparent);
+      display:flex;align-items:flex-end;justify-content:space-between}
+  .carousel .overlay h2{color:#fff;font-size:24px;font-weight:600;text-shadow:2px 2px 4px rgba(0,0,0,.5)}
+  .carousel .overlay p{color:rgba(255,255,255,.9);font-size:14px;font-family:'Noto Sans SC'}
+  .carousel .overlay .arrow{color:var(--orange);font-size:28px;font-weight:700}
+  .carousel .dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+  .carousel .dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.5)}
+  .carousel .dots i.on{background:var(--orange)}
+
+  .latestcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;
+      display:flex;flex-direction:column;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  .latestcard h3{font-size:15px;font-weight:700;margin-bottom:4px}
+  .latestcard h3 span{font-size:12.5px;color:var(--muted);font-weight:400;margin-left:8px;font-family:'Noto Sans SC'}
+  .latestcard .item{display:flex;gap:12px;align-items:center;padding:11px 6px;border-radius:10px;cursor:pointer;transition:background .15s}
+  .latestcard .item:hover{background:var(--orange-bg)}
+  .latestcard .item + .item{border-top:1px solid var(--line)}
+  .latestcard .thumb{width:58px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0}
+  .latestcard .item b{display:block;font-size:13.5px;font-weight:600;line-height:1.3}
+  .latestcard .item span{font-size:11.5px;color:var(--muted);font-family:'Noto Sans SC'}
+  .latestcard .item .date{margin-left:auto;font-size:11.5px;color:var(--orange);font-weight:700;white-space:nowrap}
+  .latestcard .all{margin-top:auto;text-align:center;color:#fff;background:var(--orange);font-weight:700;
+      font-size:13px;padding:10px;border-radius:99px;box-shadow:0 2px 6px rgba(255,165,0,.3);transition:background .15s}
+  .latestcard .all:hover{background:#F29400}
+
+  /* ---- Sections: 3×2 overlay-title grid ---- */
+  .sechead{display:flex;align-items:baseline;gap:10px;margin:30px 2px 14px}
+  .sechead h2{font-size:20px;font-weight:700}
+  .sechead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding-bottom:44px}
+  .card{position:relative;height:200px;border-radius:12px;overflow:hidden;cursor:pointer;
+      box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s}
+  .card:hover{box-shadow:0 8px 24px rgba(255,165,0,.35);transform:translateY(-3px)}
+  .card img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+  .card:hover img{transform:scale(1.04)}
+  .card .label{position:absolute;left:0;right:0;bottom:0;padding:14px 16px;
+      background:linear-gradient(to top,rgba(0,0,0,.72),rgba(0,0,0,.25) 65%,transparent);
+      display:flex;align-items:flex-end;justify-content:space-between}
+  .card .label b{color:#fff;font-size:16px;font-weight:600;text-shadow:1px 1px 3px rgba(0,0,0,.5)}
+  .card .label b small{display:block;font-size:12px;font-weight:400;color:rgba(255,255,255,.9);font-family:'Noto Sans SC'}
+  .card .label .arrow{color:var(--orange);font-size:20px;font-weight:700;opacity:0;transform:translateX(-4px);transition:all .2s}
+  .card:hover .label .arrow{opacity:1;transform:translateX(0)}
+
+  footer{border-top:1px solid var(--line);background:#fff;padding:18px 0}
+  footer .container{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--muted)}
+  footer img{height:26px}
+  footer .right{margin-left:auto;display:flex;gap:18px}
+  @media(max-width:1080px){.navpills .np small{display:none}}
+  @media(max-width:900px){
+    .fold{grid-template-columns:1fr}
+    .grid{grid-template-columns:1fr 1fr}
+    .carousel{height:260px}
+    .navpills{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <a href="#"><img class="logo" src="../ProjectCode/client/public/PageLogo.png" alt="NewBee Running Club"></a>
+    <div class="navpills">
+      <a class="np active" href="#">Home<small>主页</small></a>
+      <a class="np" href="#">About Us<small>关于我们</small></a>
+      <a class="np" href="#">Upcoming<small>即将到来</small></a>
+      <a class="np" href="#">Memories<small>活动回忆</small></a>
+      <a class="np" href="#">Credits/Records<small>俱乐部积分</small></a>
+      <a class="np" href="#">Training<small>与我们训练</small></a>
+      <a class="np" href="#">Sponsors<small>赞助者</small></a>
+    </div>
+    <div class="right">
+      <a class="soc" href="#" title="Instagram">📷</a>
+      <a class="soc" href="#" title="Xiaohongshu / 小红书">📕</a>
+      <a class="soc" href="#" title="Heylo">👋</a>
+      <a class="soc" href="#" title="Shop / 商店">🛍️</a>
+      <a class="profile" href="#">Profile</a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="fold">
+    <div class="carousel">
+      <img src="../ProjectCode/client/public/Master-Image-1.jpg" alt="NewBee Running Club">
+      <div class="overlay">
+        <div>
+          <h2>Brooklyn Half Marathon 2025</h2>
+          <p>布鲁克林半程马拉松</p>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+      <div class="dots"><i class="on"></i><i></i><i></i></div>
+    </div>
+
+    <div class="latestcard">
+      <h3>Latest Events<span>最新活动</span></h3>
+      <div class="item">
+        <img class="thumb" src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg" alt="">
+        <div><b>NYRR Team Championships</b><span>团队锦标赛</span></div>
+        <span class="date">Jul 27</span>
+      </div>
+      <div class="item">
+        <img class="thumb" src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="">
+        <div><b>Queens 10K</b><span>皇后区10公里</span></div>
+        <span class="date">Jun 20</span>
+      </div>
+      <div class="item">
+        <img class="thumb" src="../ProjectCode/client/public/images/2025/20250604_9th_anniversary_run.jpg" alt="">
+        <div><b>9th Anniversary Run</b><span>九周年纪念跑</span></div>
+        <span class="date">Jun 4</span>
+      </div>
+      <div class="item">
+        <img class="thumb" src="../ProjectCode/client/public/images/2025/20250517_bk_half.jpg" alt="">
+        <div><b>Brooklyn Half</b><span>布鲁克林半马</span></div>
+        <span class="date">May 17</span>
+      </div>
+      <a class="all" href="#">View Calendar 查看日历 →</a>
+    </div>
+  </div>
+
+  <div class="sechead"><h2>Explore NewBee</h2><span>探索新蜂</span></div>
+  <div class="grid">
+    <a class="card" href="#">
+      <img src="../ProjectCode/client/public/EventRegistration.png" alt="Event Registration">
+      <div class="label"><b>Event Registration<small>活动报名</small></b><span class="arrow">→</span></div>
+    </a>
+    <a class="card" href="#">
+      <img src="../ProjectCode/client/public/Highlights.png" alt="Memories">
+      <div class="label"><b>Memories<small>回忆</small></b><span class="arrow">→</span></div>
+    </a>
+    <a class="card" href="#">
+      <img src="../ProjectCode/client/public/images/2025/20250517_bk_half.jpg" alt="Upcoming">
+      <div class="label"><b>Upcoming<small>即将到来</small></b><span class="arrow">→</span></div>
+    </a>
+    <a class="card" href="#">
+      <img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="Club Credits/Records">
+      <div class="label"><b>Club Credits/Records<small>俱乐部积分/记录</small></b><span class="arrow">→</span></div>
+    </a>
+    <a class="card" href="#">
+      <img src="../ProjectCode/client/public/AboutUs.png" alt="Join NewBee">
+      <div class="label"><b>Join NewBee<small>加入新蜂</small></b><span class="arrow">→</span></div>
+    </a>
+    <a class="card" href="#">
+      <img src="../ProjectCode/client/public/images/2025/20250503_bk_half_preview_run.jpg" alt="Training With Us">
+      <div class="label"><b>Training With Us<small>与我们训练</small></b><span class="arrow">→</span></div>
+    </a>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <img src="../ProjectCode/client/public/PageLogo.png" alt="">
+    <span>© 2026 NewBee Running Club · newbeerunningclub.org</span>
+    <div class="right"><a href="#">Our Sponsors/Donors 我们的赞助者</a><a href="#">About Us 关于我们</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

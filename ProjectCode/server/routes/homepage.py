@@ -29,6 +29,26 @@ def get_all_sections(
     return sections
 
 
+@router.put("/reorder")
+def reorder_sections(
+    request: SectionReorderRequest,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_admin)
+):
+    """Reorder homepage sections (admin only).
+
+    NOTE: must be registered before the /{section_id} routes, otherwise
+    PUT /reorder is captured by PUT /{section_id} and fails with 422.
+    """
+    for index, section_id in enumerate(request.section_ids):
+        section = db.query(HomepageSection).filter(HomepageSection.id == section_id).first()
+        if section:
+            section.display_order = index
+
+    db.commit()
+    return {"message": "Sections reordered successfully"}
+
+
 @router.get("/{section_id}", response_model=HomepageSectionResponse)
 def get_section(section_id: int, db: Session = Depends(get_db)):
     """Get a specific homepage section by ID"""
@@ -87,19 +107,3 @@ def delete_section(
     db.delete(section)
     db.commit()
     return {"message": f"Section {section_id} deleted successfully"}
-
-
-@router.put("/reorder")
-def reorder_sections(
-    request: SectionReorderRequest,
-    db: Session = Depends(get_db),
-    current_admin: Member = Depends(get_current_admin)
-):
-    """Reorder homepage sections (admin only)"""
-    for index, section_id in enumerate(request.section_ids):
-        section = db.query(HomepageSection).filter(HomepageSection.id == section_id).first()
-        if section:
-            section.display_order = index
-
-    db.commit()
-    return {"message": "Sections reordered successfully"}

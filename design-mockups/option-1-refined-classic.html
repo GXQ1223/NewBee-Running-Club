@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option 1 — Refined Classic · NewBee Running Club</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Same structure as today (nav buttons → carousel → latest list → sections),
+     just tightened: pill buttons, condensed 2-col section grid, softer shadows. */
+  :root{
+    --orange:#FFA500; --orange-soft:#FFB84D; --orange-bg:#FFF6E8;
+    --red:#E85D2F; --ink:#212121; --muted:#757575; --line:#EEE7DC;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#FFFDFA;color:var(--ink)}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:1280px;margin:0 auto;padding:0 16px}
+
+  /* ---- Top bar (same as current NavBar: logo left, socials right) ---- */
+  .topbar{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+  .topbar .container{display:flex;align-items:center;height:60px;gap:16px}
+  .topbar img.logo{height:42px}
+  .topbar .socials{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .topbar .socials a{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+      color:var(--muted);font-size:16px;transition:all .15s}
+  .topbar .socials a:hover{background:var(--orange-bg);color:var(--orange)}
+  .topbar .login{border:1.5px solid var(--orange);color:var(--orange);font-weight:600;font-size:13px;
+      padding:7px 18px;border-radius:99px;margin-left:8px}
+  .topbar .login:hover{background:var(--orange);color:#fff}
+
+  /* ---- Navigation buttons (current filled variant → condensed pills) ---- */
+  .navbtns{padding:14px 0 4px}
+  .navbtns .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .nb{background:var(--orange);color:#fff;border-radius:99px;padding:8px 18px;text-align:center;
+      font-size:13px;font-weight:600;line-height:1.25;box-shadow:0 2px 6px rgba(255,165,0,.25);
+      transition:all .15s}
+  .nb small{display:block;font-size:11px;font-weight:400;opacity:.92;font-family:'Noto Sans SC'}
+  .nb:hover{background:#F29400;transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,165,0,.4)}
+  .nb.home{background:#fff;color:var(--orange);border:1.5px solid var(--orange);box-shadow:none}
+
+  /* ---- Carousel (same 500px rounded banner, label now always visible) ---- */
+  .carousel{position:relative;height:500px;border-radius:12px;overflow:hidden;margin-top:12px;
+      box-shadow:0 2px 4px rgba(0,0,0,.1);cursor:pointer;transition:box-shadow .3s}
+  .carousel:hover{box-shadow:0 8px 24px rgba(255,165,0,.3)}
+  .carousel img{width:100%;height:100%;object-fit:cover;display:block}
+  .carousel .overlay{position:absolute;left:0;right:0;bottom:0;padding:28px 32px;
+      background:linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.3) 55%,transparent 100%);
+      display:flex;align-items:flex-end;justify-content:space-between}
+  .carousel .overlay h2{color:#fff;font-size:26px;font-weight:600;text-shadow:2px 2px 4px rgba(0,0,0,.5)}
+  .carousel .overlay p{color:rgba(255,255,255,.9);font-size:15px;margin-top:2px;font-family:'Noto Sans SC'}
+  .carousel .overlay .arrow{color:var(--orange);font-size:30px;font-weight:700}
+  .carousel .dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+  .carousel .dots i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.5)}
+  .carousel .dots i.on{background:var(--orange)}
+
+  /* ---- Latest events list (same rows, slightly tighter) ---- */
+  .latest{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+  .latest .item{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);
+      border-radius:10px;padding:11px 16px;transition:all .15s;cursor:pointer}
+  .latest .item:hover{border-color:var(--orange-soft);box-shadow:0 4px 12px rgba(255,165,0,.18);transform:translateX(3px)}
+  .latest .item .thumb{width:52px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0}
+  .latest .item b{font-size:14px;font-weight:600}
+  .latest .item span{font-size:12.5px;color:var(--muted);margin-left:8px;font-family:'Noto Sans SC'}
+  .latest .item .date{margin-left:auto;font-size:12.5px;color:var(--orange);font-weight:600;white-space:nowrap}
+
+  /* ---- Sections (was: full-width stacked → now: 2-col grid, title above image kept) ---- */
+  .sections{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:26px 22px;padding-bottom:44px}
+  .section .titles{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding-left:2px}
+  .section .titles h3{font-size:19px;font-weight:700}
+  .section .titles span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+  .section .imgwrap{position:relative;height:240px;border-radius:12px;overflow:hidden;
+      box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s;cursor:pointer}
+  .section .imgwrap:hover{box-shadow:0 8px 24px rgba(255,165,0,.3);transform:translateY(-2px)}
+  .section .imgwrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+  .section .imgwrap:hover img{transform:scale(1.03)}
+  .section .imgwrap .go{position:absolute;right:14px;bottom:12px;background:rgba(255,255,255,.92);
+      color:var(--orange);font-weight:700;font-size:13px;border-radius:99px;padding:6px 14px;
+      opacity:0;transition:opacity .2s}
+  .section .imgwrap:hover .go{opacity:1}
+
+  footer{border-top:1px solid var(--line);background:#fff;padding:20px 0}
+  footer .container{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--muted)}
+  footer img{height:28px}
+  footer .right{margin-left:auto;display:flex;gap:18px}
+  @media(max-width:860px){
+    .sections{grid-template-columns:1fr}
+    .carousel{height:260px}
+    .nb small{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <a href="#"><img class="logo" src="../ProjectCode/client/public/PageLogo.png" alt="NewBee Running Club"></a>
+    <div class="socials">
+      <a href="#" title="Instagram">📷</a>
+      <a href="#" title="Xiaohongshu / 小红书">📕</a>
+      <a href="#" title="Heylo">👋</a>
+      <a href="#" title="Shop / 商店">🛍️</a>
+      <a class="login" href="#">Login / 登录</a>
+    </div>
+  </div>
+</div>
+
+<div class="container navbtns">
+  <div class="row">
+    <a class="nb home" href="#">NewBee Running Club<small>纽约新蜂跑团</small></a>
+    <a class="nb" href="#">About Us<small>关于我们</small></a>
+    <a class="nb" href="#">Upcoming<small>即将到来</small></a>
+    <a class="nb" href="#">Memories<small>活动回忆</small></a>
+    <a class="nb" href="#">Club Credits/Records<small>俱乐部积分</small></a>
+    <a class="nb" href="#">Join NewBee<small>加入新蜂</small></a>
+    <a class="nb" href="#">Training With Us<small>与我们训练</small></a>
+    <a class="nb" href="#">Our Sponsors/Donors<small>我们的赞助者/赞助商</small></a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="carousel">
+    <img src="../ProjectCode/client/public/Master-Image-1.jpg" alt="NewBee Running Club">
+    <div class="overlay">
+      <div>
+        <h2>Brooklyn Half Marathon 2025</h2>
+        <p>布鲁克林半程马拉松</p>
+      </div>
+      <span class="arrow">→</span>
+    </div>
+    <div class="dots"><i class="on"></i><i></i><i></i></div>
+  </div>
+
+  <div class="latest">
+    <div class="item">
+      <img class="thumb" src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg" alt="">
+      <b>NYRR Team Championships</b><span>团队锦标赛</span><span class="date">Jul 27, 2025</span>
+    </div>
+    <div class="item">
+      <img class="thumb" src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="">
+      <b>Queens 10K</b><span>皇后区10公里</span><span class="date">Jun 20, 2025</span>
+    </div>
+    <div class="item">
+      <img class="thumb" src="../ProjectCode/client/public/images/2025/20250604_9th_anniversary_run.jpg" alt="">
+      <b>9th Anniversary Run</b><span>九周年纪念跑</span><span class="date">Jun 4, 2025</span>
+    </div>
+  </div>
+
+  <div class="sections">
+    <div class="section">
+      <div class="titles"><h3>Event Registration</h3><span>活动报名</span></div>
+      <div class="imgwrap">
+        <img src="../ProjectCode/client/public/EventRegistration.png" alt="Event Registration">
+        <span class="go">Register →</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="titles"><h3>Memories</h3><span>回忆</span></div>
+      <div class="imgwrap">
+        <img src="../ProjectCode/client/public/Highlights.png" alt="Memories">
+        <span class="go">View →</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="titles"><h3>Upcoming</h3><span>即将到来</span></div>
+      <div class="imgwrap">
+        <img src="../ProjectCode/client/public/images/2025/20250517_bk_half.jpg" alt="Upcoming">
+        <span class="go">Calendar →</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="titles"><h3>Club Credits/Records</h3><span>俱乐部积分/记录</span></div>
+      <div class="imgwrap">
+        <img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="Club Credits/Records">
+        <span class="go">Records →</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="titles"><h3>Join NewBee</h3><span>加入新蜂</span></div>
+      <div class="imgwrap">
+        <img src="../ProjectCode/client/public/AboutUs.png" alt="Join NewBee">
+        <span class="go">Join →</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="titles"><h3>Training With Us</h3><span>与我们训练</span></div>
+      <div class="imgwrap">
+        <img src="../ProjectCode/client/public/images/2025/20250503_bk_half_preview_run.jpg" alt="Training With Us">
+        <span class="go">Train →</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <img src="../ProjectCode/client/public/PageLogo.png" alt="">
+    <span>© 2026 NewBee Running Club · newbeerunningclub.org</span>
+    <div class="right"><a href="#">Our Sponsors/Donors 我们的赞助者</a><a href="#">About Us 关于我们</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -4,12 +4,19 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
 import { useEffect, useState } from 'react';
-import NavigationButtons from '../components/NavigationButtons';
 import { useAdmin } from '../context';
 import { useAutoFillOnTab } from '../hooks';
 import { getAllDonors, getPublicDonors, createDonor, updateDonor, deleteDonor, getHideAmounts, toggleHideAmounts } from '../api/donors';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+
+// Design tokens (match HomePage / NavBar design language)
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
 
 export default function SponsorsPage() {
   const { adminModeEnabled } = useAdmin();
@@ -209,7 +216,7 @@ export default function SponsorsPage() {
     if (loading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress sx={{ color: '#FFA500' }} />
+          <CircularProgress sx={{ color: ORANGE }} />
         </Box>
       );
     }
@@ -229,21 +236,25 @@ export default function SponsorsPage() {
         {donors.map((donor) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={donor.donation_id}>
             <Card
-              variant="outlined"
+              elevation={0}
               sx={{
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
+                backgroundColor: 'white',
+                border: `1px solid ${LINE}`,
+                borderRadius: '12px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  transform: 'translateY(-2px)'
+                  boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                  transform: 'translateY(-3px)'
                 }
               }}
             >
               <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: INK, fontSize: '1.05rem' }}>
                     {donor.hide_name ? 'Anonymous Donor / 匿名捐赠者' : donor.name}
                   </Typography>
                   {adminModeEnabled && (
@@ -264,7 +275,7 @@ export default function SponsorsPage() {
 
                 {/* Show amount only in admin mode */}
                 {adminModeEnabled && (
-                  <Typography variant="h5" sx={{ color: '#FFA500', fontWeight: 600, mb: 1 }}>
+                  <Typography variant="h5" sx={{ color: ORANGE, fontWeight: 700, mb: 1 }}>
                     {donor.amount ? formatAmount(donor.amount) : formatAmount(0)}
                   </Typography>
                 )}
@@ -274,13 +285,13 @@ export default function SponsorsPage() {
                   <Chip
                     label={formatDate(donor.donation_date)}
                     size="small"
-                    sx={{ mb: 1, backgroundColor: 'rgba(255, 165, 0, 0.1)' }}
+                    sx={{ mb: 1, backgroundColor: ORANGE_BG, color: ORANGE, fontWeight: 700, borderRadius: '99px' }}
                   />
                 )}
 
                 {/* Show "Thank you!" message for individual donors when amount is hidden */}
                 {!donor.amount && !adminModeEnabled && donor.donor_type === 'individual' && (
-                  <Typography variant="body2" sx={{ color: '#FFA500', fontWeight: 500, mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: ORANGE, fontWeight: 500, mb: 1 }}>
                     Thank you for your support! / 感谢您的支持！
                   </Typography>
                 )}
@@ -301,7 +312,6 @@ export default function SponsorsPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
       {/* Navigation Buttons */}
-      <NavigationButtons />
 
       {/* Error Alert */}
       {error && (
@@ -321,22 +331,16 @@ export default function SponsorsPage() {
         </Container>
       )}
 
-      {/* Sponsors Text */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: 2,
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Our Sponsors/Donors
-          <br />
-          我们的赞助者/赞助商
-        </Typography>
+      {/* Sponsors Header */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Our Sponsors/Donors
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            我们的赞助者/赞助商
+          </Typography>
+        </Box>
 
         {adminModeEnabled && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 3 }}>
@@ -346,12 +350,18 @@ export default function SponsorsPage() {
               onClick={handleToggleHideAmounts}
               sx={{
                 textTransform: 'none',
-                borderColor: '#FFB84D',
-                color: hideAmounts ? 'white' : '#FFB84D',
-                backgroundColor: hideAmounts ? '#FFB84D' : 'transparent',
+                fontWeight: 600,
+                borderRadius: '99px',
+                px: 2.5,
+                boxShadow: 'none',
+                border: `1.5px solid ${ORANGE}`,
+                color: hideAmounts ? 'white' : ORANGE,
+                backgroundColor: hideAmounts ? ORANGE : 'transparent',
                 '&:hover': {
-                  backgroundColor: hideAmounts ? '#FFA833' : 'rgba(255, 184, 77, 0.08)',
-                  borderColor: '#FFA833',
+                  backgroundColor: hideAmounts ? ORANGE_DARK : ORANGE,
+                  color: 'white',
+                  border: `1.5px solid ${hideAmounts ? ORANGE_DARK : ORANGE}`,
+                  boxShadow: 'none',
                 }
               }}
             >
@@ -362,11 +372,16 @@ export default function SponsorsPage() {
               startIcon={<AddIcon />}
               onClick={handleAddDonor}
               sx={{
-                backgroundColor: '#FFB84D',
+                backgroundColor: ORANGE,
                 color: 'white',
                 textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '99px',
+                px: 2.5,
+                boxShadow: 'none',
                 '&:hover': {
-                  backgroundColor: '#FFA833',
+                  backgroundColor: ORANGE_DARK,
+                  boxShadow: 'none',
                 }
               }}
             >
@@ -375,16 +390,17 @@ export default function SponsorsPage() {
           </Box>
         )}
 
-        {!adminModeEnabled && <Box sx={{ mb: 3 }} />}
+        {!adminModeEnabled && <Box sx={{ mb: 1 }} />}
       </Container>
 
       {/* Sponsors Content */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 0, mb: 0 }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0, mb: 0 }}>
         <Box sx={{
           backgroundColor: 'white',
+          border: `1px solid ${LINE}`,
           borderRadius: '12px',
           p: { xs: 3, md: 6 },
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)'
         }}>
           <Typography
             variant="body1"
@@ -414,25 +430,24 @@ export default function SponsorsPage() {
       </Container>
 
       {/* Donors Tabs Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4 }}>
         <Box sx={{
-          borderBottom: 1,
-          borderColor: 'divider',
+          borderBottom: `1px solid ${LINE}`,
           '& .MuiTabs-root': {
             minHeight: 'unset',
           },
           '& .MuiTab-root': {
             minHeight: 'unset',
-            padding: { xs: '8px 0', sm: '12px 0' },
+            padding: { xs: '10px 0', sm: '12px 0' },
             width: '50%',
-            fontWeight: 600,
-            color: 'rgba(102, 102, 102, 0.25)',
+            textTransform: 'none',
+            color: MUTED,
             '&.Mui-selected': {
-              color: '#FFA500',
+              color: ORANGE,
             },
           },
           '& .MuiTabs-indicator': {
-            backgroundColor: '#FFA500',
+            backgroundColor: ORANGE,
             height: '3px',
           },
         }}>
@@ -443,28 +458,26 @@ export default function SponsorsPage() {
           >
             <Tab
               label={
-                <Typography sx={{
-                  fontSize: { xs: '1rem', sm: '1.5rem', md: '2.125rem' },
-                  fontWeight: 600,
-                  textAlign: 'center',
-                  whiteSpace: 'pre-line',
-                  lineHeight: 1.3
-                }}>
-                  {`Individual Donors\n个人赞助者`}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                  <Typography sx={{ fontSize: { xs: '0.9375rem', sm: '1.05rem' }, fontWeight: 700 }}>
+                    Individual Donors
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, color: MUTED }}>
+                    个人赞助者
+                  </Typography>
+                </Box>
               }
             />
             <Tab
               label={
-                <Typography sx={{
-                  fontSize: { xs: '1rem', sm: '1.5rem', md: '2.125rem' },
-                  fontWeight: 600,
-                  textAlign: 'center',
-                  whiteSpace: 'pre-line',
-                  lineHeight: 1.3
-                }}>
-                  {`Enterprise Donors\n企业赞助者`}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                  <Typography sx={{ fontSize: { xs: '0.9375rem', sm: '1.05rem' }, fontWeight: 700 }}>
+                    Enterprise Donors
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, color: MUTED }}>
+                    企业赞助者
+                  </Typography>
+                </Box>
               }
             />
           </Tabs>
@@ -566,8 +579,13 @@ export default function SponsorsPage() {
             onClick={handleSaveDonor}
             disabled={saving || !donorFormData.name || !donorFormData.amount}
             sx={{
-              backgroundColor: '#FFB84D',
-              '&:hover': { backgroundColor: '#FFA833' }
+              backgroundColor: ORANGE,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '99px',
+              px: 2.5,
+              boxShadow: 'none',
+              '&:hover': { backgroundColor: ORANGE_DARK, boxShadow: 'none' }
             }}
           >
             {saving ? <CircularProgress size={20} /> : 'Save / 保存'}
