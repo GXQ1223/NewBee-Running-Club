@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules Option A — Folded Card + Year Chips · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option A: ONE folded card. Expand it → year chips switch between
+     revisions. Most compact; rules take a single row until opened. */
+  :root{--orange:#FFA500;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:40px 24px}
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted)}
+
+  .card{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.05);overflow:hidden}
+  .cardhead{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;user-select:none;transition:background .15s}
+  .cardhead:hover{background:var(--orange-bg)}
+  .cardhead b{font-size:15.5px;font-weight:700}
+  .cardhead b span{font-size:12.5px;color:var(--muted);font-weight:400;margin-left:8px}
+  .pill{background:var(--orange);color:#fff;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px}
+  .meta{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600}
+  .chev{font-size:13px;color:var(--orange);transition:transform .25s;margin-left:10px}
+  .open .chev{transform:rotate(180deg)}
+  .body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+  .open .body{max-height:3000px}
+  .inner{padding:4px 22px 24px}
+
+  .yearrow{display:flex;gap:8px;align-items:center;padding:10px 0 16px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
+  .ychip{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;font-size:12.5px;
+      font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer;transition:all .15s}
+  .ychip:hover{border-color:var(--orange);color:var(--orange)}
+  .ychip.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .ychip.add{border-style:dashed;border-color:var(--orange);color:var(--orange)}
+  .ychip.add:hover{background:var(--orange-bg)}
+  .adminedit{margin-left:auto;font-size:12px;color:var(--orange);font-weight:700;cursor:pointer}
+
+  .rules h4{font-size:15px;font-weight:700;margin:20px 0 8px}
+  .rules p{font-size:14.5px;line-height:1.75;color:#3a3a3a;margin-bottom:10px}
+  .rules ul,.rules ol{padding-left:26px;margin-bottom:12px}
+  .rules li{font-size:14.5px;line-height:1.75;color:#3a3a3a;margin-bottom:6px}
+  .rules .em{font-style:italic;color:var(--muted)}
+  .archived-note{background:var(--orange-bg);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--muted);margin-bottom:14px;display:none}
+  .note{margin-top:12px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="pagehead"><h2>Club Entry Rules</h2><span>俱乐部积分规则</span></div>
+
+<div class="card open" id="card">
+  <div class="cardhead" onclick="document.getElementById('card').classList.toggle('open')">
+    <b>Club Entry 名额分配规则<span>Club Entry Allocation Rules</span></b>
+    <span class="pill">2025 · Current 现行</span>
+    <span class="meta">Updated May 2025 · 新蜂跑团管理组</span>
+    <span class="chev">▼</span>
+  </div>
+  <div class="body">
+    <div class="inner">
+      <div class="yearrow">
+        <button class="ychip active">2025 年赛事</button>
+        <button class="ychip">2024 年赛事</button>
+        <button class="ychip add">+ 新版本 New Revision（管理员）</button>
+        <span class="adminedit">✎ Edit 编辑（管理员）</span>
+      </div>
+
+      <div class="archived-note">您正在查看往年规则存档，现行规则请切换至最新年份。</div>
+
+      <div class="rules">
+        <p>为了鼓励更多跑友代表新蜂跑团参与 NYRR 官方赛事，展现团队风采、提升竞技表现，新蜂跑团获得了本次 4 个 NYRR Club Entry 名额。现根据跑团内部商议，公布名额申请与分配规则如下</p>
+
+        <h4>一、什么是 Club Entry？</h4>
+        <p>Club Entry 是 NYRR 面向注册俱乐部分配的官方参赛名额，通常适用于名额紧张、需抽签或成绩达标的热门赛事。该名额具有以下特点：</p>
+        <ul>
+          <li>无需抽签、直接参赛</li>
+          <li>需要由跑团统一提交报名信息</li>
+          <li>属于跑团整体参赛配额的一部分</li>
+        </ul>
+
+        <h4>二、基本原则</h4>
+        <ul>
+          <li><strong>确保参赛，不浪费名额</strong> — 报名即表示确认参赛计划，请勿临时退出或更改。</li>
+          <li><strong>公开透明，兼顾多元考量</strong> — 参考竞技成绩、活动参与度、历史获得情况等多维度指标。</li>
+          <li><strong>鼓励轮换，优先未曾获名额者</strong> — 让更多成员享受到 Club Entry 的参赛机会。</li>
+        </ul>
+
+        <h4>三、分配规则与说明</h4>
+        <p>每次比赛共分配 4 个 Club Entry 名额，优先考虑过去 6 个月内未获得过此类名额的成员。</p>
+        <ol>
+          <li><strong>竞技积分维度</strong> — 参考年度积分榜成绩，综合出勤与名次表现，排序择优。</li>
+          <li><strong>活动参与维度</strong> — 参考 Heylo 平台活动积分（训练、志愿者、组织活动等）。</li>
+          <li><strong>历史获得记录</strong> — 未曾获得 Club Entry 的成员优先。</li>
+          <li><strong>新人参与年限建议</strong> — 建议申请者至少有六个月以上的新蜂参与记录。</li>
+        </ol>
+
+        <h4>四、报名方式</h4>
+        <p>请于指定时间前发送信息至 newbeerunningclub@gmail.com：Legal Name、NYRR 注册邮箱、是否曾获得 Club Entry、Heylo 昵称。</p>
+
+        <h4>📊 Heylo 积分系统说明</h4>
+        <ul>
+          <li>参赛积分 / 义工积分 / 活动积分（每次 1 分）</li>
+          <li>滚动制：近 6 个月 1:1 计入，6~12 个月 0.5:1，超过 12 个月不计分</li>
+        </ul>
+        <p><strong>新蜂跑团管理组</strong></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">Committee members see "✎ Edit" and "+ 新版本": creating a revision copies the current text into a new year, which becomes Current; the old year stays as an archived chip.</div>
+
+</body>
+</html>

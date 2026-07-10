@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules Option B — Revision Accordions · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option B: one accordion row PER revision, newest first — same pattern
+     as the committee timeline and meeting minutes. Current expanded by
+     default; every year is visible at a glance. */
+  :root{--orange:#FFA500;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:40px 24px}
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted)}
+  .pagehead .add{margin-left:auto;border:1.5px dashed var(--orange);color:var(--orange);font-size:12.5px;
+      font-weight:700;padding:8px 18px;border-radius:99px;cursor:pointer;background:rgba(255,165,0,.03)}
+  .pagehead .add:hover{background:var(--orange-bg)}
+
+  .rev{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.05);overflow:hidden;margin-bottom:12px}
+  .revhead{display:flex;align-items:center;gap:12px;padding:15px 20px;cursor:pointer;user-select:none;transition:background .15s}
+  .revhead:hover{background:var(--orange-bg)}
+  .revhead b{font-size:15px;font-weight:700}
+  .revhead b span{font-size:12.5px;color:var(--muted);font-weight:400;margin-left:8px}
+  .pill{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--orange);color:#fff}
+  .pill.old{background:var(--orange-bg);color:var(--orange)}
+  .meta{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600}
+  .edit{font-size:12px;color:var(--orange);font-weight:700;margin-left:12px}
+  .chev{font-size:13px;color:var(--orange);transition:transform .25s;margin-left:8px}
+  .rev.open .chev{transform:rotate(180deg)}
+  .revbody{max-height:0;overflow:hidden;transition:max-height .4s ease}
+  .rev.open .revbody{max-height:3000px}
+  .inner{padding:6px 22px 24px;border-top:1px solid var(--line)}
+
+  .inner h4{font-size:15px;font-weight:700;margin:18px 0 8px}
+  .inner p{font-size:14.5px;line-height:1.75;color:#3a3a3a;margin-bottom:10px}
+  .inner ul,.inner ol{padding-left:26px;margin-bottom:12px}
+  .inner li{font-size:14.5px;line-height:1.75;color:#3a3a3a;margin-bottom:6px}
+  .note{margin-top:12px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="pagehead">
+  <h2>Club Entry Rules</h2><span>俱乐部积分规则</span>
+  <div class="add">+ New Revision 新版本（管理员）</div>
+</div>
+
+<!-- Current revision: expanded by default -->
+<div class="rev open" id="r2025">
+  <div class="revhead" onclick="document.getElementById('r2025').classList.toggle('open')">
+    <b>2025 年赛事规则<span>Club Entry Rules · 2025 Season</span></b>
+    <span class="pill">Current 现行</span>
+    <span class="meta">Updated May 2025 · 管理组</span>
+    <span class="edit">✎ 编辑</span>
+    <span class="chev">▼</span>
+  </div>
+  <div class="revbody">
+    <div class="inner">
+      <p>为了鼓励更多跑友代表新蜂跑团参与 NYRR 官方赛事，展现团队风采、提升竞技表现，新蜂跑团获得了本次 4 个 NYRR Club Entry 名额。现公布名额申请与分配规则如下</p>
+      <h4>一、什么是 Club Entry？</h4>
+      <ul>
+        <li>无需抽签、直接参赛</li>
+        <li>需要由跑团统一提交报名信息</li>
+        <li>属于跑团整体参赛配额的一部分</li>
+      </ul>
+      <h4>二、基本原则</h4>
+      <ul>
+        <li><strong>确保参赛，不浪费名额</strong></li>
+        <li><strong>公开透明，兼顾多元考量</strong></li>
+        <li><strong>鼓励轮换，优先未曾获名额者</strong></li>
+      </ul>
+      <h4>三、分配规则与说明</h4>
+      <ol>
+        <li><strong>竞技积分维度</strong> — 参考年度积分榜成绩，排序择优。</li>
+        <li><strong>活动参与维度</strong> — 参考 Heylo 平台活动积分。</li>
+        <li><strong>历史获得记录</strong> — 未曾获得者优先。</li>
+        <li><strong>新人参与年限建议</strong> — 建议至少六个月以上参与记录。</li>
+      </ol>
+      <h4>四、报名方式</h4>
+      <p>发送 Legal Name、NYRR 注册邮箱、是否曾获得 Club Entry、Heylo 昵称至 newbeerunningclub@gmail.com。</p>
+      <h4>📊 Heylo 积分系统说明</h4>
+      <ul>
+        <li>参赛 / 义工 / 活动积分（每次 1 分）</li>
+        <li>滚动制：近 6 个月 1:1，6~12 个月 0.5:1，超过 12 个月不计分</li>
+      </ul>
+      <p><strong>新蜂跑团管理组</strong></p>
+    </div>
+  </div>
+</div>
+
+<!-- Archived revision: collapsed one-line row -->
+<div class="rev" id="r2024">
+  <div class="revhead" onclick="document.getElementById('r2024').classList.toggle('open')">
+    <b>2024 年赛事规则<span>Club Entry Rules · 2024 Season</span></b>
+    <span class="pill old">Archived 存档</span>
+    <span class="meta">Updated Apr 2024 · 管理组</span>
+    <span class="edit">✎ 编辑</span>
+    <span class="chev">▼</span>
+  </div>
+  <div class="revbody">
+    <div class="inner">
+      <p>（2024 年版本规则全文存档于此，点击即可查阅——与 2025 版差异例如：名额数量、冷冻期长度等。）</p>
+    </div>
+  </div>
+</div>
+
+<div class="note">Each year is one row — new revisions stack on top as Current, older ones stay collapsed. Same interaction pattern as the committee timeline and meeting minutes.</div>
+
+</body>
+</html>

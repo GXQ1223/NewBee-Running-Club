@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Committee Option C — Timeline Folds · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option C: vertical timeline of terms. Current node expanded; each past
+     node is a compact collapsed row (avatars preview) that expands inline.
+     Tells the club-history story while staying compact. */
+  :root{--orange:#FFA500;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:40px 24px}
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:22px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+
+  .timeline{position:relative;padding-left:34px}
+  .timeline::before{content:"";position:absolute;left:11px;top:6px;bottom:6px;width:3px;border-radius:2px;
+      background:linear-gradient(to bottom,var(--orange),#FFD9A0)}
+  .node{position:relative;margin-bottom:18px}
+  .node::before{content:"";position:absolute;left:-30px;top:14px;width:13px;height:13px;border-radius:50%;
+      background:#fff;border:3.5px solid var(--orange)}
+  .node.current::before{background:var(--orange);box-shadow:0 0 0 5px rgba(255,165,0,.18)}
+
+  .card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;
+      box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  .cardhead{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;transition:background .15s}
+  .cardhead:hover{background:var(--orange-bg)}
+  .cardhead b{font-size:15px;font-weight:700}
+  .cardhead b span{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px;font-family:'Noto Sans SC'}
+  .pill{background:var(--orange-bg);color:var(--orange);font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px}
+  .pill.now{background:var(--orange);color:#fff}
+  .avatars{display:flex;margin-left:auto}
+  .avatars img{width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid #fff;margin-left:-9px}
+  .chev{font-size:13px;color:var(--orange);margin-left:10px;transition:transform .25s}
+  .node.open .chev{transform:rotate(180deg)}
+  .cardbody{max-height:0;overflow:hidden;transition:max-height .35s ease;padding:0 18px}
+  .node.open .cardbody{max-height:1500px;padding-bottom:18px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:6px}
+  .member{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;transition:all .2s}
+  .member:hover{box-shadow:0 8px 24px rgba(255,165,0,.3);transform:translateY(-3px)}
+  .member img{width:84px;height:84px;border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid var(--orange-bg)}
+  .member b{display:block;font-size:13.5px;font-weight:700}
+  .member span{font-size:11.5px;color:var(--muted)}
+
+  .addnode{position:relative;margin-top:4px}
+  .addnode::before{content:"+";position:absolute;left:-30px;top:6px;width:14px;height:14px;border-radius:50%;
+      background:var(--orange-bg);border:2.5px dashed var(--orange);color:var(--orange);
+      font-size:11px;font-weight:700;display:grid;place-items:center}
+  .addnode .btn{border:2px dashed var(--orange);border-radius:12px;color:var(--orange);font-weight:700;
+      font-size:13px;padding:12px;text-align:center;cursor:pointer;background:rgba(255,165,0,.03)}
+  .addnode .btn:hover{background:var(--orange-bg)}
+  .note{margin-top:10px;font-size:11.5px;color:var(--muted);padding-left:4px}
+</style>
+</head>
+<body>
+
+<div class="pagehead"><h2>Committee</h2><span>委员会 · 历届沿革</span></div>
+
+<div class="timeline">
+
+  <div class="node current open" id="n2026">
+    <div class="card">
+      <div class="cardhead" onclick="document.getElementById('n2026').classList.toggle('open')">
+        <b>2026–2028<span>第五届</span></b><span class="pill now">Current 现任</span>
+        <div class="avatars">
+          <img src="../ProjectCode/client/public/Brandon Shen.png"><img src="../ProjectCode/client/public/Shawn Tian.png">
+          <img src="../ProjectCode/client/public/Ciping Wu.png"><img src="../ProjectCode/client/public/Nian Zhao.png">
+        </div>
+        <span class="chev">▼</span>
+      </div>
+      <div class="cardbody">
+        <div class="grid">
+          <div class="member"><img src="../ProjectCode/client/public/Brandon Shen.png"><b>Brandon Shen</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Shawn Tian.png"><b>Shawn Tian</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Ciping Wu.png"><b>Ciping Wu</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Nian Zhao.png"><b>Nian Zhao</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Tiffany Qiu.png"><b>Tiffany Qiu</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Chengcheng Zhao.png"><b>ChengCheng Zhao</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Ruicong Ni.png"><b>Ruicong Ni</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Miles Guo.png"><b>Miles Guo</b><span>Software Engineer</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="node" id="n2024">
+    <div class="card">
+      <div class="cardhead" onclick="document.getElementById('n2024').classList.toggle('open')">
+        <b>2024–2026<span>第四届</span></b><span class="pill">Past 往届</span>
+        <div class="avatars">
+          <img src="../ProjectCode/client/public/Caroline Wang.png"><img src="../ProjectCode/client/public/Junxiao Yi.png">
+          <img src="../ProjectCode/client/public/Venessa Tang.png"><img src="../ProjectCode/client/public/Yue Ma.png">
+        </div>
+        <span class="chev">▼</span>
+      </div>
+      <div class="cardbody">
+        <div class="grid">
+          <div class="member"><img src="../ProjectCode/client/public/Caroline Wang.png"><b>Caroline Wang</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Junxiao Yi.png"><b>Junxiao Yi</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Venessa Tang.png"><b>Venessa Tang</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Yue Ma.png"><b>Yue Ma</b><span>Board Member</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Ruicong Ni.png"><b>Ruicong Ni</b><span>Founder</span></div>
+          <div class="member"><img src="../ProjectCode/client/public/Cheng Chen.png"><b>Cheng Chen</b><span>Board Member</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- future: 2022–2024, 2020–2022 ... appended as collapsed nodes -->
+
+  <div class="addnode">
+    <div class="btn">+ New Committee Term / 新建一届委员会（仅管理员可见）</div>
+  </div>
+</div>
+
+<div class="note">New term appears at the top as Current; the old current node collapses automatically. Every past node stays a one-line row until clicked.</div>
+
+</body>
+</html>

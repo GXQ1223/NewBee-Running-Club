@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Committee Option B — Term Tabs · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option B: pill tabs, one term visible at a time. Most compact —
+     previous terms take zero vertical space until selected. */
+  :root{--orange:#FFA500;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:40px 24px}
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+
+  .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+  .tab{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;
+      font-size:13px;font-weight:700;padding:9px 18px;border-radius:99px;cursor:pointer;transition:all .15s}
+  .tab:hover{border-color:var(--orange);color:var(--orange)}
+  .tab.active{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:0 2px 8px rgba(255,165,0,.35)}
+  .tab .cur{font-size:10px;font-weight:700;background:rgba(255,255,255,.25);padding:2px 8px;border-radius:99px;margin-left:6px}
+  .tab:not(.active) .cur{background:var(--orange-bg);color:var(--orange)}
+  .tab.add{border-style:dashed;border-color:var(--orange);color:var(--orange);background:rgba(255,165,0,.03)}
+  .tab.add:hover{background:var(--orange-bg)}
+
+  .panel{display:none}
+  .panel.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .panel .meta{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .member{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;transition:all .2s}
+  .member:hover{box-shadow:0 8px 24px rgba(255,165,0,.3);transform:translateY(-3px)}
+  .member img{width:84px;height:84px;border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid var(--orange-bg)}
+  .member b{display:block;font-size:13.5px;font-weight:700}
+  .member span{font-size:11.5px;color:var(--muted)}
+  .note{margin-top:18px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="pagehead"><h2>Committee</h2><span>委员会</span></div>
+
+<div class="tabs">
+  <button class="tab active" onclick="show(this,'p2026')">2026–2028<span class="cur">Current 现任</span></button>
+  <button class="tab" onclick="show(this,'p2024')">2024–2026</button>
+  <!-- older terms keep appending here; if > 4 tabs, collapse the oldest into a "More ▾" menu -->
+  <button class="tab add">+ New Term 新建（管理员）</button>
+</div>
+
+<div class="panel active" id="p2026">
+  <div class="meta">8 members · term began Jan 2026 / 本届委员会</div>
+  <div class="grid">
+    <div class="member"><img src="../ProjectCode/client/public/Brandon Shen.png"><b>Brandon Shen</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Shawn Tian.png"><b>Shawn Tian</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Ciping Wu.png"><b>Ciping Wu</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Nian Zhao.png"><b>Nian Zhao</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Tiffany Qiu.png"><b>Tiffany Qiu</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Chengcheng Zhao.png"><b>ChengCheng Zhao</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Ruicong Ni.png"><b>Ruicong Ni</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Miles Guo.png"><b>Miles Guo</b><span>Software Engineer</span></div>
+  </div>
+</div>
+
+<div class="panel" id="p2024">
+  <div class="meta">Past term / 上一届 · 2024–2026</div>
+  <div class="grid">
+    <div class="member"><img src="../ProjectCode/client/public/Caroline Wang.png"><b>Caroline Wang</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Junxiao Yi.png"><b>Junxiao Yi</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Venessa Tang.png"><b>Venessa Tang</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Yue Ma.png"><b>Yue Ma</b><span>Board Member</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Ruicong Ni.png"><b>Ruicong Ni</b><span>Founder</span></div>
+    <div class="member"><img src="../ProjectCode/client/public/Cheng Chen.png"><b>Cheng Chen</b><span>Board Member</span></div>
+  </div>
+</div>
+
+<div class="note">"+ New Term" is admin-only: it creates a tab that becomes Current; older tabs stay one click away and use no vertical space.</div>
+
+<script>
+function show(btn,id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>
