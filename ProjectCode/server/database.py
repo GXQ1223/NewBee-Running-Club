@@ -326,6 +326,26 @@ class MeetingMinutes(Base):
     )
 
 
+# Club rule versions (e.g. yearly Club Entry allocation rules).
+# Exactly one version should have is_current=True; the rest are archived.
+class ClubRuleVersion(Base):
+    __tablename__ = "club_rule_versions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    year_label = Column(String(50), nullable=False)  # e.g. "2025"
+    title = Column(String(255), nullable=False)  # e.g. "2025 年赛事规则"
+    content = Column(Text, nullable=False)  # HTML content from rich text editor
+    is_current = Column(Boolean, default=False, nullable=False)
+    created_by = Column(String(100))  # Name of committee member who created
+    created_by_id = Column(Integer)  # Member ID of creator
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_club_rule_year', 'year_label'),
+    )
+
+
 # Comment Model for event comments
 class Comment(Base):
     __tablename__ = "comments"

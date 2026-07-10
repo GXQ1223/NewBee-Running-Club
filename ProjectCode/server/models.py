@@ -404,6 +404,36 @@ class MeetingMinutesResponse(MeetingMinutesBase):
         from_attributes = True
 
 
+# Club Rule Version Schemas (yearly Club Entry rules revisions)
+class ClubRuleVersionBase(BaseModel):
+    year_label: str = Field(..., max_length=50)
+    title: str = Field(..., max_length=255)
+    content: str  # HTML content from rich text editor
+    is_current: bool = True
+
+
+class ClubRuleVersionCreate(ClubRuleVersionBase):
+    pass
+
+
+class ClubRuleVersionUpdate(BaseModel):
+    year_label: Optional[str] = Field(None, max_length=50)
+    title: Optional[str] = Field(None, max_length=255)
+    content: Optional[str] = None
+    is_current: Optional[bool] = None
+
+
+class ClubRuleVersionResponse(ClubRuleVersionBase):
+    id: int
+    created_by: Optional[str] = None
+    created_by_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # Comment Schemas
 class CommentCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
