@@ -48,3 +48,8 @@ __pycache__/
 
 # Data files
 ProjectCode/server/data/
+
+# Python test/coverage artifacts
+.coverage
+.coverage.*
+.pytest_cache/

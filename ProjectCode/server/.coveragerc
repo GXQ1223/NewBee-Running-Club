@@ -1,0 +1,22 @@
+[run]
+source = .
+# One-off CLI/migration scripts are excluded: they are run manually (or by
+# cron), are not part of the FastAPI app, and have no route surface.
+omit =
+    venv/*
+    tests/*
+    seed_demo_data.py
+    fetch_historical_data.py
+    create_tables.py
+    migrate_credits.py
+    migrate_events.py
+    sync_member_results.py
+    sync_zelle_donations.py
+    update_distance.py
+    */__pycache__/*
+
+[report]
+precision = 1
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
