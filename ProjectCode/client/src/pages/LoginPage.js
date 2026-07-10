@@ -18,6 +18,13 @@ import {
     signInWithGoogle
 } from '../firebase/auth';
 
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
+
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,7 +56,7 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const { user, error } = await signInWithGoogle();
+      const { error } = await signInWithGoogle();
       if (error) {
         setError(error);
       } else {
@@ -63,13 +70,27 @@ const LoginPage = () => {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" align="center" gutterBottom sx={{ color: 'black' }}>
-          Sign In 登录
-        </Typography>
+    <Container maxWidth="sm" sx={{ mt: 8, px: { xs: 1, sm: 2 } }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 4,
+          backgroundColor: 'white',
+          border: `1px solid ${LINE}`,
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1.25, mb: 2 }}>
+          <Typography component="h1" sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Sign In
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            登录
+          </Typography>
+        </Box>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>{error}</Alert>}
 
         <form onSubmit={handleEmailPasswordLogin}>
           <TextField
@@ -99,25 +120,22 @@ const LoginPage = () => {
             fullWidth
             size="large"
             disabled={loading}
+            disableElevation
             sx={{
               mt: 2,
-              backgroundColor: '#FFB84D',
+              backgroundColor: ORANGE,
               color: 'white',
               textTransform: 'none',
+              fontWeight: 600,
               fontSize: '16px',
               px: 2,
               py: 1.5,
-              borderRadius: '12px',
-              border: '2px solid #FFB84D',
+              borderRadius: '99px',
+              boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
               '&:hover': {
-                backgroundColor: '#FFA833',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                transform: 'translateY(-2px)',
+                backgroundColor: ORANGE_DARK,
+                boxShadow: '0 4px 12px rgba(255, 165, 0, 0.35)',
               },
-              '&:active': {
-                transform: 'translateY(1px) scale(0.98)',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-              }
             }}
           >
             Sign In 登录
@@ -125,8 +143,8 @@ const LoginPage = () => {
         </form>
 
         <Box sx={{ mt: 2, mb: 2 }}>
-          <Divider sx={{ '&::before, &::after': { borderColor: '#FFB84D' } }}>
-            <Typography sx={{ color: '#FFB84D' }}>OR</Typography>
+          <Divider sx={{ '&::before, &::after': { borderColor: LINE } }}>
+            <Typography sx={{ color: MUTED, fontSize: '0.85rem' }}>OR</Typography>
           </Divider>
         </Box>
 
@@ -137,31 +155,27 @@ const LoginPage = () => {
           onClick={handleGoogleSignIn}
           disabled={loading}
           sx={{
-            borderColor: '#FFB84D',
-            color: '#FFB84D',
+            borderColor: ORANGE,
+            color: ORANGE,
             textTransform: 'none',
+            fontWeight: 600,
             fontSize: '16px',
             px: 2,
             py: 1.5,
-            borderRadius: '12px',
+            borderRadius: '99px',
             '&:hover': {
-              borderColor: '#FFA833',
-              backgroundColor: 'rgba(255, 184, 77, 0.04)',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-              transform: 'translateY(-2px)',
+              borderColor: ORANGE_DARK,
+              color: ORANGE_DARK,
+              backgroundColor: ORANGE_BG,
             },
-            '&:active': {
-              transform: 'translateY(1px) scale(0.98)',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-            }
           }}
         >
           Sign in with Google
         </Button>
 
         <Box sx={{ mt: 3, mb: 1 }}>
-          <Divider sx={{ '&::before, &::after': { borderColor: '#e0e0e0' } }}>
-            <Typography sx={{ color: '#999', fontSize: '0.85rem' }}>Don't have an account? 没有账号？</Typography>
+          <Divider sx={{ '&::before, &::after': { borderColor: LINE } }}>
+            <Typography sx={{ color: MUTED, fontSize: '0.85rem' }}>Don't have an account? 没有账号？</Typography>
           </Divider>
         </Box>
 
@@ -174,21 +188,21 @@ const LoginPage = () => {
             startIcon={<PersonAddIcon />}
             sx={{
               textTransform: 'none',
+              fontWeight: 600,
               fontSize: '14px',
               py: 1.2,
-              borderRadius: '12px',
-              borderColor: '#FFB84D',
-              color: '#FFB84D',
+              borderRadius: '99px',
+              borderColor: ORANGE,
+              color: ORANGE,
               '&:hover': {
-                borderColor: '#FFA833',
-                backgroundColor: 'rgba(255, 184, 77, 0.04)',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                transform: 'translateY(-2px)',
+                borderColor: ORANGE_DARK,
+                color: ORANGE_DARK,
+                backgroundColor: ORANGE_BG,
               },
             }}
           >
             Already a member? Create account directly
-            <Typography component="span" sx={{ display: 'block', fontSize: '12px', color: '#999', ml: 0.5 }}>
+            <Typography component="span" sx={{ display: 'block', fontSize: '12px', fontWeight: 400, color: MUTED, ml: 0.5 }}>
               已是成员？直接创建账号
             </Typography>
           </Button>
@@ -201,21 +215,21 @@ const LoginPage = () => {
             startIcon={<GroupAddIcon />}
             sx={{
               textTransform: 'none',
+              fontWeight: 600,
               fontSize: '14px',
               py: 1.2,
-              borderRadius: '12px',
-              borderColor: '#4CAF50',
-              color: '#4CAF50',
+              borderRadius: '99px',
+              borderColor: LINE,
+              color: INK,
               '&:hover': {
-                borderColor: '#388E3C',
-                backgroundColor: 'rgba(76, 175, 80, 0.04)',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                transform: 'translateY(-2px)',
+                borderColor: ORANGE,
+                color: ORANGE,
+                backgroundColor: ORANGE_BG,
               },
             }}
           >
             New to the club? Apply to join
-            <Typography component="span" sx={{ display: 'block', fontSize: '12px', color: '#999', ml: 0.5 }}>
+            <Typography component="span" sx={{ display: 'block', fontSize: '12px', fontWeight: 400, color: MUTED, ml: 0.5 }}>
               新成员？申请加入
             </Typography>
           </Button>

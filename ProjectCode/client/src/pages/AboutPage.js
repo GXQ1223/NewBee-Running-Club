@@ -26,9 +26,8 @@ import {
 } from '@mui/material';
 import { safeMarkdown } from '../utils/markdown';
 import { useEffect, useState, useCallback } from 'react';
-import NavigationButtons from '../components/NavigationButtons';
-import CommitteeMemberCard from '../components/CommitteeMemberCard';
-import { committee2026, committee2024 } from '../data/committeeMembers';
+import CommitteeTimeline from '../components/CommitteeTimeline';
+import { committeeTerms } from '../data/committeeMembers';
 import { getMeetingContent, getMeetingFiles } from '../api/meetings';
 import {
   getAllMeetingMinutes,
@@ -60,6 +59,14 @@ const quillFormats = [
   'list', 'bullet',
   'indent'
 ];
+
+// Design tokens (match HomePage / NavBar design language)
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
 
 export default function AboutPage() {
   const { currentUser } = useAuth();
@@ -319,33 +326,27 @@ export default function AboutPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
       {/* Navigation Buttons */}
-      <NavigationButtons />
 
-      {/* History Text */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          NewBee's History
-          <br />
-          新蜂历史
-        </Typography>
+      {/* History Header */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            NewBee's History
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            新蜂历史
+          </Typography>
+        </Box>
       </Container>
 
       {/* History Content */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 0, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0, mb: 4 }}>
         <Box sx={{
           backgroundColor: 'white',
+          border: `1px solid ${LINE}`,
           borderRadius: '12px',
           p: { xs: 3, md: 6 },
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)'
         }}>
           <Typography
             variant="body1"
@@ -378,7 +379,7 @@ export default function AboutPage() {
       </Container>
 
       {/* History Photos Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4, mb: 6 }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4, mb: 6 }}>
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
@@ -401,7 +402,8 @@ export default function AboutPage() {
                 height: '300px',
                 objectFit: 'cover',
                 borderRadius: '12px',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                border: `1px solid ${LINE}`,
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)'
               }}
             />
             <Typography
@@ -435,7 +437,8 @@ export default function AboutPage() {
                 height: '300px',
                 objectFit: 'cover',
                 borderRadius: '12px',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                border: `1px solid ${LINE}`,
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)'
               }}
             />
             <Typography
@@ -469,7 +472,8 @@ export default function AboutPage() {
                 height: '300px',
                 objectFit: 'cover',
                 borderRadius: '12px',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                border: `1px solid ${LINE}`,
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)'
               }}
             />
             <Typography
@@ -488,80 +492,21 @@ export default function AboutPage() {
         </Box>
       </Container>
 
-      {/* Board of Committee Text */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 4 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Board of Committee
-          <br />
-          新蜂委员会
-        </Typography>
-      </Container>
-
-      {/* Committee Members Section - 2026-2028 (Current) */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 2, mb: 6 }}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 600,
-            color: '#333',
-            mb: 3,
-            fontSize: { xs: '1.1rem', sm: '1.4rem' },
-            textAlign: 'center'
-          }}
-        >
-          2026 - 2028 Committee 现任委员会
-        </Typography>
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
-          gap: 3
-        }}>
-          {committee2026.map((member) => (
-            <CommitteeMemberCard
-              key={member.id}
-              member={member}
-              onImageClick={handleImageClick}
-            />
-          ))}
+      {/* Board of Committee Header */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Board of Committee
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            新蜂委员会
+          </Typography>
         </Box>
       </Container>
 
-      {/* Committee Members Section - 2024-2026 (Past) */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 2, mb: 6 }}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 600,
-            color: '#333',
-            mb: 3,
-            fontSize: { xs: '1.1rem', sm: '1.4rem' },
-            textAlign: 'center'
-          }}
-        >
-          2024 - 2026 Committee 往届委员会
-        </Typography>
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
-          gap: 3
-        }}>
-          {committee2024.map((member) => (
-            <CommitteeMemberCard
-              key={member.id}
-              member={member}
-              onImageClick={handleImageClick}
-            />
-          ))}
-        </Box>
+      {/* Committee terms timeline — current term expanded, past terms folded */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 2, mb: 6 }}>
+        <CommitteeTimeline terms={committeeTerms} onImageClick={handleImageClick} />
       </Container>
 
       {/* Image Modal */}
@@ -604,12 +549,13 @@ export default function AboutPage() {
       </Modal>
 
       {/* Committee Election Standards Section */}
-      <Container maxWidth="xl" sx={{ px: 2, mt: 0, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0, mb: 4 }}>
         <Accordion
           sx={{
             backgroundColor: 'white',
+            border: `1px solid ${LINE}`,
             borderRadius: '12px !important',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
             '&:before': {
               display: 'none',
             },
@@ -625,19 +571,21 @@ export default function AboutPage() {
                 margin: '12px 0',
               },
               '& .MuiAccordionSummary-expandIconWrapper': {
-                color: '#FFA500',
+                color: ORANGE,
               }
             }}
           >
             <Typography
-              variant="h6"
               sx={{
-                fontWeight: 600,
-                color: '#333',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                color: INK,
               }}
             >
               Committee Election Standards
-              委员会选举/换届标准
+              <Box component="span" sx={{ ml: 1, fontWeight: 400, fontSize: '0.875rem', color: MUTED }}>
+                委员会选举/换届标准
+              </Box>
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
@@ -685,17 +633,14 @@ export default function AboutPage() {
 
       {/* Meeting Minutes Section */}
       <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 3, sm: 4 } }}>
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: 2,
-            fontSize: { xs: '1rem', sm: '1.25rem' }
-          }}
-        >
-          Meeting Minutes 会议纪要
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 2 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Meeting Minutes
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            会议纪要
+          </Typography>
+        </Box>
 
         {adminModeEnabled && !isMeetingEditing && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: { xs: 2, sm: 3 } }}>
@@ -704,11 +649,15 @@ export default function AboutPage() {
               startIcon={<AddIcon />}
               onClick={handleStartNewMeeting}
               sx={{
-                backgroundColor: '#FFB84D',
+                backgroundColor: ORANGE,
                 color: 'white',
                 textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '99px',
+                px: 2.5,
+                boxShadow: 'none',
                 '&:hover': {
-                  backgroundColor: '#FFA833',
+                  backgroundColor: ORANGE_DARK,
                 }
               }}
             >
@@ -738,8 +687,8 @@ export default function AboutPage() {
             p: { xs: 2, sm: 3 },
             backgroundColor: 'white',
             borderRadius: '12px',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-            border: '2px solid #FFA500'
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+            border: `1.5px solid ${ORANGE}`
           }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#333' }}>
               {editingMeetingId ? 'Edit Meeting Minutes / 编辑会议纪要' : 'New Meeting Minutes / 新会议纪要'}
@@ -785,6 +734,7 @@ export default function AboutPage() {
                 startIcon={<CancelIcon />}
                 onClick={handleCancelMeeting}
                 disabled={meetingSaving}
+                sx={{ textTransform: 'none', borderRadius: '99px' }}
               >
                 Cancel / 取消
               </Button>
@@ -794,8 +744,13 @@ export default function AboutPage() {
                 onClick={handleSaveMeeting}
                 disabled={meetingSaving}
                 sx={{
-                  backgroundColor: '#FFA500',
-                  '&:hover': { backgroundColor: '#FF8C00' }
+                  backgroundColor: ORANGE,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: '99px',
+                  px: 2.5,
+                  boxShadow: 'none',
+                  '&:hover': { backgroundColor: ORANGE_DARK }
                 }}
               >
                 {meetingSaving ? 'Saving...' : 'Save / 保存'}
@@ -806,7 +761,7 @@ export default function AboutPage() {
 
         {meetingsLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress sx={{ color: '#FFA500' }} />
+            <CircularProgress sx={{ color: ORANGE }} />
           </Box>
         ) : meetings.length === 0 ? (
           <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center' }}>
@@ -820,8 +775,9 @@ export default function AboutPage() {
                 defaultExpanded={false}
                 sx={{
                   backgroundColor: 'white',
+                  border: `1px solid ${LINE}`,
                   borderRadius: '12px !important',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
                   '&:before': {
                     display: 'none',
                   },
@@ -841,24 +797,41 @@ export default function AboutPage() {
                       pr: 1
                     },
                     '& .MuiAccordionSummary-expandIconWrapper': {
-                      color: '#FFA500',
+                      color: ORANGE,
                     }
                   }}
                 >
                   <Box sx={{ flex: 1 }}>
                     <Typography
-                      variant="h6"
                       sx={{
-                        fontWeight: 600,
-                        color: '#333',
-                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                        fontWeight: 700,
+                        color: INK,
+                        fontSize: { xs: '0.95rem', sm: '1.05rem' }
                       }}
                     >
                       {meeting.title}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatMeetingDate(meeting.meeting_date)}
-                      {meeting.isLocal && ' (Local file)'}
+                    <Typography variant="body2" component="div" sx={{ mt: 0.5 }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          backgroundColor: ORANGE_BG,
+                          color: ORANGE,
+                          borderRadius: '99px',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          px: 1.25,
+                          py: 0.4,
+                          display: 'inline-block'
+                        }}
+                      >
+                        {formatMeetingDate(meeting.meeting_date)}
+                      </Box>
+                      {meeting.isLocal && (
+                        <Box component="span" sx={{ ml: 1, color: MUTED, fontSize: '0.75rem' }}>
+                          (Local file)
+                        </Box>
+                      )}
                     </Typography>
                   </Box>
 

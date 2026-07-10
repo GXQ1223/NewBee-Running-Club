@@ -14,8 +14,15 @@ import { getAvailableYears, getMenRecords, getWomenRecords, getSyncRacePatterns,
 import { clearApiCache } from '../api/client';
 import { getCredits, createCredit, updateCredit, deleteCredit, bulkUploadCredits } from '../api/credits';
 import ClubEntryRules from '../components/ClubEntryRules';
-import NavigationButtons from '../components/NavigationButtons';
 import { useAdmin, useAuth } from '../context';
+
+// Design tokens (match HomePage / NavBar design language)
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
 
 export default function RecordsPage() {
   const theme = useTheme();
@@ -470,7 +477,6 @@ export default function RecordsPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.25, sm: 0.5 } }}>
       {/* Navigation Buttons */}
-      <NavigationButtons />
 
       {/* Admin Mode Info */}
       {adminModeEnabled && (
@@ -488,34 +494,27 @@ export default function RecordsPage() {
 
       {/* Records Section */}
       <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: { xs: 2, sm: 4 } }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          NYRR Club Records
-          <br />
-          NYRR俱乐部记录
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 2 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            NYRR Club Records
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            NYRR俱乐部记录
+          </Typography>
+        </Box>
 
         {/* Year Filter */}
         <Box sx={{
           display: 'flex',
-          justifyContent: 'center',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: 2,
           mb: 3
         }}>
-          <FormControl sx={{ minWidth: 200 }}>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel
               sx={{
-                color: '#FFA500',
-                '&.Mui-focused': { color: '#FFA500' }
+                '&.Mui-focused': { color: ORANGE }
               }}
             >
               Select Year 选择年份
@@ -525,14 +524,15 @@ export default function RecordsPage() {
               onChange={(e) => handleYearChange(e.target.value)}
               label="Select Year 选择年份"
               sx={{
+                borderRadius: '10px',
                 '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#FFA500',
+                  borderColor: LINE,
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#FFA500',
+                  borderColor: ORANGE,
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#FFA500',
+                  borderColor: ORANGE,
                 },
               }}
             >
@@ -552,8 +552,13 @@ export default function RecordsPage() {
               startIcon={<SyncIcon />}
               onClick={handleOpenSyncDialog}
               sx={{
-                backgroundColor: '#FFA500',
-                '&:hover': { backgroundColor: '#e69500' },
+                backgroundColor: ORANGE,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '99px',
+                px: 2.5,
+                boxShadow: 'none',
+                '&:hover': { backgroundColor: ORANGE_DARK, boxShadow: 'none' },
               }}
             >
               Sync NYRR Data
@@ -613,19 +618,30 @@ export default function RecordsPage() {
           mb: 4
         }}>
           {/* Men's Records Table */}
-          <TableContainer component={Paper} sx={{ flex: 1 }}>
+          <TableContainer
+            component={Paper}
+            elevation={0}
+            sx={{
+              flex: 1,
+              borderRadius: '12px',
+              border: `1px solid ${LINE}`,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              overflow: 'hidden'
+            }}
+          >
             <Typography
-              variant="h6"
               sx={{
-                fontWeight: 600,
-                color: '#FFA500',
+                fontWeight: 700,
+                color: INK,
                 p: { xs: 1.5, sm: 2 },
-                borderBottom: '1px solid #FFA500',
-                fontSize: { xs: '1rem', sm: '1.25rem' }
+                borderBottom: `2px solid ${ORANGE}`,
+                fontSize: '1.05rem'
               }}
             >
               Men's Records
-              男子记录
+              <Box component="span" sx={{ ml: 1, fontWeight: 400, fontSize: '0.875rem', color: MUTED }}>
+                男子记录
+              </Box>
             </Typography>
             <Table size="small">
               <TableHead>
@@ -634,9 +650,10 @@ export default function RecordsPage() {
                     <TableCell
                       key={index}
                       sx={{
-                        fontWeight: 'bold',
-                        backgroundColor: '#FFA500',
-                        color: 'white',
+                        fontWeight: 700,
+                        backgroundColor: ORANGE_BG,
+                        color: INK,
+                        borderBottom: `1px solid ${LINE}`,
                         fontSize: { xs: '0.75rem', sm: '0.875rem' },
                         px: { xs: 1, sm: 2 },
                         py: { xs: 0.75, sm: 1 }
@@ -654,19 +671,30 @@ export default function RecordsPage() {
           </TableContainer>
 
           {/* Women's Records Table */}
-          <TableContainer component={Paper} sx={{ flex: 1 }}>
+          <TableContainer
+            component={Paper}
+            elevation={0}
+            sx={{
+              flex: 1,
+              borderRadius: '12px',
+              border: `1px solid ${LINE}`,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              overflow: 'hidden'
+            }}
+          >
             <Typography
-              variant="h6"
               sx={{
-                fontWeight: 600,
-                color: '#FFA500',
+                fontWeight: 700,
+                color: INK,
                 p: { xs: 1.5, sm: 2 },
-                borderBottom: '1px solid #FFA500',
-                fontSize: { xs: '1rem', sm: '1.25rem' }
+                borderBottom: `2px solid ${ORANGE}`,
+                fontSize: '1.05rem'
               }}
             >
               Women's Records
-              女子记录
+              <Box component="span" sx={{ ml: 1, fontWeight: 400, fontSize: '0.875rem', color: MUTED }}>
+                女子记录
+              </Box>
             </Typography>
             <Table size="small">
               <TableHead>
@@ -675,9 +703,10 @@ export default function RecordsPage() {
                     <TableCell
                       key={index}
                       sx={{
-                        fontWeight: 'bold',
-                        backgroundColor: '#FFA500',
-                        color: 'white',
+                        fontWeight: 700,
+                        backgroundColor: ORANGE_BG,
+                        color: INK,
+                        borderBottom: `1px solid ${LINE}`,
                         fontSize: { xs: '0.75rem', sm: '0.875rem' },
                         px: { xs: 1, sm: 2 },
                         py: { xs: 0.75, sm: 1 }
@@ -702,20 +731,14 @@ export default function RecordsPage() {
           </TableContainer>
         </Box>
 
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            color: '#FFA500',
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-            textAlign: 'center'
-          }}
-        >
-          Current Year Club Credit
-          <br />
-          本年度俱乐部积分
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 2 }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+            Current Year Club Credit
+          </Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+            本年度俱乐部积分
+          </Typography>
+        </Box>
 
         {/* Credits Tabs */}
         <Tabs
@@ -757,9 +780,15 @@ export default function RecordsPage() {
               startIcon={<AddIcon />}
               onClick={() => handleOpenDialog('create')}
               sx={{
-                backgroundColor: '#FFA500',
+                backgroundColor: ORANGE,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '99px',
+                px: 2.5,
+                boxShadow: 'none',
                 '&:hover': {
-                  backgroundColor: '#e69500',
+                  backgroundColor: ORANGE_DARK,
+                  boxShadow: 'none',
                 },
               }}
             >
@@ -778,6 +807,7 @@ export default function RecordsPage() {
             <Box sx={{ mb: 3 }}>
               <TextField
                 fullWidth
+                size="small"
                 variant="outlined"
                 placeholder="Search by runner's name 搜索跑者姓名"
                 value={searchQuery}
@@ -785,27 +815,38 @@ export default function RecordsPage() {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#FFA500' }} />
+                      <SearchIcon sx={{ color: ORANGE }} />
                     </InputAdornment>
                   ),
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
+                    borderRadius: '99px',
                     '& fieldset': {
-                      borderColor: '#FFA500',
+                      borderColor: LINE,
                     },
                     '&:hover fieldset': {
-                      borderColor: '#FFA500',
+                      borderColor: ORANGE,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#FFA500',
+                      borderColor: ORANGE,
                     },
                   },
                 }}
               />
             </Box>
 
-            <TableContainer component={Paper} sx={{ mb: 2 }}>
+            <TableContainer
+              component={Paper}
+              elevation={0}
+              sx={{
+                mb: 2,
+                borderRadius: '12px',
+                border: `1px solid ${LINE}`,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                overflow: 'hidden'
+              }}
+            >
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -813,9 +854,10 @@ export default function RecordsPage() {
                       <TableCell
                         key={index}
                         sx={{
-                          fontWeight: 'bold',
-                          backgroundColor: '#FFA500',
-                          color: 'white',
+                          fontWeight: 700,
+                          backgroundColor: ORANGE_BG,
+                          color: INK,
+                          borderBottom: `1px solid ${LINE}`,
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
                           px: { xs: 1, sm: 2 },
                           py: { xs: 0.75, sm: 1 }
@@ -838,11 +880,16 @@ export default function RecordsPage() {
                   variant="outlined"
                   onClick={() => setShowAll(!showAll)}
                   sx={{
-                    color: '#FFA500',
-                    borderColor: '#FFA500',
+                    color: ORANGE,
+                    border: `1.5px solid ${ORANGE}`,
+                    borderRadius: '99px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 3,
                     '&:hover': {
-                      borderColor: '#FFA500',
-                      backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                      border: `1.5px solid ${ORANGE}`,
+                      backgroundColor: ORANGE,
+                      color: 'white',
                     },
                   }}
                 >
@@ -859,20 +906,14 @@ export default function RecordsPage() {
 
         {/* Club Entry Rules Section */}
         <Box sx={{ mt: 6 }}>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 600,
-              color: '#FFA500',
-              mb: { xs: 2, sm: 3 },
-              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
-              textAlign: 'center'
-            }}
-          >
-            Club Entry Rules
-            <br />
-            俱乐部积分规则
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 2 }}>
+            <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
+              Club Entry Rules
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
+              俱乐部积分规则
+            </Typography>
+          </Box>
           <ClubEntryRules />
         </Box>
       </Container>

@@ -37,6 +37,12 @@ import { useAdmin } from '../context/AdminContext';
 import GalleryLightbox from '../components/GalleryLightbox';
 import GalleryUploadButton from '../components/GalleryUploadButton';
 
+const ORANGE = '#FFA500';
+const ORANGE_BG = '#FFF6E8';
+const LINE = '#EEE7DC';
+const INK = '#212121';
+const MUTED = '#757575';
+
 /**
  * GalleryPage - Full gallery view for an event with grid layout
  */
@@ -244,13 +250,13 @@ const GalleryPage = () => {
   // Loading skeleton
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2 } }}>
         <Skeleton variant="text" width={300} height={40} sx={{ mb: 2 }} />
         <Skeleton variant="text" width={200} height={30} sx={{ mb: 4 }} />
         <Grid container spacing={2}>
           {[...Array(8)].map((_, i) => (
             <Grid item xs={6} sm={4} md={3} key={i}>
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '12px' }} />
             </Grid>
           ))}
         </Grid>
@@ -261,8 +267,8 @@ const GalleryPage = () => {
   // Error state
   if (error) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
+      <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2 } }}>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>
           {error}
         </Alert>
         <IconButton onClick={() => navigate(-1)}>
@@ -273,13 +279,13 @@ const GalleryPage = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2 } }}>
       {/* Breadcrumb navigation */}
-      <Breadcrumbs sx={{ mb: 2 }}>
-        <Link component={RouterLink} to="/" color="inherit">
+      <Breadcrumbs sx={{ mb: 2, '& a': { fontSize: '0.8125rem' }, '& p': { fontSize: '0.8125rem' } }}>
+        <Link component={RouterLink} to="/" color="inherit" sx={{ '&:hover': { color: ORANGE } }}>
           Home
         </Link>
-        <Link component={RouterLink} to="/highlights" color="inherit">
+        <Link component={RouterLink} to="/highlights" color="inherit" sx={{ '&:hover': { color: ORANGE } }}>
           Events
         </Link>
         {event && (
@@ -289,27 +295,34 @@ const GalleryPage = () => {
 
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-          <IconButton onClick={() => navigate(-1)} sx={{ ml: -1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <IconButton
+            onClick={() => navigate(-1)}
+            sx={{
+              ml: -1,
+              color: MUTED,
+              '&:hover': { color: ORANGE, backgroundColor: ORANGE_BG },
+            }}
+          >
             <ArrowBackIcon />
           </IconButton>
-          <Box>
-            <Typography variant="h4" component="h1">
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25 }}>
+            <Typography component="h1" sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
               Event Gallery
             </Typography>
-            <Typography variant="h6" color="text.secondary">
+            <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
               活动相册
             </Typography>
           </Box>
         </Box>
 
         {event && (
-          <Box sx={{ ml: 6 }}>
-            <Typography variant="h5" sx={{ mb: 0.5 }}>
+          <Box sx={{ ml: 5 }}>
+            <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: INK, mb: 0.25 }}>
               {event.name}
             </Typography>
             {event.chinese_name && (
-              <Typography variant="body1" color="text.secondary">
+              <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
                 {event.chinese_name}
               </Typography>
             )}
@@ -318,13 +331,13 @@ const GalleryPage = () => {
                 <Chip
                   size="small"
                   label={new Date(event.date).toLocaleDateString()}
-                  variant="outlined"
+                  sx={{ backgroundColor: ORANGE_BG, color: ORANGE, fontWeight: 700, borderRadius: '99px' }}
                 />
               )}
               <Chip
                 size="small"
                 label={`${images.length} photos`}
-                variant="outlined"
+                sx={{ backgroundColor: ORANGE_BG, color: ORANGE, fontWeight: 700, borderRadius: '99px' }}
               />
               {currentUser && images.length > 0 && (
                 <GalleryUploadButton
@@ -344,14 +357,16 @@ const GalleryPage = () => {
           sx={{
             textAlign: 'center',
             py: 8,
-            bgcolor: 'grey.50',
-            borderRadius: 2,
+            backgroundColor: 'white',
+            border: `1px solid ${LINE}`,
+            borderRadius: '12px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
           }}
         >
-          <Typography variant="h6" color="text.secondary" gutterBottom>
+          <Typography gutterBottom sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
             No photos yet
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: MUTED }}>
             还没有照片，快来上传第一张吧！
           </Typography>
           {currentUser && (
@@ -371,12 +386,17 @@ const GalleryPage = () => {
             <Grid item xs={6} sm={4} md={3} key={image.id}>
               <Card
                 onClick={() => handleImageClick(index)}
+                elevation={0}
                 sx={{
                   cursor: 'pointer',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  backgroundColor: 'white',
+                  border: `1px solid ${LINE}`,
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
                   '&:hover': {
-                    transform: 'scale(1.02)',
-                    boxShadow: 4,
+                    transform: 'translateY(-3px)',
+                    boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
                   },
                 }}
               >
@@ -499,7 +519,7 @@ const GalleryPage = () => {
                         top: 8,
                         left: 8,
                         backgroundColor: 'rgba(255,255,255,0.85)',
-                        borderRadius: '12px',
+                        borderRadius: '99px',
                         px: 1,
                         py: 0.25,
                         display: 'flex',

@@ -1,4 +1,4 @@
-import { AppBar, Badge, Box, Button, Container, Dialog, DialogContent, DialogTitle, IconButton, Stack, SvgIcon, Switch, Toolbar, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { AppBar, Badge, Box, Button, Container, Dialog, DialogContent, DialogTitle, Divider, Drawer, IconButton, List, ListItemButton, ListItemText, Stack, SvgIcon, Switch, Toolbar, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import PersonIcon from '@mui/icons-material/Person';
 import InstagramIcon from '@mui/icons-material/Instagram';
@@ -6,7 +6,8 @@ import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
-import { NavLink, useNavigate } from 'react-router-dom';
+import MenuIcon from '@mui/icons-material/Menu';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAdmin, useAuth, useSocialLinks } from '../context';
 import { getPendingMembers } from '../api/members';
@@ -25,18 +26,38 @@ const HeyloIcon = (props) => (
   </SvgIcon>
 );
 
+// Primary navigation links shown as pills in the top bar (and in the mobile drawer)
+export const navLinks = [
+  { en: 'Home', cn: '主页', path: '/' },
+  { en: 'About Us', cn: '关于我们', path: '/about' },
+  { en: 'Upcoming', cn: '即将到来', path: '/calendar' },
+  { en: 'Memories', cn: '活动回忆', path: '/highlights' },
+  { en: 'Credits/Records', cn: '俱乐部积分', path: '/records' },
+  { en: 'Training', cn: '与我们训练', path: '/training' },
+  { en: 'Sponsors', cn: '赞助者', path: '/sponsors' },
+];
+
+const ORANGE = '#FFA500';
+const ORANGE_DARK = '#F29400';
+const ORANGE_BG = '#FFF6E8';
+const INK = '#212121';
+const MUTED = '#757575';
+
 export default function NavBar() {
   const { isAdmin, adminModeEnabled, toggleAdminMode, memberData } = useAdmin();
   const { currentUser } = useAuth();
   const { socialLinks } = useSocialLinks();
   const navigate = useNavigate();
+  const location = useLocation();
   // Check if user is full admin (status === 'admin') vs committee member
   const isFullAdmin = memberData?.status === 'admin';
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const showPills = useMediaQuery(theme.breakpoints.up('lg'));
+  const isWide = useMediaQuery(theme.breakpoints.up('xl'));
   const [pendingCount, setPendingCount] = useState(0);
   const [shopDialogOpen, setShopDialogOpen] = useState(false);
   const [demoVideoOpen, setDemoVideoOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Helper to check if a social link is configured
   const hasLink = (link) => link && link.trim() !== '' && link !== '#';
@@ -95,6 +116,13 @@ export default function NavBar() {
     return () => clearInterval(interval);
   }, [isAdmin, adminModeEnabled, currentUser?.uid]);
 
+  const socialIconSx = (configured) => ({
+    color: configured ? MUTED : 'rgba(0, 0, 0, 0.26)',
+    padding: { xs: '4px', sm: '6px' },
+    '&:hover': { color: ORANGE, backgroundColor: ORANGE_BG },
+    '&.Mui-disabled': { color: 'rgba(0, 0, 0, 0.26)' },
+  });
+
   return (
     <Box sx={{
       flexGrow: 1,
@@ -102,128 +130,157 @@ export default function NavBar() {
       top: 0,
       zIndex: 1100,
     }}>
-      {/* Top Banner */}
+      {/* Top Bar */}
       <AppBar
         position="static"
         elevation={0}
         sx={{
-          backgroundColor: '#e98f4bff',
+          backgroundColor: '#FFFFFF',
+          borderBottom: '1px solid #EEE7DC',
           boxShadow: 'none',
           width: '100%',
         }}
       >
-        <Container maxWidth={false} sx={{ px: { xs: 1, sm: 2, md: 4 } }}>
+        <Container maxWidth={false} sx={{ px: { xs: 1, sm: 2, md: 3 } }}>
           <Toolbar disableGutters sx={{
             display: 'flex',
-            justifyContent: 'space-between',
-            py: 1,
-            minHeight: '48px'
+            alignItems: 'center',
+            gap: { xs: 0.5, md: 1 },
+            py: 0.5,
+            minHeight: { xs: '52px', md: '64px' },
           }}>
-            {/* Logo and Social Icons */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
-              <NavLink to="/">
-                <Box
-                  component="img"
-                  src="/PageLogo.png"
-                  alt="NewBee Running Club Logo"
-                  sx={{
-                    height: { xs: '32px', sm: '40px' },
-                    width: 'auto',
-                    objectFit: 'contain',
-                    cursor: 'pointer',
-                    display: 'block',
-                    filter: 'invert(1)',
-                    mixBlendMode: 'screen'
-                  }}
-                />
-              </NavLink>
-              {/* Social Media Icons */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.25, sm: 0.5 } }}>
-                <Tooltip title={hasLink(socialLinks.instagram) ? "Instagram" : (adminModeEnabled ? "Instagram (Click to configure)" : "Instagram (Not configured)")}>
-                  <span>
-                    <IconButton
-                      href={hasLink(socialLinks.instagram) ? socialLinks.instagram : '#'}
-                      target={hasLink(socialLinks.instagram) ? "_blank" : undefined}
-                      onClick={(e) => handleSocialClick(socialLinks.instagram, e)}
-                      disabled={!hasLink(socialLinks.instagram) && !adminModeEnabled}
-                      sx={{
-                        color: hasLink(socialLinks.instagram) ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
-                        padding: { xs: '4px', sm: '6px' },
-                        '&:hover': { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
-                        '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
-                      }}
-                    >
-                      <InstagramIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.3rem' } }} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title={hasLink(socialLinks.xiaohongshu) ? "Xiaohongshu / 小红书" : (adminModeEnabled ? "Xiaohongshu (Click to configure)" : "Xiaohongshu (Not configured)")}>
-                  <span>
-                    <IconButton
-                      href={hasLink(socialLinks.xiaohongshu) ? socialLinks.xiaohongshu : '#'}
-                      target={hasLink(socialLinks.xiaohongshu) ? "_blank" : undefined}
-                      onClick={(e) => handleSocialClick(socialLinks.xiaohongshu, e)}
-                      disabled={!hasLink(socialLinks.xiaohongshu) && !adminModeEnabled}
-                      sx={{
-                        color: hasLink(socialLinks.xiaohongshu) ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
-                        padding: { xs: '4px', sm: '6px' },
-                        '&:hover': { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
-                        '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
-                      }}
-                    >
-                      <XiaohongshuIcon sx={{ fontSize: { xs: '1.5rem', sm: '1.8rem' } }} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title={hasLink(socialLinks.heylo) ? "Heylo" : (adminModeEnabled ? "Heylo (Click to configure)" : "Heylo (Not configured)")}>
-                  <span>
-                    <IconButton
-                      href={hasLink(socialLinks.heylo) ? socialLinks.heylo : '#'}
-                      target={hasLink(socialLinks.heylo) ? "_blank" : undefined}
-                      onClick={(e) => handleSocialClick(socialLinks.heylo, e)}
-                      disabled={!hasLink(socialLinks.heylo) && !adminModeEnabled}
-                      sx={{
-                        color: hasLink(socialLinks.heylo) ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
-                        padding: { xs: '4px', sm: '6px' },
-                        '&:hover': { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
-                        '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
-                      }}
-                    >
-                      <HeyloIcon sx={{ fontSize: { xs: '0.86rem', sm: '0.98rem' } }} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title={hasLink(socialLinks.shop) || hasLink(socialLinks.shopDemoVideo) ? "Shop / 商店" : (adminModeEnabled ? "Shop (Click to configure)" : "Shop (Not configured)")}>
-                  <span>
-                    <IconButton
-                      onClick={handleShopClick}
-                      disabled={!hasLink(socialLinks.shop) && !hasLink(socialLinks.shopDemoVideo) && !adminModeEnabled}
-                      sx={{
-                        color: (hasLink(socialLinks.shop) || hasLink(socialLinks.shopDemoVideo)) ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
-                        padding: { xs: '4px', sm: '6px' },
-                        '&:hover': { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
-                        '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
-                      }}
-                    >
-                      <ShoppingBagIcon sx={{ fontSize: { xs: '0.85rem', sm: '1rem' } }} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              </Box>
-            </Box>
+            {/* Logo */}
+            <NavLink to="/">
+              <Box
+                component="img"
+                src="/PageLogo.png"
+                alt="NewBee Running Club Logo"
+                sx={{
+                  height: { xs: '34px', md: '44px' },
+                  width: 'auto',
+                  objectFit: 'contain',
+                  cursor: 'pointer',
+                  display: 'block',
+                  mr: { xs: 0.5, md: 1 },
+                }}
+              />
+            </NavLink>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 2 } }}>
+            {/* Nav pills (desktop) — wraps to a second row instead of clipping if space runs out */}
+            {showPills && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                {navLinks.map((link) => {
+                  const isActive = location.pathname === link.path;
+                  return (
+                    <Button
+                      key={link.path}
+                      component={NavLink}
+                      to={link.path}
+                      sx={{
+                        textTransform: 'none',
+                        borderRadius: '99px',
+                        px: 1.3,
+                        py: 0.7,
+                        minWidth: 'auto',
+                        whiteSpace: 'nowrap',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        lineHeight: 1.2,
+                        color: isActive ? '#FFFFFF' : INK,
+                        backgroundColor: isActive ? ORANGE : 'transparent',
+                        '&:hover': {
+                          backgroundColor: isActive ? ORANGE_DARK : ORANGE_BG,
+                          color: isActive ? '#FFFFFF' : ORANGE,
+                        },
+                      }}
+                    >
+                      {link.en}
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 0.6,
+                          fontSize: '0.6875rem',
+                          fontWeight: 400,
+                          color: isActive ? 'rgba(255,255,255,0.85)' : MUTED,
+                          // Inline Chinese labels need ~1800px of bar width — only show on very wide screens
+                          display: 'none',
+                          '@media (min-width:1800px)': { display: 'inline' },
+                        }}
+                      >
+                        {link.cn}
+                      </Box>
+                    </Button>
+                  );
+                })}
+              </Box>
+            )}
+
+            {/* Right side: socials, admin, profile, join */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.25, sm: 0.5 }, ml: 'auto', flexShrink: 0 }}>
+              {/* Social Media Icons */}
+              <Tooltip title={hasLink(socialLinks.instagram) ? "Instagram" : (adminModeEnabled ? "Instagram (Click to configure)" : "Instagram (Not configured)")}>
+                <span>
+                  <IconButton
+                    href={hasLink(socialLinks.instagram) ? socialLinks.instagram : '#'}
+                    target={hasLink(socialLinks.instagram) ? "_blank" : undefined}
+                    onClick={(e) => handleSocialClick(socialLinks.instagram, e)}
+                    disabled={!hasLink(socialLinks.instagram) && !adminModeEnabled}
+                    sx={socialIconSx(hasLink(socialLinks.instagram))}
+                  >
+                    <InstagramIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.3rem' } }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={hasLink(socialLinks.xiaohongshu) ? "Xiaohongshu / 小红书" : (adminModeEnabled ? "Xiaohongshu (Click to configure)" : "Xiaohongshu (Not configured)")}>
+                <span>
+                  <IconButton
+                    href={hasLink(socialLinks.xiaohongshu) ? socialLinks.xiaohongshu : '#'}
+                    target={hasLink(socialLinks.xiaohongshu) ? "_blank" : undefined}
+                    onClick={(e) => handleSocialClick(socialLinks.xiaohongshu, e)}
+                    disabled={!hasLink(socialLinks.xiaohongshu) && !adminModeEnabled}
+                    sx={socialIconSx(hasLink(socialLinks.xiaohongshu))}
+                  >
+                    <XiaohongshuIcon sx={{ fontSize: { xs: '1.5rem', sm: '1.8rem' } }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={hasLink(socialLinks.heylo) ? "Heylo" : (adminModeEnabled ? "Heylo (Click to configure)" : "Heylo (Not configured)")}>
+                <span>
+                  <IconButton
+                    href={hasLink(socialLinks.heylo) ? socialLinks.heylo : '#'}
+                    target={hasLink(socialLinks.heylo) ? "_blank" : undefined}
+                    onClick={(e) => handleSocialClick(socialLinks.heylo, e)}
+                    disabled={!hasLink(socialLinks.heylo) && !adminModeEnabled}
+                    sx={socialIconSx(hasLink(socialLinks.heylo))}
+                  >
+                    <HeyloIcon sx={{ fontSize: { xs: '0.86rem', sm: '0.98rem' } }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={hasLink(socialLinks.shop) || hasLink(socialLinks.shopDemoVideo) ? "Shop / 商店" : (adminModeEnabled ? "Shop (Click to configure)" : "Shop (Not configured)")}>
+                <span>
+                  <IconButton
+                    onClick={handleShopClick}
+                    disabled={!hasLink(socialLinks.shop) && !hasLink(socialLinks.shopDemoVideo) && !adminModeEnabled}
+                    sx={socialIconSx(hasLink(socialLinks.shop) || hasLink(socialLinks.shopDemoVideo))}
+                  >
+                    <ShoppingBagIcon sx={{ fontSize: { xs: '0.85rem', sm: '1rem' } }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
               {/* Admin Panel Button with Mode Toggle - only visible to admins */}
               {isAdmin && (
                 <Box
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    backgroundColor: adminModeEnabled ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 215, 0, 0.15)',
-                    borderRadius: '8px',
-                    border: adminModeEnabled ? '1px solid #FFD700' : '1px solid rgba(255, 215, 0, 0.5)',
+                    backgroundColor: adminModeEnabled ? 'rgba(255, 165, 0, 0.15)' : 'rgba(255, 165, 0, 0.06)',
+                    borderRadius: '99px',
+                    border: adminModeEnabled ? `1px solid ${ORANGE}` : '1px solid rgba(255, 165, 0, 0.4)',
                     transition: 'all 0.3s ease',
                     overflow: 'hidden',
+                    ml: { xs: 0.25, sm: 0.5 },
                   }}
                 >
                   <Tooltip title={isFullAdmin ? "Admin Dashboard / 管理仪表板" : "Committee Dashboard / 委员仪表板"}>
@@ -231,15 +288,16 @@ export default function NavBar() {
                       component={NavLink}
                       to="/admin"
                       sx={{
-                        color: '#FFD700',
+                        color: '#E28800',
                         textTransform: 'none',
-                        fontSize: { xs: '0.75rem', sm: '0.9rem' },
+                        fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                        fontWeight: 600,
                         minWidth: 'auto',
-                        px: { xs: 1, sm: 2 },
-                        py: { xs: 0.5, sm: 1 },
+                        px: { xs: 1, sm: 1.5 },
+                        py: { xs: 0.5, sm: 0.75 },
                         borderRadius: 0,
                         '&:hover': {
-                          backgroundColor: 'rgba(255, 215, 0, 0.25)',
+                          backgroundColor: 'rgba(255, 165, 0, 0.15)',
                         }
                       }}
                     >
@@ -257,7 +315,7 @@ export default function NavBar() {
                       >
                         <AdminPanelSettingsIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.2rem' } }} />
                       </Badge>
-                      {!isMobile && <span style={{ marginLeft: '4px' }}>{isFullAdmin ? 'Admin Dashboard' : 'Committee Dashboard'}</span>}
+                      {isWide && <span style={{ marginLeft: '4px' }}>{isFullAdmin ? 'Admin' : 'Committee'}</span>}
                     </Button>
                   </Tooltip>
                   <Tooltip title={adminModeEnabled ? "Switch to Runner Mode / 切换跑者模式" : `Switch to ${isFullAdmin ? 'Admin' : 'Committee'} Mode / 切换${isFullAdmin ? '管理员' : '委员'}模式`}>
@@ -268,16 +326,16 @@ export default function NavBar() {
                         size="small"
                         sx={{
                           '& .MuiSwitch-switchBase': {
-                            color: 'white',
+                            color: '#bdbdbd',
                             '&.Mui-checked': {
-                              color: '#FFD700',
+                              color: ORANGE,
                             },
                             '&.Mui-checked + .MuiSwitch-track': {
-                              backgroundColor: '#FFD700',
+                              backgroundColor: ORANGE,
                             },
                           },
                           '& .MuiSwitch-track': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.25)',
                           },
                         }}
                       />
@@ -287,33 +345,118 @@ export default function NavBar() {
               )}
 
               <Tooltip title="Profile / 个人资料">
-                <Button
+                <IconButton
                   component={NavLink}
                   to="/profile"
                   sx={{
-                    color: 'white',
-                    textTransform: 'none',
-                    fontSize: { xs: '0.75rem', sm: '0.9rem' },
-                    minWidth: 'auto',
-                    px: { xs: 1, sm: 3 },
-                    py: { xs: 0.5, sm: 1 },
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    transition: 'all 0.2s ease',
+                    color: MUTED,
+                    border: '1px solid #EEE7DC',
+                    padding: { xs: '5px', sm: '7px' },
                     '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      color: ORANGE,
+                      backgroundColor: ORANGE_BG,
+                      borderColor: ORANGE,
                     }
                   }}
                 >
-                  {isMobile ? <PersonIcon sx={{ fontSize: '1.1rem' }} /> : 'Profile'}
-                </Button>
+                  <PersonIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.2rem' } }} />
+                </IconButton>
               </Tooltip>
+
+              {/* Join CTA */}
+              <Button
+                component={NavLink}
+                to="/join"
+                sx={{
+                  textTransform: 'none',
+                  backgroundColor: ORANGE,
+                  color: '#FFFFFF',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                  borderRadius: '99px',
+                  px: { xs: 1.5, sm: 2.25 },
+                  py: { xs: 0.6, sm: 0.9 },
+                  ml: { xs: 0.25, sm: 0.75 },
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 6px rgba(255, 165, 0, 0.3)',
+                  '&:hover': {
+                    backgroundColor: ORANGE_DARK,
+                  }
+                }}
+              >
+                {isWide ? 'Join NewBee 加入新蜂' : 'Join 加入'}
+              </Button>
+
+              {/* Mobile menu button */}
+              {!showPills && (
+                <IconButton
+                  onClick={() => setDrawerOpen(true)}
+                  sx={{ color: INK, ml: 0.25 }}
+                  aria-label="Open navigation menu"
+                >
+                  <MenuIcon />
+                </IconButton>
+              )}
             </Box>
           </Toolbar>
         </Container>
       </AppBar>
+
+      {/* Mobile navigation drawer */}
+      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        <Box sx={{ width: 260, pt: 1 }} role="presentation">
+          <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1 }}>
+            <Box component="img" src="/PageLogo.png" alt="NewBee Running Club" sx={{ height: 32 }} />
+            <IconButton onClick={() => setDrawerOpen(false)} sx={{ ml: 'auto' }}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Divider />
+          <List>
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.path;
+              return (
+                <ListItemButton
+                  key={link.path}
+                  component={NavLink}
+                  to={link.path}
+                  onClick={() => setDrawerOpen(false)}
+                  sx={{
+                    borderRadius: '12px',
+                    mx: 1,
+                    mb: 0.5,
+                    backgroundColor: isActive ? ORANGE_BG : 'transparent',
+                  }}
+                >
+                  <ListItemText
+                    primary={link.en}
+                    secondary={link.cn}
+                    primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', color: isActive ? ORANGE : INK }}
+                    secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                  />
+                </ListItemButton>
+              );
+            })}
+            <ListItemButton
+              component={NavLink}
+              to="/join"
+              onClick={() => setDrawerOpen(false)}
+              sx={{
+                borderRadius: '99px',
+                mx: 2,
+                mt: 1,
+                backgroundColor: ORANGE,
+                justifyContent: 'center',
+                '&:hover': { backgroundColor: ORANGE_DARK },
+              }}
+            >
+              <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem', py: 0.25 }}>
+                Join NewBee 加入新蜂
+              </Typography>
+            </ListItemButton>
+          </List>
+        </Box>
+      </Drawer>
 
       {/* Shop options dialog: Store vs Demo Video */}
       <Dialog

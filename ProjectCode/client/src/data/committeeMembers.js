@@ -1,5 +1,11 @@
-// Current committee term (2026-2028)
-export const committee2026 = [
+// Committee data is organized as terms (see committeeTerms at the bottom).
+// To add a new committee term: define its members array, then prepend an
+// entry to committeeTerms with current: true and set the old term's
+// current flag to false. The About page timeline renders terms in order,
+// expanding the current one and folding the rest.
+
+// Committee term (2026-2028)
+const committee2026Members = [
   {
     id: 1,
     name: "Brandon Shen",
@@ -93,7 +99,7 @@ export const committee2026 = [
 ];
 
 // Past committee term (2024-2026)
-export const committee2024 = [
+const committee2024Members = [
   {
     id: 101,
     name: "Junxiao Yi",
@@ -186,5 +192,29 @@ export const committee2024 = [
   }
 ];
 
+// All committee terms, newest first. Exactly one term should have current: true.
+export const committeeTerms = [
+  {
+    id: '2026-2028',
+    label: '2026–2028',
+    label_cn: '2026–2028届',
+    current: true,
+    members: committee2026Members,
+  },
+  {
+    id: '2024-2026',
+    label: '2024–2026',
+    label_cn: '2024–2026届',
+    current: false,
+    members: committee2024Members,
+  },
+];
+
+const currentTerm = committeeTerms.find(t => t.current) || committeeTerms[0];
+
+// Backward-compatible named exports
+export const committee2026 = committee2026Members;
+export const committee2024 = committee2024Members;
+
 // Used for admin-privilege checks — only the current term grants access
-export const committeeMembers = committee2026;
+export const committeeMembers = currentTerm.members;
