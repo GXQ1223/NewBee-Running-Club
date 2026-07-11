@@ -121,7 +121,45 @@ def test_preview_falls_back_to_builtin_without_templates(client, db_session, com
     preview = client.get(f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
                          headers=auth(committee_member)).json()
     assert preview['template_name'] is None
+    assert preview['template_id'] == 0
     assert '新蜂跑团' in preview['body']
+
+
+def test_preview_with_explicit_template_id(client, db_session, committee_member):
+    """Committee can override the auto-match and pick any template."""
+    seed_template(db_session, 'Standard', min_amount=0)
+    major = seed_template(db_session, 'Major', min_amount=1000,
+                          subject='Major thanks {name}', body='Major body {amount}')
+    donor = seed_donation(db_session, 'D1', name='Kevin Gu', amount=15)
+
+    # Auto-match picks Standard for $15...
+    auto = client.get(f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
+                      headers=auth(committee_member)).json()
+    assert auto['template_name'] == 'Standard'
+
+    # ...but an explicit template_id renders the chosen one
+    picked = client.get(
+        f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
+        params={'template_id': major.id}, headers=auth(committee_member)).json()
+    assert picked['template_name'] == 'Major'
+    assert picked['template_id'] == major.id
+    assert picked['subject'] == 'Major thanks Kevin Gu'
+    assert picked['body'] == 'Major body $15.00'
+
+    # template_id=0 explicitly requests the built-in default
+    builtin = client.get(
+        f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
+        params={'template_id': 0}, headers=auth(committee_member)).json()
+    assert builtin['template_name'] is None
+    assert '新蜂跑团' in builtin['body']
+
+
+def test_preview_unknown_template_404(client, db_session, committee_member):
+    donor = seed_donation(db_session, 'D1')
+    resp = client.get(
+        f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
+        params={'template_id': 999}, headers=auth(committee_member))
+    assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------- send with edits + receipt

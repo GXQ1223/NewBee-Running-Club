@@ -164,6 +164,19 @@ test('getThankYouPreview GETs the rendered letter, skipping cache', async () => 
   );
 });
 
+test('getThankYouPreview passes an explicit template id (0 = built-in)', async () => {
+  await getThankYouPreview(7, 'uid-1', 5);
+  expect(api.get).toHaveBeenCalledWith(
+    '/api/donors/donations/7/thank-you-preview', { template_id: 5 },
+    { 'X-Firebase-UID': 'uid-1' }, { skipCache: true }
+  );
+  await getThankYouPreview(7, 'uid-1', 0);
+  expect(api.get).toHaveBeenCalledWith(
+    '/api/donors/donations/7/thank-you-preview', { template_id: 0 },
+    { 'X-Firebase-UID': 'uid-1' }, { skipCache: true }
+  );
+});
+
 test('template CRUD helpers hit the right endpoints with auth', async () => {
   await getThankYouTemplates('uid-1');
   expect(api.get).toHaveBeenCalledWith(

@@ -421,19 +421,42 @@ def _compose_thank_you(db: Session, donor):
 @router.get("/donations/{donation_id}/thank-you-preview")
 def thank_you_preview(
     donation_id: int,
+    template_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_admin: Member = Depends(get_current_committee_or_admin)
 ):
-    """The letter this donation would get (matched template rendered with
-    the donor's details), for committee to review and edit before sending."""
+    """The rendered letter for this donation, for committee to review and
+    edit before sending. By default the amount-matched template is used;
+    pass template_id to render a specific one (0 = built-in default)."""
     donor = db.query(Donor).filter(Donor.donation_id == donation_id).first()
     if not donor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Donation {donation_id} not found"
         )
-    subject, _, body_text, template_name = _compose_thank_you(db, donor)
-    return {"subject": subject, "body": body_text, "template_name": template_name}
+
+    if template_id is not None and template_id != 0:
+        template = db.query(ThankYouTemplate).filter(
+            ThankYouTemplate.id == template_id).first()
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Template {template_id} not found"
+            )
+    elif template_id == 0:
+        template = None  # explicitly the built-in default
+    else:
+        template = _select_template(db, donor)  # auto-match by amount
+
+    if template:
+        subject = _render_placeholders(template.subject, donor)
+        body_text = _render_placeholders(template.body, donor)
+        return {"subject": subject, "body": body_text,
+                "template_name": template.name, "template_id": template.id}
+
+    subject, _, body_text = _thank_you_email(donor)
+    return {"subject": subject, "body": body_text,
+            "template_name": None, "template_id": 0}
 
 
 @router.post("/donations/{donation_id}/send-thank-you", response_model=DonorLedgerEntry)
