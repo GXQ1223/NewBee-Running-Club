@@ -77,6 +77,13 @@ class Donor(Base):
     thank_you_sent_at = Column(DateTime, nullable=True)
     email_excerpt = Column(Text, nullable=True)  # Original notification email summary
 
+    # Two-layer bookkeeping (mirrors the club's Google Sheet):
+    # income_type: NULL = unclassified, else 'donation' | 'event_revenue'
+    #   | 'pass_through' | 'mistake'. Only 'donation' rows appear publicly.
+    # event_code: finance_categories code (1xxx), e.g. 1001 General.
+    income_type = Column(String(20), nullable=True)
+    event_code = Column(Integer, nullable=True)
+
     # Indexes for better query performance
     __table_args__ = (
         Index('idx_donor_type', 'donor_type'),
@@ -87,6 +94,61 @@ class Donor(Base):
         Index('idx_donor_member_id', 'member_id'),
         Index('idx_donor_status', 'status'),
     )
+
+# Finance category codes, mirroring the club's Google Sheet coding:
+# kind='event' (1xxx: General, Anniversary, Bear Mt. ...), kind='income_type'
+# (2xxx: Donation, Gala Tickets, ...), kind='expense' (5xxx: Food & Drink, ...)
+class FinanceCategory(Base):
+    __tablename__ = "finance_categories"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    kind = Column(String(20), nullable=False)  # event | income_type | expense
+    code = Column(Integer, nullable=False)     # 1001, 2001, 5001 ...
+    name = Column(String(100), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('kind', 'code', name='uq_finance_category_kind_code'),
+    )
+
+
+# Money-out ledger, imported from Chase CSV statements (cash basis)
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    expense_date = Column(Date, nullable=False)
+    vendor = Column(String(255), nullable=False)
+    amount = Column(DECIMAL(10, 2), nullable=False)  # positive number
+    method = Column(String(50))                      # Debit Card / ACH / Check / Zelle / ...
+    bank_description = Column(Text)                  # raw statement line
+    event_code = Column(Integer, nullable=True)      # finance_categories 1xxx
+    expense_category_code = Column(Integer, nullable=True)  # finance_categories 5xxx
+    import_id = Column(String(255), unique=True)     # dedupe key (BANK|date|amount|desc)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_expense_date', 'expense_date'),
+        Index('idx_expense_event', 'event_code'),
+    )
+
+
+# Donor name -> email memory so acknowledgments can batch-send
+# (payment notification emails never include the donor's address)
+class DonorDirectoryEntry(Base):
+    __tablename__ = "donor_directory"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(255), nullable=False, unique=True)  # normalized donor name
+    email = Column(String(255), nullable=False)
+    # Officer/founder/family — excluded as disqualified persons in the
+    # 509(a)(2) public support test
+    is_insider = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
 
 # Thank-you letter templates for the donation ledger, tiered by amount:
 # the template with the highest min_amount <= donation amount is used.

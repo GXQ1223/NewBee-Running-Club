@@ -10,6 +10,7 @@ omit =
     create_tables.py
     migrate_credits.py
     migrate_donation_ledger.py
+    migrate_finance_module.py
     migrate_events.py
     sync_member_results.py
     sync_zelle_donations.py

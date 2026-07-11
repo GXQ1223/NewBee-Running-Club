@@ -20,6 +20,11 @@ import {
 jest.mock('../context', () => ({
   useAuth: jest.fn(),
 }));
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+}));
 jest.mock('../api/donors', () => ({
   getDonationLedger: jest.fn(),
   approveDonation: jest.fn(),
@@ -563,4 +568,11 @@ test('renders nothing to fetch without a logged-in user', () => {
   useAuth.mockReturnValue({ currentUser: null });
   render(<DonationLedger />);
   expect(getDonationLedger).not.toHaveBeenCalled();
+});
+
+test('links to the finance workbench', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Ming Zhao');
+  fireEvent.click(screen.getByText('📚 Finance 财务工作台 →'));
+  expect(mockNavigate).toHaveBeenCalledWith('/finance');
 });

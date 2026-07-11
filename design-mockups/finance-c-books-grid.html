@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Option C — Books Grid · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe;--purple:#7b3ff2;--purple-bg:#f3e8ff;--red:#c62828;--teal:#00796b;--teal-bg:#e0f2f1}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1320px;margin:0 auto;padding:30px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .optlabel b{color:var(--orange-dark)}
+  .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .sheettabs{display:flex;gap:2px}
+  .stab{background:#EFEBE2;border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer}
+  .stab.on{background:#fff;color:var(--orange-dark);border-color:var(--orange)}
+  .btn{border:none;background:var(--orange);color:#fff;font-family:inherit;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer}
+  .btn.green{background:var(--green)}
+  .btn.ghost{background:#fff;border:1.5px solid var(--orange);color:var(--orange)}
+  .grid{border:1px solid var(--orange);border-radius:0 10px 10px 10px;overflow:auto;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  table{width:100%;border-collapse:collapse;min-width:1100px}
+  th{background:#FDFBF7;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;text-align:left;padding:8px 10px;border:1px solid var(--line);position:sticky;top:0}
+  td{font-size:12.5px;padding:7px 10px;border:1px solid #F1EDE4;vertical-align:middle;background:#fff}
+  tr.new td{background:#FFFDF8}
+  td.rowno{background:#FDFBF7;color:#b5b5b5;font-size:10px;text-align:center;width:34px}
+  .amt{font-weight:700;color:var(--orange);white-space:nowrap;text-align:right}
+  .amt.out{color:var(--red)}
+  .cellchip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px;cursor:pointer;border:1px dashed transparent}
+  .cellchip:hover{border-color:var(--orange)}
+  .c-don{background:var(--green-bg);color:var(--green)}
+  .c-rev{background:var(--teal-bg);color:var(--teal)}
+  .c-pass{background:var(--blue-bg);color:var(--blue)}
+  .c-event{background:var(--purple-bg);color:var(--purple)}
+  .c-empty{background:#fff;border:1.5px dashed var(--orange);color:var(--orange)}
+  .ack-sent{color:var(--green);font-weight:700;font-size:11px;white-space:nowrap}
+  .bulkbar{display:flex;align-items:center;gap:10px;background:var(--ink);color:#fff;border-radius:12px;padding:10px 16px;margin:12px 0;font-size:12.5px}
+  .bulkbar select{font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:8px;border:none}
+  .note{font-size:11px;color:#9a9a9a;margin:8px 2px}
+  h2{font-size:14px;margin:24px 0 8px;color:var(--muted)}
+  .report{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .report th,.report td{border:1px solid #F1EDE4;font-size:12px;padding:7px 10px}
+  .report td.head{font-weight:700;background:#FDFBF7}
+  .report td.tot{font-weight:700;background:var(--orange-bg);color:var(--orange-dark)}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option C — Books Grid 电子账本（最像 Google Sheet）：</b>admin 页面做成<b>表格账本</b>：底部式工作表页签 Income / Expenses / Reports，行内彩色单元格 chip 点开即改（属性、Event、费用类别），支持<b>多选行 + 底部批量分类栏</b>、键盘上下移动。Brandon 从 Sheet 迁移零学习成本；勾选行 → 群发致谢与 Sheet 的 ✉ checkbox 完全同感。报表页签就是老克的矩阵（by Event × 属性/类别 + YoY）。</div>
+
+<div class="toolbar">
+  <div class="sheettabs">
+    <div class="stab on">💵 Income 收入</div>
+    <div class="stab">💸 Expenses 支出</div>
+    <div class="stab">🧾 Reports 报表</div>
+    <div class="stab">👥 Directory 通讯录</div>
+    <div class="stab">⚙️ Settings</div>
+  </div>
+  <span style="flex:1"></span>
+  <button class="btn ghost">↻ Scan Gmail 扫描邮件</button>
+  <button class="btn ghost">⬆ Import Chase CSV 导入账单</button>
+  <button class="btn green">✉ Send 12 acks 群发致谢</button>
+</div>
+
+<div class="grid">
+<table>
+  <thead><tr><th></th><th>Date</th><th>From 来自</th><th style="text-align:right">Amount</th><th>Method</th><th>Memo</th><th>Type 属性 ▾</th><th>Event 活动 ▾</th><th>Ack 致谢</th></tr></thead>
+  <tbody>
+    <tr class="new"><td class="rowno">1</td><td>Jul 8</td><td><b>connie zhou</b></td><td class="amt">$20.00</td><td>Venmo</td><td>carpool bear mountain - 岑岑</td>
+      <td><span class="cellchip c-empty">＋ classify 分类</span></td><td><span class="cellchip c-empty">＋ event</span></td><td>—</td></tr>
+    <tr class="new"><td class="rowno">2</td><td>Jul 7</td><td><b>Haotian Fu</b></td><td class="amt">$23.00</td><td>Zelle</td><td>tee</td>
+      <td><span class="cellchip c-rev">Event Revenue ▾</span></td><td><span class="cellchip c-event">Anniversary ▾</span></td><td>—</td></tr>
+    <tr><td class="rowno">3</td><td>Jul 6</td><td>Kevin Gu</td><td class="amt">$15.00</td><td>Venmo</td><td>🍉 梅老板加油 🇦🇷</td>
+      <td><span class="cellchip c-don">Donation ▾</span></td><td><span class="cellchip c-event">General ▾</span></td><td class="ack-sent">✓ Jul 11</td></tr>
+    <tr><td class="rowno">4</td><td>Jun 4</td><td>Yue Ma</td><td class="amt">$500.00</td><td>Venmo</td><td>Happy 10th anniversary!</td>
+      <td><span class="cellchip c-don">Donation ▾</span></td><td><span class="cellchip c-event">Anniversary ▾</span></td><td><input type="checkbox" checked> ✉</td></tr>
+    <tr><td class="rowno">5</td><td>Jun 3</td><td>Tracy Chen</td><td class="amt">$23.00</td><td>Venmo</td><td>1 red + 1 white 队服</td>
+      <td><span class="cellchip c-rev">Event Revenue ▾</span></td><td><span class="cellchip c-event">Anniversary ▾</span></td><td>—</td></tr>
+    <tr><td class="rowno">6</td><td>Jul 8</td><td>Ryan Young</td><td class="amt">$20.00</td><td>Venmo</td><td>拼车费用</td>
+      <td><span class="cellchip c-pass">Pass-through ▾</span></td><td><span class="cellchip c-event">Bear Mt. ▾</span></td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="bulkbar">☑ 2 rows selected 已选 2 行 → set Type 属性: <select><option>Pass-through 代收</option></select> set Event: <select><option>Bear Mt. Run</option></select> <button class="btn">Apply 应用</button> <span style="opacity:.7">or ✉ send acks for selected 或对所选行发致谢</span></div>
+
+<h2>Reports 报表页签 — 老克的矩阵原样搬进来（cash basis · 可导出 CSV/PDF · YoY 对比 · 509(a) 测试）</h2>
+<div class="report"><table>
+  <thead><tr><th>FY2026 · Income 收入</th><th>Donation</th><th>Gala Tickets</th><th>Merch 商品</th><th>Pass-through</th><th>TOTAL</th><th>Expenses 支出</th><th>NET 净额</th></tr></thead>
+  <tbody>
+    <tr><td class="head">General</td><td>$5,320</td><td>—</td><td>—</td><td>—</td><td>$5,320</td><td class="amt out" style="text-align:left">-$1,214</td><td>$4,106</td></tr>
+    <tr><td class="head">Anniversary 十周年</td><td>$1,800</td><td>—</td><td>$2,156</td><td>—</td><td>$3,956</td><td class="amt out" style="text-align:left">-$3,890</td><td>$66</td></tr>
+    <tr><td class="head">Bear Mt. Run 熊山</td><td>$500</td><td>—</td><td>—</td><td>$1,080</td><td>$1,580</td><td class="amt out" style="text-align:left">-$1,466</td><td>$114</td></tr>
+    <tr><td class="head">BK Half Preview</td><td>$500</td><td>—</td><td>—</td><td>—</td><td>$500</td><td class="amt out" style="text-align:left">-$342</td><td>$158</td></tr>
+    <tr><td class="tot">TOTAL</td><td class="tot">$8,120</td><td class="tot">—</td><td class="tot">$2,156</td><td class="tot">$1,080</td><td class="tot">$11,356</td><td class="tot">-$6,912</td><td class="tot">$4,444</td></tr>
+  </tbody>
+</table></div>
+<div class="note">同页签内：Event YoY comparison（2025 vs 2026 每活动收支）、Public support test 509(a)(1)/(a)(2)、Year-end 年度捐赠汇总（批量发送）。</div>
+
+</body>
+</html>

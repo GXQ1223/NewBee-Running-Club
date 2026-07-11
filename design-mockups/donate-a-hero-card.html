@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Donate Option A — Hero Donation Card · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--zelle:#6d1ed4;--venmo:#008CFF}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:32px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:20px}
+  .optlabel b{color:var(--orange-dark)}
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted)}
+
+  /* HERO DONATION CARD */
+  .hero{border:2px solid var(--orange);border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(255,165,0,.18);margin-bottom:26px}
+  .herotop{background:linear-gradient(135deg,#FFF6E8, #fff);padding:22px 28px 16px;text-align:center}
+  .herotop h3{font-size:22px;font-weight:700}
+  .herotop h3 span{color:var(--orange-dark)}
+  .herotop p{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6}
+  .amounts{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+  .amt{border:1.5px solid var(--line);background:#fff;font-family:inherit;font-size:14px;font-weight:700;padding:8px 20px;border-radius:99px;cursor:pointer;color:var(--muted)}
+  .amt.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .amt:hover:not(.active){border-color:var(--orange);color:var(--orange)}
+  .amthint{font-size:11px;color:#b5b5b5;margin-top:8px}
+
+  .methods{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+  @media(max-width:760px){.methods{grid-template-columns:1fr}}
+  .method{padding:24px 28px;display:flex;gap:20px;align-items:center}
+  .method+.method{border-left:1px solid var(--line)}
+  @media(max-width:760px){.method+.method{border-left:none;border-top:1px solid var(--line)}}
+  .qr{width:132px;height:132px;border:1px solid var(--line);border-radius:12px;padding:6px;background:#fff}
+  .minfo{flex:1}
+  .mbadge{display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:700;margin-bottom:6px}
+  .dot{width:12px;height:12px;border-radius:4px}
+  .handle{display:flex;align-items:center;gap:8px;background:#F7F5F0;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13.5px;font-weight:600;margin:8px 0}
+  .copy{margin-left:auto;border:none;background:var(--orange);color:#fff;font-family:inherit;font-size:11px;font-weight:700;padding:5px 13px;border-radius:99px;cursor:pointer;white-space:nowrap}
+  .copy:hover{background:var(--orange-dark)}
+  .copy.done{background:var(--green)}
+  .steps{font-size:11.5px;color:var(--muted);line-height:1.7}
+  .open{display:inline-block;margin-top:8px;border:1.5px solid var(--venmo);color:var(--venmo);font-size:12px;font-weight:700;padding:6px 16px;border-radius:99px;text-decoration:none}
+  .open:hover{background:var(--venmo);color:#fff}
+  .herofoot{background:#FDFBF7;border-top:1px solid var(--line);padding:10px 28px;font-size:11.5px;color:var(--muted);text-align:center}
+
+  .ghost{border:1px solid var(--line);border-radius:12px;padding:26px 30px;color:#bbb;font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option A — Hero Donation Card 置顶捐款卡：</b>Sponsors 页最顶部放一张醒目的双通道捐款卡（替代埋在段落里的邮箱）。左 Zelle 右 Venmo：<b>大二维码 + 一键复制账号 + 手机深链</b>，上方金额快捷键只作参考提示（Zelle/Venmo 都在对方 App 里输金额）。无需点击任何东西即可看到全部捐款方式——最直接。</div>
+
+<div class="pagehead"><h2>Our Sponsors/Donors</h2><span>我们的赞助者/赞助商</span></div>
+
+<div class="hero">
+  <div class="herotop">
+    <h3>❤️ Support NewBee <span>支持新蜂跑团</span></h3>
+    <p>Every gift—large or small—funds our races, events, and community. 每一份捐赠都将用于赛事与社区活动。</p>
+    <div class="amounts">
+      <button class="amt">$20</button>
+      <button class="amt active">$50</button>
+      <button class="amt">$100</button>
+      <button class="amt">$300</button>
+      <button class="amt">Other 其他</button>
+    </div>
+    <div class="amthint">Suggested amounts — enter the amount in your payment app 参考金额，请在支付 App 内输入</div>
+  </div>
+  <div class="methods">
+    <div class="method">
+      <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQgAAAEIAQAAAACLjVdSAAABjklEQVR4nO1aXQ8CIQxbif//L9fso5zxxSdxOiHeAbfEWbeuoKC9aOuVgf0tfhePmxly5IECasq9Og4Pi5RBonHNdO/i6TpnAXg0IBYQnXu1l6dHLegBEhmDN77LN1nAgyJi47N+fJY/rGoudGMM2cvTdcTCKAHCp67H4+KD1wz0XuAc9WM10h+MRGHc/HIxCBt5uo5YoD57lBX6FA9azJfm4YHgTwejhEdW3gJroj5FKlMkKKVMfYCR8WHPFySbDowPSHtkungTfVTgdPF0HbOAQGCIEYQmSZzYy9MjFnA6RSgOeMIwa4yEWiNPz+QLSn9AVVc5NJQ/oKMOFp3uFgtD6y1Spl+bOwE18TzIPDhQWjUCJJPIT4RaeXrGgkoT1DGq+rz4uClJ8swDu/RKxg/c31o0L7OBQG1iEhEbyacmDqG/8BAgE+uL6dcFczASCtFJH0/XeQsUjzgmrt1Dv7f09L3xsRvqBKTYNQhkIB6MIbXfD2bdSnUeHsgh6kD5gmVgfcH//w4tv5fVxOIOk3qvEZI3EjkAAAAASUVORK5CYII=" alt="Zelle QR">
+      <div class="minfo">
+        <div class="mbadge"><span class="dot" style="background:var(--zelle)"></span>Zelle</div>
+        <div class="steps">Open your banking app → Zelle → send to: 打开银行 App 的 Zelle 转给：</div>
+        <div class="handle">newbeerunningclub@gmail.com <button class="copy" onclick="this.textContent='✓ Copied 已复制';this.classList.add('done')">Copy 复制</button></div>
+        <div class="steps">Memo 备注: <b>Donation + your name 捐款+姓名</b> — helps us thank you! 方便我们致谢</div>
+      </div>
+    </div>
+    <div class="method">
+      <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQgAAAEIAQAAAACLjVdSAAABnElEQVR4nO1Zwa7DMAjDUf//l/0EDml32mkMPZa1ako5IIuAzUB7s9Y7B/t5/F88LjNoRwPN732ldRweFkcGZoSDEsCAxzoPD3Ms9IqNyMM6EI/nghGJSKtIV7kHIiHOWflaHF/PD8YW20REIUlQukS6SjyMmQueFc9ffh6XH3zmheWT3SJdVR7wC/Au64kBpyHEOT6NIq3x4Dk2dGAcC38GJZvKPxCw4NBU5UeU1S6RrjoPMssqA5Pdcdkv0hoPbGZKNVo4I/OXQKdVpCX1FF5F7wpK9ZjowOPOy3X0XADCo+zCME/fQucjMTG1F19u9K9dIl21HsiMcAxEUSfWU6jNRiZYdt3bBg6sp/SNE1TzBpPULIdkjSKt0y/QVMxESZ8yb6R+MaUC1VkiORCKZlw9xT36wR58SOTu8jqtfuAxSbeTKo7MLqdj+ZgFTZWeO/JuXH+5XgenJmYaAmZDMhAPLaTEj/m6Os2487LuLZN3qIRI1rWM9NP5Qe2RU3Xp/z0amocHtIX+qFRjQbtIVzX/aB7p+nm8rBo8/gAWdroPcrwvtwAAAABJRU5ErkJggg==" alt="Venmo QR">
+      <div class="minfo">
+        <div class="mbadge"><span class="dot" style="background:var(--venmo)"></span>Venmo</div>
+        <div class="steps">Scan, or send to 扫码，或转给：</div>
+        <div class="handle">@NewBee-Running <button class="copy" onclick="this.textContent='✓ Copied 已复制';this.classList.add('done')">Copy 复制</button></div>
+        <a class="open" href="https://venmo.com/u/NewBee-Running">Open in Venmo 打开 Venmo →</a>
+      </div>
+    </div>
+  </div>
+  <div class="herofoot">Donations are reviewed by the committee and appear on this page; official 501(c)(3) receipts available (EIN 93-4936132). 捐款经确认后展示在本页，可开具税务收据。</div>
+</div>
+
+<div class="ghost">…intro paragraphs + Individual / Enterprise donor tabs continue below as today 原有介绍段落与赞助者卡片区在下方保持不变…</div>
+
+</body>
+</html>

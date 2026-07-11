@@ -13,6 +13,7 @@ import HomePage from "./pages/HomePage";
 const AboutPage = React.lazy(() => import("./pages/AboutPage"));
 const AdminPanelPage = React.lazy(() => import("./pages/AdminPanelPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
+const FinancePage = React.lazy(() => import("./pages/FinancePage"));
 const GalleryPage = React.lazy(() => import("./pages/GalleryPage"));
 const HighlightsPage = React.lazy(() => import("./pages/HighlightsPage"));
 const JoinPage = React.lazy(() => import("./pages/JoinPage"));
@@ -82,6 +83,7 @@ export default function App() {
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/admin" element={<AdminPanelPage />} />
+                  <Route path="/finance" element={<FinancePage />} />
                   {/* Gallery Route */}
                   <Route path="/events/:eventId/gallery" element={<GalleryPage />} />
                 </Routes>

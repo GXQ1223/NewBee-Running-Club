@@ -124,6 +124,17 @@ python main.py                                    # Run on localhost:8000
 - `GET /api/donors/donations/{id}/thank-you-preview` - Rendered letter (matched tier) for the send dialog
 - `GET /api/donors/donations/{id}/receipt` - Official donation receipt PDF (server/assets holds the letterhead logo + authorized signature)
 
+### Finance module (committee/admin, X-Firebase-UID header) — Books Grid at /finance
+- `GET/POST/PUT /api/finance/categories[/{id}]` - Coded categories: events 1xxx, income types 2xxx, expense cats 5xxx (mirrors the club's Google Sheet)
+- `GET /api/finance/income`, `POST /api/finance/income/classify`, `POST /api/finance/income/manual` - Two-layer income classification (income_type × event_code); only `donation` rows publish publicly
+- `GET /api/finance/expenses`, `POST /api/finance/expenses/classify`, `DELETE /api/finance/expenses/{id}`, `POST /api/finance/bank-import` - Chase CSV import (outflows→expenses, non-Zelle/Venmo inflows→income; BANK| dedup)
+- `GET/PUT/DELETE /api/finance/directory[/{id}]` - Donor name↔email memory (+ is_insider for the 509 test)
+- `GET /api/finance/ack-queue`, `POST /api/finance/send-acks` - Batch acknowledgments (tiered templates + receipts); weekly auto-send scheduler job `auto_ack_donations` behind the `finance_auto_ack` setting
+- `GET /api/finance/reports/by-event[?year]` (+ `/export` CSV), `/reports/yoy`, `/reports/public-support` - Cash-basis reports incl. 509(a)(1)/(a)(2) tests
+- `GET /api/finance/year-end/preview?year`, `POST /api/finance/year-end/send` - Annual per-donor statements (double-send guarded)
+- `GET/PUT /api/finance/settings` - auto_ack_enabled, org_start, fye_month
+- Migration: `migrate_finance_module.py` (donors.income_type/event_code + seeds + backfill)
+
 Weekly Gmail sync: APScheduler job `sync_zelle_donations` (Mon 4:30 AM UTC) reads
 Chase Zelle emails (Gmail label "NewBee Finance/Chase") and Venmo payment
 emails (label "NewBee Finance/Venmo") via IMAP (`sync_zelle_donations.py`) and

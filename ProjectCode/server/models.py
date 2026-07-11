@@ -84,6 +84,9 @@ class DonorLedgerEntry(DonorResponse):
     status: str = "confirmed"  # pending | confirmed | dismissed
     thank_you_sent_at: Optional[datetime] = None
     email_excerpt: Optional[str] = None
+    # Two-layer bookkeeping (finance module)
+    income_type: Optional[str] = None  # donation | event_revenue | pass_through | mistake
+    event_code: Optional[int] = None
     # The ledger shows every row, including legacy/imported ones where these
     # can be NULL (rows inserted outside SQLAlchemy get no column defaults)
     donation_event: Optional[str] = None
@@ -161,6 +164,106 @@ class ThankYouTemplateResponse(ThankYouTemplateBase):
     class Config:
         from_attributes = True
     
+# ---------------------------------------------------------------------------
+# Finance module (Books Grid)
+# ---------------------------------------------------------------------------
+
+INCOME_TYPES = ("donation", "event_revenue", "pass_through", "mistake")
+
+
+class FinanceCategoryCreate(BaseModel):
+    kind: str = Field(..., pattern="^(event|income_type|expense)$")
+    name: str = Field(..., max_length=100)
+    code: Optional[int] = None  # auto-assigned (next in kind's range) if omitted
+
+
+class FinanceCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=100)
+    is_active: Optional[bool] = None
+
+
+class FinanceCategoryOut(BaseModel):
+    id: int
+    kind: str
+    code: int
+    name: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ClassifyIncomeRequest(BaseModel):
+    donation_ids: List[int]
+    income_type: str = Field(..., pattern="^(donation|event_revenue|pass_through|mistake)$")
+    event_code: Optional[int] = None
+
+
+class ManualIncomeRequest(BaseModel):
+    name: str = Field(..., max_length=255)
+    amount: Decimal = Field(..., gt=0, decimal_places=2)
+    donation_date: Optional[dt.date] = None
+    method: Optional[str] = Field(None, max_length=50)
+    memo: Optional[str] = None
+    income_type: str = Field(..., pattern="^(donation|event_revenue|pass_through|mistake)$")
+    event_code: Optional[int] = None
+
+
+class ExpenseOut(BaseModel):
+    id: int
+    expense_date: dt.date
+    vendor: str
+    amount: Decimal
+    method: Optional[str] = None
+    bank_description: Optional[str] = None
+    event_code: Optional[int] = None
+    expense_category_code: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ClassifyExpenseRequest(BaseModel):
+    expense_ids: List[int]
+    event_code: Optional[int] = None
+    expense_category_code: Optional[int] = None
+
+
+class BankImportRequest(BaseModel):
+    csv_text: str
+
+
+class DirectoryUpsertRequest(BaseModel):
+    name: str = Field(..., max_length=255)
+    email: EmailStr
+    is_insider: Optional[bool] = None
+
+
+class DirectoryEntryOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    is_insider: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class SendAcksRequest(BaseModel):
+    donation_ids: Optional[List[int]] = None  # default: whole queue
+
+
+class YearEndSendRequest(BaseModel):
+    year: int
+    names: Optional[List[str]] = None  # default: all donors with previews
+
+
+class FinanceSettingsUpdate(BaseModel):
+    auto_ack_enabled: Optional[bool] = None
+    org_start: Optional[str] = None   # YYYY-MM-DD, 990 exemption effective date
+    fye_month: Optional[int] = Field(None, ge=1, le=12)
+
+
 class DonationSummary(BaseModel):
     donor_type: str
     donor_count: int

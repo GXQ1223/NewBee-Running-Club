@@ -401,6 +401,31 @@ def sync_zelle_donations_job():
         logger.error(f"Donation sync failed: {e}")
 
 
+def auto_ack_job():
+    """
+    Weekly job: batch-send donation acknowledgments when the committee has
+    switched on finance auto-send (finance_auto_ack site setting). Uses the
+    same tiered templates + receipts + donor directory as the manual queue.
+    """
+    logger.info("Starting weekly auto-acknowledgment job...")
+    try:
+        from routes.finance import run_auto_ack_batch
+    except Exception as e:
+        logger.error(f"Auto-ack: failed to import finance module: {e}")
+        return
+
+    try:
+        results = run_auto_ack_batch()
+        if results is None:
+            logger.info("Auto-ack: switch is off, nothing sent.")
+            return
+        sent = sum(1 for r in results if r["sent"])
+        skipped = len(results) - sent
+        logger.info(f"Auto-ack complete: {sent} sent, {skipped} skipped.")
+    except Exception as e:
+        logger.error(f"Auto-ack failed: {e}")
+
+
 def start_scheduler():
     """
     Start the APScheduler with configured jobs.
@@ -450,12 +475,23 @@ def start_scheduler():
         max_instances=1
     )
 
+    # Weekly auto-acknowledgment batch — Monday 5 AM UTC, after the Zelle
+    # sync has landed the week's donations. No-op unless the committee has
+    # enabled the finance_auto_ack switch.
+    scheduler.add_job(
+        auto_ack_job,
+        CronTrigger(day_of_week='mon', hour=5, minute=0),
+        id='auto_ack_donations',
+        replace_existing=True,
+        max_instances=1
+    )
+
     # Start the scheduler
     scheduler.start()
     logger.info(
         "Scheduler started - recurring events job (daily 2 AM), past events "
         "transition (weekly Mon 3 AM), NYRR results sync (weekly Mon 4 AM UTC), "
-        "Zelle donation sync (weekly Mon 4:30 AM UTC)"
+        "Zelle donation sync (weekly Mon 4:30 AM UTC), auto-ack (weekly Mon 5 AM UTC)"
     )
 
     # Run transition immediately on startup to catch any stale events

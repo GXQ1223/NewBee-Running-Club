@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Option A — Ledger Grows Up · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe;--purple:#7b3ff2;--purple-bg:#f3e8ff;--red:#c62828;--teal:#00796b;--teal-bg:#e0f2f1}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1280px;margin:0 auto;padding:30px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .optlabel b{color:var(--orange-dark)}
+  h2{font-size:14px;margin:26px 0 8px;color:var(--muted)}
+  .tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:12px;font-weight:700;font-size:15px}
+  .tab{padding:11px 22px;color:var(--muted)}
+  .tab.active{color:var(--orange);border-bottom:3px solid var(--orange)}
+  .lock{font-size:10px;background:var(--ink);color:#fff;border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:2px}
+  .subnav{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+  .pill{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer}
+  .pill.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .pill .n{background:rgba(0,0,0,.12);border-radius:99px;font-size:10px;padding:1px 7px;margin-left:5px}
+  .pill.active .n{background:rgba(255,255,255,.25)}
+  table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  th{background:#FDFBF7;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+  td{font-size:13px;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:hover td{background:var(--orange-bg)}
+  tr.pending td{background:#FFFDF8;border-left:3px solid var(--orange)}
+  .amt{font-weight:700;color:var(--orange);white-space:nowrap}
+  .amt.out{color:var(--red)}
+  .chip{font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap}
+  .c-don{background:var(--green-bg);color:var(--green)}
+  .c-rev{background:var(--teal-bg);color:var(--teal)}
+  .c-pass{background:var(--blue-bg);color:var(--blue)}
+  .c-event{background:var(--purple-bg);color:var(--purple)}
+  .c-pend{background:var(--orange);color:#fff}
+  select{font-family:inherit;font-size:11.5px;font-weight:700;padding:4px 8px;border:1.5px solid var(--line);border-radius:8px;color:var(--ink);background:#fff}
+  .ackbar{display:flex;align-items:center;gap:12px;background:var(--green-bg);border:1px solid #cfe6cf;border-radius:12px;padding:11px 16px;margin:12px 0;font-size:13px}
+  .btn{border:none;background:var(--orange);color:#fff;font-family:inherit;font-size:12px;font-weight:700;padding:8px 18px;border-radius:99px;cursor:pointer}
+  .btn.green{background:var(--green)}
+  .btn.ghost{background:#fff;border:1.5px solid var(--orange);color:var(--orange)}
+  .note{font-size:11px;color:#9a9a9a;margin:6px 2px}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option A — Ledger Grows Up 账本升级（最小改动）：</b>一切仍在 Sponsors 页的 admin 页签里。原「All Donations · Ledger」升级为 <b>Finance 财务</b>，下设子页签：<b>Income 收入 · Expenses 支出 · Acknowledgments 致谢 · Reports 报表 · Settings 设置</b>。审核从「approve/ignore」变成<b>两层分类</b>：每行选「款项属性」(Donation/Event Revenue/Pass-through/Mistake) +「Event」。导航结构不变，学习成本最低。</div>
+
+<div class="tabs"><div class="tab">Individual Donors 个人赞助者</div><div class="tab">Enterprise Donors 企业赞助者</div><div class="tab active">Finance 财务<span class="lock">ADMIN</span></div></div>
+
+<div class="subnav">
+  <button class="pill active">Income 收入 <span class="n">3 pending</span></button>
+  <button class="pill">Expenses 支出</button>
+  <button class="pill">Acknowledgments 致谢 <span class="n">12</span></button>
+  <button class="pill">Reports 报表</button>
+  <button class="pill">Year-end 年度汇总</button>
+  <button class="pill">Settings 设置</button>
+</div>
+
+<h2>Income 收入 — 审核 = 给每行选两个下拉（属性 × Event）；选完即完成分类，Donation 自动上公开墙 + 进入致谢队列</h2>
+<table>
+  <thead><tr><th>Date</th><th>From 来自</th><th>Amount</th><th>Source 来源</th><th>Type 属性</th><th>Event 活动</th><th>Ack 致谢</th></tr></thead>
+  <tbody>
+    <tr class="pending"><td>Jul 8</td><td><b>connie zhou</b> <span class="chip c-pend">NEW</span></td><td class="amt">$20.00</td><td>✉ Venmo</td>
+      <td><select><option>— classify 分类 —</option><option>Donation 捐款</option><option selected>Pass-through 代收</option><option>Event Revenue 活动收入</option><option>Mistake 误记</option></select></td>
+      <td><select><option selected>Bear Mt. Run 熊山</option><option>General</option><option>Anniversary</option></select></td><td>—</td></tr>
+    <tr class="pending"><td>Jul 7</td><td><b>Haotian Fu</b> <span class="chip c-pend">NEW</span></td><td class="amt">$23.00</td><td>✉ Zelle</td>
+      <td><select><option selected>Event Revenue 活动收入</option></select></td>
+      <td><select><option selected>Anniversary 十周年</option></select></td><td>—</td></tr>
+    <tr><td>Jul 6</td><td>Kevin Gu</td><td class="amt">$15.00</td><td>✉ Venmo</td><td><span class="chip c-don">DONATION 捐款</span></td><td><span class="chip c-event">General</span></td><td style="color:var(--green);font-weight:700;font-size:11.5px">✓ Sent</td></tr>
+    <tr><td>Jun 4</td><td>Yue Ma</td><td class="amt">$500.00</td><td>✉ Venmo</td><td><span class="chip c-don">DONATION 捐款</span></td><td><span class="chip c-event">Anniversary</span></td><td><button class="btn ghost" style="font-size:10.5px;padding:4px 12px">Send 致谢</button></td></tr>
+    <tr><td>Jun 3</td><td>Tracy Chen</td><td class="amt">$23.00</td><td>✉ Venmo</td><td><span class="chip c-rev">EVENT REVENUE 活动收入</span></td><td><span class="chip c-event">Anniversary</span></td><td>—</td></tr>
+    <tr><td>Jul 8</td><td>Ryan Young</td><td class="amt">$20.00</td><td>✉ Venmo</td><td><span class="chip c-pass">PASS-THROUGH 代收</span></td><td><span class="chip c-event">Bear Mt.</span></td><td>—</td></tr>
+  </tbody>
+</table>
+<div class="note">规则迁移：现有「confirmed」→ Donation；「ignored」的拼车/队服 → 一键批量改为 Pass-through / Event Revenue（保留 dedup）。关键词自动分类升级：拼车/车费→Pass-through(带Event猜测)，队服/tee→Event Revenue。</div>
+
+<h2>Acknowledgments 致谢 — Brandon 的每周批量流程（模板已分档）</h2>
+<div class="ackbar">
+  📮 <b>12 confirmed donations un-acknowledged 笔捐款待致谢</b>
+  <span style="color:var(--muted);font-size:12px">uniform tiered templates · receipts attached · emails from DonorDirectory 统一分档模板 · 附收据 · 邮箱自动补全</span>
+  <span style="flex:1"></span>
+  <button class="btn ghost">Preview list 预览名单</button>
+  <button class="btn green">✉ Send all 12 一键群发</button>
+</div>
+<div class="note">每行仍可单独发定制信（Tiffany）；DonorDirectory 记住 姓名→邮箱，缺邮箱的行会列出来等补填。后期在 Settings 里打开「Auto-send weekly 每周自动发送」开关即全自动。</div>
+
+<h2>Expenses 支出 — Chase CSV 拖入导入，同样两层分类</h2>
+<table>
+  <thead><tr><th>Date</th><th>Vendor 商家</th><th>Amount</th><th>Method</th><th>Event 活动</th><th>Category 费用类别</th></tr></thead>
+  <tbody>
+    <tr><td>Jun 2</td><td>COSTCO WHOLESALE</td><td class="amt out">-$412.88</td><td>Debit</td><td><span class="chip c-event">Anniversary</span></td><td><span class="chip c-rev">Event Food & Drink</span></td></tr>
+    <tr><td>May 28</td><td>PARTY CITY</td><td class="amt out">-$86.20</td><td>Debit</td><td><span class="chip c-event">Anniversary</span></td><td><span class="chip c-rev">Event Supplies</span></td></tr>
+  </tbody>
+</table>
+<div class="note">Reports 子页签：Income/Expense by Event（cash basis）、Event YoY 对比、509(a)(1)/(a)(2) public support test、年度汇总 —— 均可导出 CSV/PDF，与老克 Sheet 报表口径一致。</div>
+
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Donate Option B — Step-by-step Wizard · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--zelle:#6d1ed4;--venmo:#008CFF}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#F2EFE9;color:var(--ink);max-width:1180px;margin:0 auto;padding:32px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:20px}
+  .optlabel b{color:var(--orange-dark)}
+  h2{font-size:15px;margin:26px 0 10px}
+  h2 small{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
+
+  /* page CTA */
+  .pagestrip{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 26px;display:flex;align-items:center;gap:18px;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  .pagestrip h3{font-size:18px}
+  .pagestrip p{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .cta{margin-left:auto;border:none;background:var(--orange);color:#fff;font-family:inherit;font-size:15px;font-weight:700;padding:12px 32px;border-radius:99px;cursor:pointer;box-shadow:0 6px 18px rgba(255,165,0,.4)}
+  .cta:hover{background:var(--orange-dark)}
+
+  /* wizard dialog */
+  .dialog{background:#fff;border-radius:16px;max-width:520px;margin:14px auto;padding:24px 28px;box-shadow:0 16px 48px rgba(0,0,0,.18)}
+  .dsteps{display:flex;gap:6px;margin-bottom:18px}
+  .dstep{flex:1;height:4px;border-radius:99px;background:var(--line)}
+  .dstep.on{background:var(--orange)}
+  .dialog h3{font-size:17px;font-weight:700;margin-bottom:4px}
+  .dialog .sub{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+  .amt{border:1.5px solid var(--line);background:#fff;font-family:inherit;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;cursor:pointer;color:var(--ink);text-align:center}
+  .amt small{display:block;font-size:10.5px;color:var(--muted);font-weight:400;margin-top:2px}
+  .amt.active{border-color:var(--orange);background:var(--orange-bg);color:var(--orange-dark)}
+  input.other{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-family:inherit;font-size:14px}
+  .next{width:100%;border:none;background:var(--orange);color:#fff;font-family:inherit;font-size:14.5px;font-weight:700;padding:13px;border-radius:99px;cursor:pointer;margin-top:14px}
+  .next:hover{background:var(--orange-dark)}
+
+  .paychoice{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pay{border:1.5px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;text-align:center}
+  .pay:hover{border-color:var(--orange)}
+  .pay b{font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .pay .dot{width:12px;height:12px;border-radius:4px}
+  .pay p{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
+
+  .finish{text-align:center}
+  .finish .qr{width:170px;height:170px;border:1px solid var(--line);border-radius:14px;padding:8px;margin:8px auto}
+  .handle{display:flex;align-items:center;gap:8px;background:#F7F5F0;border:1px solid var(--line);border-radius:9px;padding:9px 13px;font-size:13.5px;font-weight:600;margin:10px 0;text-align:left}
+  .copy{margin-left:auto;border:none;background:var(--orange);color:#fff;font-size:11px;font-weight:700;padding:5px 13px;border-radius:99px;cursor:pointer;font-family:inherit}
+  .copy.done{background:var(--green)}
+  .deeplink{display:block;background:var(--venmo);color:#fff;text-decoration:none;font-size:14px;font-weight:700;padding:12px;border-radius:99px;margin-top:6px}
+  .notebox{background:var(--orange-bg);border-radius:10px;padding:9px 13px;font-size:12px;color:var(--muted);text-align:left;margin-top:10px}
+  .notebox b{color:var(--orange-dark)}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option B — Donate Wizard 分步捐款向导：</b>页面顶部一个大大的「❤️ Donate 捐款」按钮 → 弹出三步向导：<b>① 选金额 → ② 选 Zelle/Venmo → ③ 扫码/复制/一键跳转</b>。Venmo 深链会把金额和备注自动带入（venmo.com/NewBee-Running?txn=pay&amount=50&note=Donation-张三）；Zelle 显示二维码+复制邮箱+提醒填备注。手机上体验最佳，也最能引导完成。</div>
+
+<h2>1 · Page CTA 页面入口 <small>Sponsors 页顶部（也可放到全站 NavBar）</small></h2>
+<div class="pagestrip">
+  <div>
+    <h3>Support NewBee 支持新蜂跑团</h3>
+    <p>Every gift funds our races, events and community 每一份捐赠都将用于赛事与社区</p>
+  </div>
+  <button class="cta">❤️ Donate 捐款</button>
+</div>
+
+<h2>2 · Step 1 — Amount 金额 <small>快捷金额 + 自定义 + 姓名(用于备注)</small></h2>
+<div class="dialog">
+  <div class="dsteps"><div class="dstep on"></div><div class="dstep"></div><div class="dstep"></div></div>
+  <h3>Choose an amount 选择金额</h3>
+  <div class="sub">Your gift is tax-deductible — NewBee Running Inc is a 501(c)(3). 可抵税</div>
+  <div class="amounts">
+    <button class="amt">$20<small>Cheer 加油</small></button>
+    <button class="amt active">$50<small>Supporter 支持者</small></button>
+    <button class="amt">$100<small>Friend 挚友</small></button>
+    <button class="amt">$300<small>Sponsor 赞助</small></button>
+    <button class="amt">$1,000<small>Champion 冠军</small></button>
+    <button class="amt">Other<small>其他</small></button>
+  </div>
+  <input class="other" placeholder="Your name for the memo 备注中的姓名（可选，方便我们致谢）">
+  <button class="next">Continue 下一步 →</button>
+</div>
+
+<h2>3 · Step 2 — Method 支付方式</h2>
+<div class="dialog">
+  <div class="dsteps"><div class="dstep on"></div><div class="dstep on"></div><div class="dstep"></div></div>
+  <h3>How would you like to send $50? 如何支付 $50？</h3>
+  <div class="sub"></div>
+  <div class="paychoice">
+    <div class="pay"><b><span class="dot" style="background:var(--venmo)"></span>Venmo</b><p>One tap on mobile — amount &amp; memo prefilled 手机一键跳转，金额备注自动填好</p></div>
+    <div class="pay"><b><span class="dot" style="background:var(--zelle)"></span>Zelle</b><p>From your banking app — no fees 银行 App 转账，零手续费</p></div>
+  </div>
+</div>
+
+<h2>4 · Step 3 — Pay 完成支付 <small>左：Venmo（深链带金额）；右：Zelle（扫码/复制）</small></h2>
+<div style="display:flex;gap:14px;flex-wrap:wrap">
+<div class="dialog" style="flex:1;min-width:340px;margin:0">
+  <div class="dsteps"><div class="dstep on"></div><div class="dstep on"></div><div class="dstep on"></div></div>
+  <div class="finish">
+    <h3><span style="color:var(--venmo)">Venmo</span> · $50</h3>
+    <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQgAAAEIAQAAAACLjVdSAAABnElEQVR4nO1Zwa7DMAjDUf//l/0EDml32mkMPZa1ako5IIuAzUB7s9Y7B/t5/F88LjNoRwPN732ldRweFkcGZoSDEsCAxzoPD3Ms9IqNyMM6EI/nghGJSKtIV7kHIiHOWflaHF/PD8YW20REIUlQukS6SjyMmQueFc9ffh6XH3zmheWT3SJdVR7wC/Au64kBpyHEOT6NIq3x4Dk2dGAcC38GJZvKPxCw4NBU5UeU1S6RrjoPMssqA5Pdcdkv0hoPbGZKNVo4I/OXQKdVpCX1FF5F7wpK9ZjowOPOy3X0XADCo+zCME/fQucjMTG1F19u9K9dIl21HsiMcAxEUSfWU6jNRiZYdt3bBg6sp/SNE1TzBpPULIdkjSKt0y/QVMxESZ8yb6R+MaUC1VkiORCKZlw9xT36wR58SOTu8jqtfuAxSbeTKo7MLqdj+ZgFTZWeO/JuXH+5XgenJmYaAmZDMhAPLaTEj/m6Os2487LuLZN3qIRI1rWM9NP5Qe2RU3Xp/z0amocHtIX+qFRjQbtIVzX/aB7p+nm8rBo8/gAWdroPcrwvtwAAAABJRU5ErkJggg==" alt="Venmo QR">
+    <a class="deeplink" href="#">Open Venmo — $50 prefilled 打开 Venmo（已填 $50）</a>
+    <div class="handle">@NewBee-Running <button class="copy" onclick="this.textContent='✓ 已复制';this.classList.add('done')">Copy 复制</button></div>
+    <div class="notebox">Memo prefilled 备注已自动填: <b>Donation 捐款 - 张三</b></div>
+  </div>
+</div>
+<div class="dialog" style="flex:1;min-width:340px;margin:0">
+  <div class="dsteps"><div class="dstep on"></div><div class="dstep on"></div><div class="dstep on"></div></div>
+  <div class="finish">
+    <h3><span style="color:var(--zelle)">Zelle</span> · $50</h3>
+    <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQgAAAEIAQAAAACLjVdSAAABjklEQVR4nO1aXQ8CIQxbif//L9fso5zxxSdxOiHeAbfEWbeuoKC9aOuVgf0tfhePmxly5IECasq9Og4Pi5RBonHNdO/i6TpnAXg0IBYQnXu1l6dHLegBEhmDN77LN1nAgyJi47N+fJY/rGoudGMM2cvTdcTCKAHCp67H4+KD1wz0XuAc9WM10h+MRGHc/HIxCBt5uo5YoD57lBX6FA9azJfm4YHgTwejhEdW3gJroj5FKlMkKKVMfYCR8WHPFySbDowPSHtkungTfVTgdPF0HbOAQGCIEYQmSZzYy9MjFnA6RSgOeMIwa4yEWiNPz+QLSn9AVVc5NJQ/oKMOFp3uFgtD6y1Spl+bOwE18TzIPDhQWjUCJJPIT4RaeXrGgkoT1DGq+rz4uClJ8swDu/RKxg/c31o0L7OBQG1iEhEbyacmDqG/8BAgE+uL6dcFczASCtFJH0/XeQsUjzgmrt1Dv7f09L3xsRvqBKTYNQhkIB6MIbXfD2bdSnUeHsgh6kD5gmVgfcH//w4tv5fVxOIOk3qvEZI3EjkAAAAASUVORK5CYII=" alt="Zelle QR">
+    <div class="handle">newbeerunningclub@gmail.com <button class="copy" onclick="this.textContent='✓ 已复制';this.classList.add('done')">Copy 复制</button></div>
+    <div class="notebox">In your banking app: Zelle → send $50 to this email · Memo: <b>Donation 捐款 - 张三</b><br>打开银行 App → Zelle → 向此邮箱转 $50，备注填写捐款+姓名</div>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

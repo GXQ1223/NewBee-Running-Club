@@ -416,8 +416,8 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
 
     start_scheduler()
 
-    assert fake.add_job.call_count == 4
-    (recurring_call, transition_call, nyrr_call, zelle_call) = fake.add_job.call_args_list
+    assert fake.add_job.call_count == 5
+    (recurring_call, transition_call, nyrr_call, zelle_call, ack_call) = fake.add_job.call_args_list
 
     assert recurring_call.args[0] is scheduler_mod.generate_recurring_events
     assert recurring_call.kwargs['id'] == 'generate_recurring_events'
@@ -438,6 +438,11 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
     assert "hour='4'" in str(nyrr_call.args[1])
 
     assert zelle_call.args[0] is scheduler_mod.sync_zelle_donations_job
+    assert ack_call.args[0] is scheduler_mod.auto_ack_job
+    assert ack_call.kwargs['id'] == 'auto_ack_donations'
+    assert isinstance(ack_call.args[1], CronTrigger)
+    assert "day_of_week='mon'" in str(ack_call.args[1])
+    assert "hour='5'" in str(ack_call.args[1])
     assert zelle_call.kwargs['id'] == 'sync_zelle_donations'
     assert zelle_call.kwargs['max_instances'] == 1
     assert isinstance(zelle_call.args[1], CronTrigger)
