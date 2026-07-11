@@ -6,7 +6,6 @@ import {
   approveDonation,
   dismissDonation,
   revertDonation,
-  deleteDonor,
   sendThankYou,
   runGmailSync,
   downloadTaxReport,
@@ -20,7 +19,6 @@ jest.mock('../api/donors', () => ({
   approveDonation: jest.fn(),
   dismissDonation: jest.fn(),
   revertDonation: jest.fn(),
-  deleteDonor: jest.fn(),
   sendThankYou: jest.fn(),
   runGmailSync: jest.fn(),
   downloadTaxReport: jest.fn(),
@@ -106,7 +104,6 @@ beforeEach(() => {
   approveDonation.mockResolvedValue({});
   dismissDonation.mockResolvedValue({});
   revertDonation.mockResolvedValue({});
-  deleteDonor.mockResolvedValue({});
   sendThankYou.mockResolvedValue({});
   runGmailSync.mockResolvedValue({ emails_found: 1, inserted: 1 });
   downloadTaxReport.mockResolvedValue({
@@ -298,12 +295,14 @@ test('dismiss calls the API and refreshes', async () => {
   await waitFor(() => expect(getDonationLedger).toHaveBeenCalledTimes(2));
 });
 
-test('confirmed rows show un-approve and delete actions; pending rows do not', async () => {
+test('reviewed rows show un-approve but never a delete action', async () => {
   render(<DonationLedger />);
   await screen.findByText('Li Chen');
   // 3 non-pending rows (Li Chen, Golden Wheat, dismissed Spam Sender)
   expect(screen.getAllByLabelText('Un-approve 撤回')).toHaveLength(3);
-  expect(screen.getAllByLabelText('Delete 删除')).toHaveLength(3);
+  // Deleting is not offered: the ignored row is what stops the Gmail sync
+  // from re-importing the same transaction
+  expect(screen.queryByLabelText('Delete 删除')).not.toBeInTheDocument();
 });
 
 test('un-approve sends the donation back to pending', async () => {
@@ -316,48 +315,12 @@ test('un-approve sends the donation back to pending', async () => {
   expect(getDonationLedger).toHaveBeenCalledTimes(2);
 });
 
-test('delete asks for confirmation then deletes by donor_id', async () => {
-  const onLedgerChange = jest.fn();
-  render(<DonationLedger onLedgerChange={onLedgerChange} />);
-  await screen.findByText('Li Chen');
-
-  fireEvent.click(screen.getAllByLabelText('Delete 删除')[0]);
-  expect(await screen.findByText('Delete donation? / 删除捐款？')).toBeInTheDocument();
-  expect(deleteDonor).not.toHaveBeenCalled();
-
-  fireEvent.click(screen.getByText('Delete 删除'));
-  await waitFor(() => expect(deleteDonor).toHaveBeenCalledWith('IND_11', 'admin-uid'));
-  await waitFor(() => expect(onLedgerChange).toHaveBeenCalled());
-});
-
-test('delete confirmation can be cancelled', async () => {
-  render(<DonationLedger />);
-  await screen.findByText('Li Chen');
-  fireEvent.click(screen.getAllByLabelText('Delete 删除')[0]);
-  await screen.findByText('Delete donation? / 删除捐款？');
-  fireEvent.click(screen.getByText('Cancel 取消'));
-  await waitFor(() =>
-    expect(screen.queryByText('Delete donation? / 删除捐款？')).not.toBeInTheDocument()
-  );
-  expect(deleteDonor).not.toHaveBeenCalled();
-});
-
 test('shows an error when un-approve fails', async () => {
   revertDonation.mockRejectedValue(new Error('nope'));
   render(<DonationLedger />);
   await screen.findByText('Li Chen');
   fireEvent.click(screen.getAllByLabelText('Un-approve 撤回')[0]);
   expect(await screen.findByText(/Failed to un-approve donation/)).toBeInTheDocument();
-});
-
-test('shows an error when delete fails', async () => {
-  deleteDonor.mockRejectedValue(new Error('nope'));
-  render(<DonationLedger />);
-  await screen.findByText('Li Chen');
-  fireEvent.click(screen.getAllByLabelText('Delete 删除')[0]);
-  await screen.findByText('Delete donation? / 删除捐款？');
-  fireEvent.click(screen.getByText('Delete 删除'));
-  expect(await screen.findByText(/Failed to delete donation/)).toBeInTheDocument();
 });
 
 test('sync status line and Sync now button', async () => {

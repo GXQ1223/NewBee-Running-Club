@@ -290,6 +290,69 @@ def test_sync_skips_venmo_when_folder_missing(db_session, monkeypatch):
     assert stats['errors'] == 0
 
 
+# ---------------------------------------------------------------- auto-ignore
+
+def test_auto_ignore_keyword_matches_carpool_and_gear():
+    assert zelle.auto_ignore_keyword('拼车 nuo chen') == '拼车'
+    assert zelle.auto_ignore_keyword('Bear Mountain Carpool for Tiffany') == 'carpool'
+    assert zelle.auto_ignore_keyword('熊山车费') == '车费'
+    assert zelle.auto_ignore_keyword('🚗') == '🚗'
+    assert zelle.auto_ignore_keyword('1 red + 1 white 队服') == '队服'
+    assert zelle.auto_ignore_keyword('newbee white t-shirt') == 't-shirt'
+    assert zelle.auto_ignore_keyword('TEE red') == 'tee'
+
+
+def test_auto_ignore_keyword_leaves_real_donations_alone():
+    assert zelle.auto_ignore_keyword('Happy 10th anniversary!') is None
+    assert zelle.auto_ignore_keyword('梅老板加油 🇦🇷') is None
+    assert zelle.auto_ignore_keyword('英格兰过关西瓜🍉') is None
+    assert zelle.auto_ignore_keyword(None) is None
+    assert zelle.auto_ignore_keyword('') is None
+
+
+def test_sync_auto_ignores_carpool_payments(db_session, monkeypatch):
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+    class FakeMail:
+        def __init__(self, emails):
+            self.emails = emails
+
+        def select(self, folder, readonly=False):
+            return ('OK', [b''])
+
+        def fetch(self, eid, spec):
+            return ('OK', [(b'1 (RFC822)', self.emails[eid])])
+
+        def close(self):
+            pass
+
+        def logout(self):
+            pass
+
+    venmo_emails = {
+        b'v1': make_venmo_email(sender='Ryan Young', memo='拼车费用',
+                                txn_link='https://venmo.com/story/111'),
+        b'v2': make_venmo_email(sender='Yue Ma', memo='Happy 10th anniversary!',
+                                txn_link='https://venmo.com/story/222'),
+    }
+    monkeypatch.setattr(zelle, 'Session', _sessionmaker(bind=db_session.get_bind()))
+    monkeypatch.setattr(zelle.time, 'sleep', lambda seconds: None)
+    monkeypatch.setattr(zelle, 'connect_to_gmail', lambda: FakeMail(venmo_emails))
+    monkeypatch.setattr(zelle, 'search_zelle_emails', lambda m, since=None: [])
+    monkeypatch.setattr(zelle, 'search_venmo_emails',
+                        lambda m, since=None: list(venmo_emails.keys()))
+
+    # Even a confirmed backfill must not publish a carpool fee
+    stats = zelle.sync_zelle_donations(status='confirmed')
+    assert stats['inserted'] == 2
+
+    donors = {d.name: d for d in db_session.query(Donor).all()}
+    assert donors['Ryan Young'].status == 'dismissed'
+    assert "Auto-ignored 自动忽略: memo matched '拼车'" in donors['Ryan Young'].notes
+    assert donors['Yue Ma'].status == 'confirmed'
+    assert 'Auto-ignored' not in donors['Yue Ma'].notes
+
+
 # ---------------------------------------------------------------- dedup + sync status
 
 def test_is_duplicate_matches_transaction_number(db_session):
