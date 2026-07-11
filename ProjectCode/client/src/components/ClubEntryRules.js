@@ -321,15 +321,9 @@ const ClubEntryRules = () => {
 
   return (
     <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
-        <Typography sx={{ fontSize: '1.25rem', fontWeight: 700 }}>
-          Club Entry Rules
-        </Typography>
-        <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
-          俱乐部积分规则
-        </Typography>
-        {adminModeEnabled && (
+      {/* Header (title lives in RecordsPage; only the admin action renders here) */}
+      {adminModeEnabled && (
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
           <Button
             onClick={openCreateDialog}
             startIcon={<AddIcon />}
@@ -347,8 +341,8 @@ const ClubEntryRules = () => {
           >
             New Revision 新版本
           </Button>
-        )}
-      </Box>
+        </Box>
+      )}
 
       {/* Revision accordions, current first */}
       {versions.map((version) => (

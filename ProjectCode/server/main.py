@@ -37,6 +37,7 @@ from routes import (
     recurrence,
     highlights,
     settings,
+    race_submissions,
 )
 
 
@@ -188,6 +189,8 @@ app.include_router(gallery.router)
 app.include_router(recurrence.router)
 app.include_router(highlights.router)
 app.include_router(settings.router)
+app.include_router(race_submissions.router)
+app.include_router(race_submissions.photos_router)
 
 
 if __name__ == "__main__":

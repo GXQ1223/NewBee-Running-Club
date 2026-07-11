@@ -24,8 +24,10 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from html import unescape
 
+import json
+
 from sqlalchemy.orm import sessionmaker
-from database import engine, Donor
+from database import engine, Donor, SiteSetting
 import os
 from dotenv import load_dotenv
 
@@ -226,12 +228,30 @@ def is_duplicate(session, transaction_number):
     return existing is not None
 
 
-def build_donor_record(parsed_data):
+def build_email_excerpt(parsed_data):
+    """Build a human-readable summary of the source Zelle email."""
+    parts = [
+        f"Zelle payment received — {parsed_data['sender_name']} sent you "
+        f"${parsed_data['amount']}"
+    ]
+    if parsed_data["donation_date"]:
+        parts.append(f"Sent on {parsed_data['donation_date'].strftime('%b %d, %Y')}")
+    if parsed_data["transaction_number"]:
+        parts.append(f"Transaction #{parsed_data['transaction_number']}")
+    if parsed_data["memo"]:
+        parts.append(f"Memo: {parsed_data['memo']}")
+    return " · ".join(parts)
+
+
+def build_donor_record(parsed_data, status="pending"):
     """
     Build a Donor table row dict from parsed email data.
 
     Args:
         parsed_data: Dict from parse_zelle_email()
+        status: Ledger status for the new record — 'pending' for the weekly
+            sync (committee reviews in the ledger before it goes public),
+            'confirmed' for trusted backfills.
 
     Returns:
         Dict ready for Donor(**record) insertion
@@ -255,11 +275,43 @@ def build_donor_record(parsed_data):
         "donation_event": "General Support",
         "receipt_confirmed": True,
         "quantity": 1,
+        "status": status,
+        "email_excerpt": build_email_excerpt(parsed_data),
     }
     return record
 
 
-def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False):
+def record_sync_status(stats):
+    """
+    Persist last-run info to site_settings so the admin ledger can show
+    sync health without shelling into the server.
+    """
+    session = Session()
+    try:
+        values = {
+            "donation_sync_last_run": datetime.utcnow().isoformat(),
+            "donation_sync_last_result": json.dumps(stats),
+        }
+        for key, value in values.items():
+            setting = session.query(SiteSetting).filter(SiteSetting.key == key).first()
+            if not setting:
+                setting = SiteSetting(
+                    key=key,
+                    value=value,
+                    label_en="Donation Gmail Sync",
+                    label_cn="捐款邮件同步",
+                    category="donors",
+                    is_active=True,
+                )
+                session.add(setting)
+            else:
+                setting.value = value
+        session.commit()
+    finally:
+        session.close()
+
+
+def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False, status="pending"):
     """
     Main sync function: connect to Gmail, fetch Zelle emails, parse and insert.
 
@@ -267,6 +319,8 @@ def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False):
         since_date: Optional YYYY-MM-DD string
         fetch_all: If True, fetch all historical emails (no date filter)
         dry_run: If True, print results without inserting
+        status: Status for inserted rows — 'pending' (default, reviewed in
+            the admin ledger before publishing) or 'confirmed' (backfill)
 
     Returns:
         Dict with sync statistics
@@ -324,7 +378,7 @@ def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False):
                     stats["duplicates"] += 1
                     continue
 
-                record = build_donor_record(parsed)
+                record = build_donor_record(parsed, status=status)
 
                 if dry_run:
                     print(
@@ -366,6 +420,12 @@ def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False):
                 pass
         session.close()
 
+    if not dry_run:
+        try:
+            record_sync_status(stats)
+        except Exception as e:
+            print(f"Warning: could not record sync status: {e}")
+
     return stats
 
 
@@ -391,6 +451,12 @@ def main():
         dest="fetch_all",
         help="Process all historical emails (no date filter)",
     )
+    parser.add_argument(
+        "--confirmed",
+        action="store_true",
+        help="Insert directly as confirmed (skip the pending review queue); "
+        "use for trusted historical backfills",
+    )
 
     args = parser.parse_args()
 
@@ -407,6 +473,7 @@ def main():
         since_date=args.since,
         fetch_all=args.fetch_all,
         dry_run=args.dry_run,
+        status="confirmed" if args.confirmed else "pending",
     )
 
     print("\n" + "=" * 70)

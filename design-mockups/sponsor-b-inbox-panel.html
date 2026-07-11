@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsor Option B — Donation Inbox Panel · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option B: DONATION INBOX. Admin mode adds a two-column console
+     panel above the public list: LEFT = inbox of donations auto-fetched
+     from Gmail awaiting review (match to existing donor or create new);
+     RIGHT = sync status + tax-file generator, always visible (no dialog).
+     Public list below stays as cards with drop-down details. Clear
+     separation between "review queue" and "published list". */
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:36px 24px 80px}
+
+  .viewtoggle{position:fixed;top:14px;right:16px;z-index:50;background:var(--ink);color:#fff;border:none;font-family:inherit;
+    font-size:12px;font-weight:700;padding:8px 16px;border-radius:99px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:22px}
+  .optlabel b{color:var(--orange-dark)}
+  body.public .public-hide{display:none!important}
+
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted)}
+
+  /* ===== admin console panel ===== */
+  .console{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:28px}
+  @media(max-width:900px){.console{grid-template-columns:1fr}}
+  .panel{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.05);overflow:hidden}
+  .panelhead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:#FDFBF7}
+  .panelhead b{font-size:14.5px}
+  .panelhead small{font-size:12px;color:var(--muted)}
+  .count{background:var(--orange);color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
+
+  /* inbox items */
+  .inboxitem{padding:14px 18px;border-bottom:1px solid var(--line)}
+  .inboxitem:last-child{border-bottom:none}
+  .ii-row1{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .ii-row1 b{font-size:14.5px}
+  .ii-amt{font-size:16px;font-weight:700;color:var(--orange)}
+  .ii-date{font-size:12px;color:var(--muted);margin-left:auto}
+  .mailquote{font-size:12px;color:var(--muted);background:var(--blue-bg);border-radius:8px;padding:8px 12px;margin:8px 0;line-height:1.55}
+  .mailquote b{color:var(--blue);font-size:12px}
+  .ii-row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .selwrap{font-size:12px;color:var(--muted)}
+  select{font-family:inherit;font-size:12.5px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;color:var(--ink);background:#fff}
+  .btn{font-family:inherit;font-size:12px;font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer;transition:all .15s}
+  .btn.approve{border:none;background:var(--orange);color:#fff}
+  .btn.approve:hover{background:var(--orange-dark)}
+  .btn.ghost{border:1.5px solid var(--line);background:#fff;color:var(--muted)}
+  .btn.ghost:hover{border-color:var(--muted)}
+  .matched{font-size:11px;font-weight:700;color:var(--green);background:var(--green-bg);padding:3px 10px;border-radius:99px}
+  .emptyinbox{padding:22px 18px;font-size:13px;color:var(--muted);text-align:center}
+
+  /* right rail */
+  .rail .panel{margin-bottom:16px}
+  .syncbody{padding:16px 18px;font-size:13px;line-height:1.7;color:var(--muted)}
+  .syncbody .ok{color:var(--green);font-weight:700}
+  .syncbody .row{display:flex;justify-content:space-between;padding:4px 0}
+  .syncbody .row b{color:var(--ink);font-weight:600}
+  .syncfoot{padding:0 18px 16px}
+  .pillbtn{width:100%;border:1.5px solid var(--orange);background:#fff;color:var(--orange);font-family:inherit;font-size:13px;font-weight:700;
+    padding:9px 0;border-radius:99px;cursor:pointer;transition:all .15s}
+  .pillbtn:hover{background:var(--orange);color:#fff}
+  .pillbtn.solid{background:var(--orange);color:#fff;border:none}
+  .pillbtn.solid:hover{background:var(--orange-dark)}
+  .taxbody{padding:16px 18px}
+  .taxbody label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 7px;text-transform:uppercase;letter-spacing:.4px}
+  .taxbody label:first-child{margin-top:0}
+  .rangechips{display:flex;gap:6px;flex-wrap:wrap}
+  .rchip{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;padding:6px 13px;border-radius:99px;cursor:pointer}
+  .rchip.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .rchip:hover:not(.active){border-color:var(--orange);color:var(--orange)}
+  .daterow{display:flex;gap:8px}
+  .daterow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:12px;color:var(--ink)}
+  .fmtrow{display:flex;gap:8px}
+  .fmt{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11px;cursor:pointer;color:var(--muted)}
+  .fmt b{display:block;color:var(--ink);font-size:12px}
+  .fmt.active{border-color:var(--orange);background:var(--orange-bg)}
+  .taxsum{font-size:11.5px;color:var(--muted);margin:12px 0;line-height:1.5;background:#FDFBF7;border-radius:8px;padding:8px 10px}
+
+  /* intro card */
+  .introcard{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.05);padding:26px 30px;margin-bottom:26px}
+  .introcard p{font-size:15px;line-height:1.7;color:#333;margin-bottom:12px}
+  .introcard p:last-child{margin-bottom:0}
+
+  /* tabs + cards (same as today, with drop-down details) */
+  .tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:20px}
+  .tab{flex:1;text-align:center;padding:12px 0;cursor:pointer;color:var(--muted);font-weight:700;font-size:16px;border-bottom:3px solid transparent}
+  .tab small{font-size:12.5px;font-weight:400;margin-left:6px}
+  .tab.active{color:var(--orange);border-bottom-color:var(--orange)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(262px,1fr));gap:16px;align-items:start}
+  .dcard{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s;overflow:hidden}
+  .dcard:hover{box-shadow:0 8px 24px rgba(255,165,0,.35);transform:translateY(-3px)}
+  .dtop{padding:16px 18px 8px}
+  .drow1{display:flex;align-items:flex-start;gap:8px}
+  .dname{font-size:16px;font-weight:600;flex:1}
+  .icons{display:flex;gap:2px;color:var(--muted);font-size:14px}
+  .icons span{cursor:pointer;padding:2px 4px;border-radius:6px}
+  .icons span:hover{background:var(--orange-bg);color:var(--orange)}
+  .amt{font-size:22px;font-weight:700;color:var(--orange);margin:6px 0 4px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px}
+  .chip{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--orange-bg);color:var(--orange)}
+  .chip.thanked{background:var(--green-bg);color:var(--green)}
+  .msg{font-size:13px;color:var(--muted);font-style:italic;margin:4px 0 6px}
+  .dtoggle{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600;
+    padding:8px;border-top:1px solid var(--line);cursor:pointer;user-select:none;transition:background .15s}
+  .dtoggle:hover{background:var(--orange-bg);color:var(--orange)}
+  .dtoggle .chev{transition:transform .25s;color:var(--orange)}
+  .dcard.open .dtoggle .chev{transform:rotate(180deg)}
+  .ddetails{max-height:0;overflow:hidden;transition:max-height .35s ease;background:#FDFBF7}
+  .dcard.open .ddetails{max-height:600px}
+  .ddetails .inner{padding:12px 18px 16px;border-top:1px solid var(--line)}
+  .drec{padding:10px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+  .drec:last-of-type{border-bottom:none}
+  .drec .l1{display:flex;justify-content:space-between;font-weight:600}
+  .drec .l1 b{color:var(--orange)}
+  .drec .l2{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;color:var(--muted)}
+  .minichip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
+  .minichip.gmail{background:var(--blue-bg);color:var(--blue)}
+  .minichip.manual{background:#f1f1f1;color:var(--muted)}
+  .minichip.rcpt{background:var(--green-bg);color:var(--green)}
+  .thankbtn{border:1px solid var(--orange);background:#fff;color:var(--orange);font-family:inherit;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px;cursor:pointer;margin-left:auto}
+  .thankbtn:hover{background:var(--orange);color:#fff}
+  .sent{margin-left:auto;font-size:11px;color:var(--green);font-weight:700}
+</style>
+</head>
+<body>
+
+<button class="viewtoggle" onclick="document.body.classList.toggle('public');this.textContent=document.body.classList.contains('public')?'👁 Viewing: Public 公开视图':'🔑 Viewing: Admin 管理员视图'">🔑 Viewing: Admin 管理员视图</button>
+
+<div class="optlabel"><b>Option B — Donation Inbox 捐款收件箱式：</b>管理员视图在页面顶部新增一个双栏控制台：左侧是 <b>Donation Inbox</b>（Gmail 每周自动抓取、待审核的捐款——可匹配到现有赞助者或新建，确认后发布到下方公开列表）；右侧常驻「同步状态」和「税务文件生成器」卡片（无需弹窗）。下方公开列表与今天一致，卡片带明细下拉。审核队列与公开列表分区最清晰，未来的感谢邮件/发票功能也放在收件箱审核流程里。</div>
+
+<div class="pagehead"><h2>Our Sponsors/Donors</h2><span>我们的赞助者/赞助商</span></div>
+
+<!-- ===== admin console ===== -->
+<div class="console public-hide">
+  <!-- inbox -->
+  <div class="panel">
+    <div class="panelhead">📥 <b>Donation Inbox 捐款收件箱</b> <span class="count">2</span> <small>auto-fetched from Gmail weekly · 每周从 Gmail 自动抓取</small></div>
+
+    <div class="inboxitem">
+      <div class="ii-row1"><b>Ming Zhao</b> <span class="ii-amt">$150.00</span> <span class="ii-date">Jul 8, 2026 · Zelle</span></div>
+      <div class="mailquote"><b>✉ Zelle payment received</b> — "You received $150.00 from MING ZHAO. Memo: 加油新蜂！Keep running!" · chase.com → newbeerunningclub@gmail.com</div>
+      <div class="ii-row2">
+        <span class="selwrap">Donor 赞助者: <select><option>＋ Create new donor "Ming Zhao" 新建</option><option>Li Chen</option><option>Wei Zhang</option><option>Anonymous 匿名</option></select></span>
+        <span class="selwrap"><select><option>Individual 个人</option><option>Enterprise 企业</option></select></span>
+        <span style="margin-left:auto"></span>
+        <button class="btn approve">✓ Approve &amp; Publish 确认发布</button>
+        <button class="btn ghost">✕ Dismiss 忽略</button>
+      </div>
+    </div>
+
+    <div class="inboxitem">
+      <div class="ii-row1"><b>Golden Wheat Bakery</b> <span class="ii-amt">$300.00</span> <span class="ii-date">Jul 5, 2026 · Zelle</span> </div>
+      <div class="mailquote"><b>✉ Zelle payment received</b> — "You received $300.00 from GOLDEN WHEAT BAKERY LLC. Memo: Summer 5K sponsorship"</div>
+      <div class="ii-row2">
+        <span class="matched">✓ Matched to existing donor 已匹配现有赞助者: Golden Wheat Bakery</span>
+        <span style="margin-left:auto"></span>
+        <button class="btn approve">✓ Approve &amp; Publish 确认发布</button>
+        <button class="btn ghost">✕ Dismiss 忽略</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- right rail -->
+  <div class="rail">
+    <div class="panel">
+      <div class="panelhead">🔄 <b>Gmail Sync 邮件同步</b></div>
+      <div class="syncbody">
+        <div class="row"><span>Status 状态</span><span class="ok">● Healthy 正常</span></div>
+        <div class="row"><span>Last run 上次运行</span><b>Mon Jul 6, 04:00</b></div>
+        <div class="row"><span>Next run 下次运行</span><b>Mon Jul 13, 04:00</b></div>
+        <div class="row"><span>Found this week 本周新增</span><b>2 donations · $450.00</b></div>
+      </div>
+      <div class="syncfoot"><button class="pillbtn">↻ Sync now 立即同步</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panelhead">🧾 <b>Tax File 税务文件</b></div>
+      <div class="taxbody">
+        <label>Time range 时间范围</label>
+        <div class="rangechips">
+          <button class="rchip active">2025</button>
+          <button class="rchip">2024</button>
+          <button class="rchip">2026 YTD</button>
+          <button class="rchip">Custom 自定义</button>
+        </div>
+        <label>Custom dates 自定义日期</label>
+        <div class="daterow"><input type="date" value="2025-01-01"><input type="date" value="2025-12-31"></div>
+        <label>Format 格式</label>
+        <div class="fmtrow">
+          <div class="fmt active"><b>PDF</b>Summary 汇总</div>
+          <div class="fmt"><b>CSV</b>Detail 明细</div>
+        </div>
+        <div class="taxsum">5 donations · $1,708.00 · 4 donors<br>包含 5 笔捐款，共 $1,708.00，4 位捐赠人</div>
+        <button class="pillbtn solid">⬇ Generate &amp; Download 生成并下载</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="introcard">
+  <p>每一份捐赠，无论多少，都意义非凡。感谢您考虑为新蜂跑团捐赠。您的支持帮助我们组织跑步活动、更好地服务会员，共同建设一个更强大、更健康、更紧密的社区。欢迎通过 Zelle：newbeerunningclub@gmail.com 支持跑团运作。</p>
+  <p>Any contribution—large or small—makes a meaningful difference. Thank you for considering a gift to the NewBee Running Club. Your support enables us to organize running programs and better serve our members, fostering a stronger, healthier, and more connected community. Donate via Zelle: newbeerunningclub@gmail.com.</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active">Individual Donors<small>个人赞助者</small></div>
+  <div class="tab">Enterprise Donors<small>企业赞助者</small></div>
+</div>
+
+<div class="grid">
+  <div class="dcard open" id="c1">
+    <div class="dtop">
+      <div class="drow1"><div class="dname">Li Chen</div><div class="icons public-hide"><span>✎</span><span>🗑</span></div></div>
+      <div class="amt public-hide">$320.00 <span style="font-size:11px;color:var(--muted);font-weight:400">total 累计</span></div>
+      <div class="badges"><span class="chip">2 donations 两笔捐款</span><span class="chip thanked public-hide">✓ Thanked 已致谢</span></div>
+      <div class="msg">"Thank you for your support!"</div>
+    </div>
+    <div class="ddetails"><div class="inner public-hide">
+      <div class="drec">
+        <div class="l1"><span>Jun 4, 2025 · General Support</span><b>$200.00</b></div>
+        <div class="l2"><span class="minichip gmail">✉ Gmail</span><span class="minichip rcpt">Receipt ✓</span><span class="sent">✓ Thank-you sent 已发感谢邮件</span></div>
+      </div>
+      <div class="drec">
+        <div class="l1"><span>Feb 12, 2025 · Lunar New Year Run</span><b>$120.00</b></div>
+        <div class="l2"><span class="minichip manual">Manual 手动</span><span class="minichip rcpt">Receipt ✓</span><button class="thankbtn">Send thank-you 发送感谢</button></div>
+      </div>
+    </div></div>
+    <div class="dtoggle" onclick="document.getElementById('c1').classList.toggle('open')">Details 捐款明细 <span class="chev">▼</span></div>
+  </div>
+
+  <div class="dcard" id="c2">
+    <div class="dtop">
+      <div class="drow1"><div class="dname">Wei Zhang</div><div class="icons public-hide"><span>✎</span><span>🗑</span></div></div>
+      <div class="amt public-hide">$120.00</div>
+      <div class="badges"><span class="chip">May 10, 2025</span></div>
+      <div class="msg" style="color:var(--orange);font-style:normal">Thank you for your support! / 感谢您的支持！</div>
+    </div>
+    <div class="ddetails"><div class="inner public-hide">
+      <div class="drec">
+        <div class="l1"><span>May 10, 2025 · General Support</span><b>$120.00</b></div>
+        <div class="l2"><span class="minichip gmail">✉ Gmail</span><span class="minichip rcpt">Receipt ✓</span><button class="thankbtn">Send thank-you 发送感谢</button></div>
+      </div>
+    </div></div>
+    <div class="dtoggle" onclick="document.getElementById('c2').classList.toggle('open')">Details 捐款明细 <span class="chev">▼</span></div>
+  </div>
+
+  <div class="dcard" id="c3">
+    <div class="dtop">
+      <div class="drow1"><div class="dname">Anonymous Donor / 匿名捐赠者</div><div class="icons public-hide"><span>✎</span><span>🗑</span></div></div>
+      <div class="amt public-hide">$88.00</div>
+      <div class="badges"><span class="chip">Jul 1, 2025</span></div>
+    </div>
+    <div class="ddetails"><div class="inner public-hide">
+      <div class="drec">
+        <div class="l1"><span>Jul 1, 2025 · General Support</span><b>$88.00</b></div>
+        <div class="l2"><span class="minichip gmail">✉ Gmail</span><span class="minichip rcpt">Receipt ✓</span><span class="sent">✓ Thank-you sent 已发感谢邮件</span></div>
+      </div>
+    </div></div>
+    <div class="dtoggle" onclick="document.getElementById('c3').classList.toggle('open')">Details 捐款明细 <span class="chev">▼</span></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -162,6 +162,9 @@ def generate_event_code(race_pattern, year):
     # Special patterns that use full year after the code
     if race_pattern in ['M', 'H']:
         return f"{race_pattern}{year}"
+    # Brooklyn Half switched from the {yy}BKH code to the B{year} code in 2025
+    elif race_pattern == 'BKH':
+        return f"B{year}" if year >= 2025 else f"{str(year)[-2:]}BKH"
     else:
         # Standard pattern: 2-digit year + race code
         year_suffix = str(year)[-2:]  # Get last 2 digits of year

@@ -416,8 +416,8 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
 
     start_scheduler()
 
-    assert fake.add_job.call_count == 3
-    (recurring_call, transition_call, nyrr_call) = fake.add_job.call_args_list
+    assert fake.add_job.call_count == 4
+    (recurring_call, transition_call, nyrr_call, zelle_call) = fake.add_job.call_args_list
 
     assert recurring_call.args[0] is scheduler_mod.generate_recurring_events
     assert recurring_call.kwargs['id'] == 'generate_recurring_events'
@@ -436,6 +436,14 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
     assert isinstance(nyrr_call.args[1], CronTrigger)
     assert "day_of_week='mon'" in str(nyrr_call.args[1])
     assert "hour='4'" in str(nyrr_call.args[1])
+
+    assert zelle_call.args[0] is scheduler_mod.sync_zelle_donations_job
+    assert zelle_call.kwargs['id'] == 'sync_zelle_donations'
+    assert zelle_call.kwargs['max_instances'] == 1
+    assert isinstance(zelle_call.args[1], CronTrigger)
+    assert "day_of_week='mon'" in str(zelle_call.args[1])
+    assert "hour='4'" in str(zelle_call.args[1])
+    assert "minute='30'" in str(zelle_call.args[1])
 
     fake.start.assert_called_once()
     # Transition also runs once immediately on startup
@@ -582,4 +590,75 @@ def test_run_nyrr_sync_now(monkeypatch):
     calls = []
     monkeypatch.setattr(scheduler_mod, 'sync_nyrr_results', lambda: calls.append(True))
     scheduler_mod.run_nyrr_sync_now()
+    assert calls == [True]
+
+
+# ---------------------------------------------------------------------------
+# weekly Zelle donation sync job
+# ---------------------------------------------------------------------------
+
+def _fake_zelle_module(sync_impl):
+    mod = types.ModuleType('sync_zelle_donations')
+    mod.sync_zelle_donations = sync_impl
+    return mod
+
+
+def test_sync_zelle_donations_job_runs_with_pending_status(monkeypatch):
+    calls = []
+
+    def fake_sync(status):
+        calls.append(status)
+        return {'emails_found': 3, 'inserted': 2, 'duplicates': 1, 'errors': 0}
+
+    monkeypatch.setitem(sys.modules, 'sync_zelle_donations', _fake_zelle_module(fake_sync))
+
+    scheduler_mod.sync_zelle_donations_job()
+
+    # New donations must land as pending for admin review
+    assert calls == ['pending']
+
+
+def test_sync_zelle_donations_job_logs_stats_without_raising(monkeypatch, caplog):
+    stats = {'emails_found': 5, 'inserted': 4, 'duplicates': 1, 'errors': 0}
+    mod = _fake_zelle_module(lambda status: stats)
+    monkeypatch.setitem(sys.modules, 'sync_zelle_donations', mod)
+
+    with caplog.at_level('INFO', logger='scheduler'):
+        scheduler_mod.sync_zelle_donations_job()
+
+    summary = [r.message for r in caplog.records if 'Donation sync complete' in r.message]
+    assert len(summary) == 1
+    assert '5 email(s) found' in summary[0]
+    assert '4 new pending donation(s)' in summary[0]
+    assert '1 duplicate(s)' in summary[0]
+    assert '0 error(s)' in summary[0]
+
+
+def test_sync_zelle_donations_job_handles_missing_module(monkeypatch, caplog):
+    monkeypatch.setitem(sys.modules, 'sync_zelle_donations', None)
+
+    with caplog.at_level('ERROR', logger='scheduler'):
+        # Import failure logs and returns without raising
+        scheduler_mod.sync_zelle_donations_job()
+
+    assert any('failed to import sync_zelle_donations' in r.message for r in caplog.records)
+
+
+def test_sync_zelle_donations_job_swallows_sync_errors(monkeypatch, caplog):
+    def bad_sync(status):
+        raise RuntimeError('imap down')
+
+    monkeypatch.setitem(sys.modules, 'sync_zelle_donations', _fake_zelle_module(bad_sync))
+
+    with caplog.at_level('ERROR', logger='scheduler'):
+        # Exception is swallowed and logged, never propagated to the scheduler
+        scheduler_mod.sync_zelle_donations_job()
+
+    assert any('Donation sync failed: imap down' in r.message for r in caplog.records)
+
+
+def test_run_donation_sync_now(monkeypatch):
+    calls = []
+    monkeypatch.setattr(scheduler_mod, 'sync_zelle_donations_job', lambda: calls.append(True))
+    scheduler_mod.run_donation_sync_now()
     assert calls == [True]

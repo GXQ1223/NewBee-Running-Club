@@ -77,6 +77,53 @@ class DonorLinkMemberRequest(BaseModel):
 class DonorsListResponse(BaseModel):
     individual_donors: list[DonorResponse]
     enterprise_donors: list[DonorResponse]
+
+
+class DonorLedgerEntry(DonorResponse):
+    """Full donation row for the admin ledger, including review status"""
+    status: str = "confirmed"  # pending | confirmed | dismissed
+    thank_you_sent_at: Optional[datetime] = None
+    email_excerpt: Optional[str] = None
+    # The ledger shows every row, including legacy/imported ones where these
+    # can be NULL (rows inserted outside SQLAlchemy get no column defaults)
+    donation_event: Optional[str] = None
+    quantity: Optional[int] = None
+    receipt_confirmed: Optional[bool] = False
+    hide_amount: Optional[bool] = False
+    hide_name: Optional[bool] = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class DonationLedgerStats(BaseModel):
+    """Stat tiles for the admin donation ledger"""
+    ytd_total: Decimal
+    ytd_count: int
+    alltime_total: Decimal
+    alltime_count: int
+    donor_count: int
+    pending_count: int
+    unthanked_count: int
+
+
+class DonationSyncStatus(BaseModel):
+    """Gmail donation sync health for the admin ledger"""
+    last_run: Optional[str] = None
+    last_result: Optional[Dict] = None
+    next_run: Optional[str] = None
+
+
+class DonationLedgerResponse(BaseModel):
+    donations: list[DonorLedgerEntry]
+    stats: DonationLedgerStats
+    sync: DonationSyncStatus
+
+
+class ApproveDonationRequest(BaseModel):
+    """Optional corrections applied while approving a pending donation"""
+    donor_type: Optional[DonorType] = None
+    name: Optional[str] = Field(None, max_length=255)
+    hide_name: Optional[bool] = None
     
 class DonationSummary(BaseModel):
     donor_type: str
@@ -1009,3 +1056,82 @@ class HighlightsGroupedResponse(BaseModel):
     """Response for grouped highlights"""
     groups: List[EventGroup]
     standalone_events: List[EventResponse]
+
+# ============ Race Record Submissions ============
+
+class RaceSubmissionStatusEnum(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class RaceSubmissionBase(BaseModel):
+    """Member-reported race record from a non-NYRR race"""
+    race_name: str = Field(..., min_length=1, max_length=255)
+    race_date: dt.date
+    race_distance: str = Field(..., min_length=1, max_length=50)
+    finish_time: str = Field(..., max_length=20)  # "H:MM:SS" or "MM:SS"
+    proof_url: Optional[str] = Field(None, max_length=500)
+    photo_url: Optional[str] = Field(None, max_length=500)
+
+
+class RaceSubmissionCreate(RaceSubmissionBase):
+    pass
+
+
+class RaceSubmissionUpdate(BaseModel):
+    """Member edit of a pending/rejected submission (photo may change anytime)"""
+    race_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    race_date: Optional[dt.date] = None
+    race_distance: Optional[str] = Field(None, min_length=1, max_length=50)
+    finish_time: Optional[str] = Field(None, max_length=20)
+    proof_url: Optional[str] = Field(None, max_length=500)
+    photo_url: Optional[str] = Field(None, max_length=500)
+
+
+class RaceSubmissionResponse(RaceSubmissionBase):
+    id: int
+    member_id: int
+    pace: Optional[str] = None
+    status: RaceSubmissionStatusEnum = RaceSubmissionStatusEnum.pending
+    review_note: Optional[str] = None
+    reviewed_by: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    result_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RaceSubmissionPendingItem(RaceSubmissionResponse):
+    """Pending submission with member info for the committee review list"""
+    member_name: Optional[str] = None
+    member_name_cn: Optional[str] = None
+    member_gender: Optional[str] = None
+    member_birth_year: Optional[int] = None
+
+
+class RaceSubmissionReviewRequest(BaseModel):
+    """Committee decision on a race record submission"""
+    approved: bool
+    review_note: Optional[str] = Field(None, max_length=500)
+
+
+class RacePhotoUpsert(BaseModel):
+    """Attach/replace the member's photo on a synced race result"""
+    result_id: int
+    photo_url: str = Field(..., min_length=1, max_length=500)
+
+
+class RacePhotoResponse(BaseModel):
+    id: int
+    member_id: int
+    result_id: int
+    photo_url: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

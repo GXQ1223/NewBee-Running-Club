@@ -104,6 +104,19 @@ python main.py                                    # Run on localhost:8000
 - `GET /api/results/women-records` - Top 10 women's times
 - `GET /api/results/all-races` - All race names
 
+### Donation Ledger (committee/admin, X-Firebase-UID header)
+- `GET /api/donors/ledger` - All donations (any status) + stats + Gmail sync health
+- `POST /api/donors/donations/{id}/approve` - Publish a pending Gmail-imported donation
+- `POST /api/donors/donations/{id}/dismiss` - Hide a pending donation permanently
+- `POST /api/donors/sync-gmail` - Run the Zelle Gmail sync now
+- `GET /api/donors/tax-report?start_date&end_date&format=csv|pdf` - Tax file export
+
+Weekly Gmail sync: APScheduler job `sync_zelle_donations` (Mon 4:30 AM UTC) reads
+Chase Zelle emails via IMAP (`sync_zelle_donations.py`, Gmail label
+"NewBee Finance/Chase") and inserts donations as `status='pending'` for review
+in the Sponsors page admin ledger tab. Public donor endpoints only return
+`status='confirmed'` rows.
+
 ## Coding Conventions
 
 ### Frontend (JavaScript/React)

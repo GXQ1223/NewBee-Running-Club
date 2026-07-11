@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile Option C — Stadium Scoreboard 个人主场 · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&family=Oswald:wght@500;600;700&family=Roboto+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* Option C: STADIUM SCOREBOARD. The profile is your home stadium: a dark
+     LED scoreboard shows personal bests in glowing orange digits (very
+     shareable / screenshot-able), an athlete card sits on the left rail, and
+     tabs organize History / My Submissions / Badges. The review flow gets its
+     own tab with a live progress tracker per submission. Data-dense,
+     competitive, gamified — streaks and badges pull people back. */
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;
+        --gold:#D4A017;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe;--led:#FFB84D}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:36px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:22px}
+  .optlabel b{color:var(--orange-dark)}
+
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+
+  /* ── left rail: athlete card ────────────────────────── */
+  .athlete{border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.08);position:sticky;top:16px}
+  .acover{height:86px;background:linear-gradient(120deg,var(--orange),var(--orange-dark));position:relative}
+  .acover:after{content:"NEWBEE RUNNING CLUB";position:absolute;top:12px;left:0;right:0;text-align:center;color:rgba(255,255,255,.85);
+    font-family:Oswald,sans-serif;font-size:11px;letter-spacing:4px}
+  .avatar{width:92px;height:92px;border-radius:50%;background:#fff;color:var(--orange-dark);display:flex;align-items:center;justify-content:center;
+    font-size:34px;font-weight:900;border:4px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.18);margin:-46px auto 0;position:relative}
+  .abody{padding:12px 22px 22px;text-align:center}
+  .abody h1{font-size:20px;font-weight:700}
+  .abody .cn{font-size:14px;color:var(--muted)}
+  .bibnum{display:inline-block;margin-top:8px;font-family:'Roboto Mono',monospace;font-size:12.5px;font-weight:700;color:var(--orange-dark);
+    background:var(--orange-bg);border:1px solid var(--orange);border-radius:6px;padding:3px 12px;letter-spacing:2px}
+  .arow{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--line);padding:9px 2px;margin-top:2px}
+  .arow b{color:var(--ink)}
+  .streak{margin-top:14px;background:var(--orange-bg);border-radius:10px;padding:10px;font-size:12px;color:var(--orange-dark);font-weight:700}
+  .streak b{font-size:20px;font-family:Oswald,sans-serif}
+  .badges{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .badge{width:44px;height:44px;border-radius:50%;background:var(--orange-bg);border:1.5px solid var(--orange);display:flex;align-items:center;justify-content:center;
+    font-size:19px;cursor:pointer;transition:transform .15s}
+  .badge:hover{transform:scale(1.15)}
+  .badge.locked{background:#f4f4f4;border-color:#ddd;filter:grayscale(1);opacity:.55}
+  .badgecap{font-size:11px;color:var(--muted);margin-top:6px}
+  .aactions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+  .pillbtn{border:1.5px solid var(--orange);background:#fff;color:var(--orange);font-family:inherit;font-size:13px;font-weight:600;
+    padding:9px 18px;border-radius:99px;cursor:pointer;transition:all .15s}
+  .pillbtn:hover{background:var(--orange);color:#fff}
+  .pillbtn.solid{background:var(--orange);color:#fff}
+  .pillbtn.solid:hover{background:var(--orange-dark)}
+  .syncnote{font-size:11px;color:var(--green)}
+
+  /* ── scoreboard ─────────────────────────────────────── */
+  .board{background:#1b1611;border-radius:16px;padding:22px 26px 18px;box-shadow:0 8px 26px rgba(0,0,0,.35);position:relative;overflow:hidden}
+  .board:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.025) 3px 4px)}
+  .bhead{display:flex;align-items:baseline;gap:12px;color:#fff;position:relative}
+  .bhead h2{font-family:Oswald,sans-serif;font-size:18px;font-weight:600;letter-spacing:3px;color:var(--led)}
+  .bhead span{font-size:12px;color:#a89b87}
+  .bhead .live{margin-left:auto;font-size:10.5px;font-weight:700;color:#7fd48a;letter-spacing:1px}
+  .bhead .live i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#7fd48a;margin-right:5px;animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .ledrows{margin-top:14px;position:relative}
+  .ledrow{display:grid;grid-template-columns:58px 112px 1fr auto auto;gap:14px;align-items:center;padding:11px 6px;border-top:1px solid #2e2620}
+  /* your photo from that race */
+  .ph{width:58px;height:42px;border-radius:6px;background-size:cover;background-position:center;border:1px solid #3a3128;position:relative;cursor:pointer}
+  .ph:hover:after{content:"📷";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);border-radius:6px;font-size:15px}
+  .ph.none{background:#241d16;display:flex;align-items:center;justify-content:center;color:#6e6252;font-size:15px}
+  .savebtn{margin-left:14px;border:1px solid #8a6a10;background:transparent;color:var(--led);font-family:Oswald,sans-serif;font-size:11px;
+    letter-spacing:2px;padding:6px 14px;border-radius:99px;cursor:pointer}
+  .savebtn:hover{background:#3a2a08}
+  .ledrow:first-child{border-top:none}
+  .ledrow .d{font-family:Oswald,sans-serif;font-size:14px;letter-spacing:2px;color:#cbbfa8;text-transform:uppercase}
+  .ledrow .d small{display:block;font-family:Roboto,'Noto Sans SC';font-size:10.5px;letter-spacing:0;color:#8a7d68}
+  .ledrow .r{font-size:12px;color:#a89b87}
+  .ledrow .r b{display:block;color:#e8ddc8;font-size:13px;font-weight:600}
+  .ledtime{font-family:'Roboto Mono',monospace;font-size:30px;font-weight:700;color:var(--led);text-shadow:0 0 14px rgba(255,165,0,.55);text-align:right}
+  .ledrow.dim .ledtime{color:#6e6252;text-shadow:none}
+  .ledtag{font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:99px;justify-self:end}
+  .ledtag.nyrr{background:#14243d;color:#7ea8e8}
+  .ledtag.board2{background:#122a14;color:#7fd48a}
+  .ledtag.pend{background:#3a2a08;color:var(--led);border:1px dashed #8a6a10}
+  .ledempty{color:#6e6252;font-size:12px;font-style:italic}
+  .ledempty a{color:var(--led);font-style:normal;font-weight:700;text-decoration:none}
+  .bfoot{position:relative;margin-top:10px;padding-top:10px;border-top:1px solid #2e2620;display:flex;justify-content:space-between;font-size:10.5px;color:#8a7d68;letter-spacing:1px}
+
+  /* ── tabs ───────────────────────────────────────────── */
+  .tabs{display:flex;border-bottom:1px solid var(--line);margin:26px 0 18px}
+  .tab{padding:12px 22px;cursor:pointer;color:var(--muted);font-weight:700;font-size:15px;border-bottom:3px solid transparent}
+  .tab small{font-size:12px;font-weight:400;margin-left:5px}
+  .tab .n{background:var(--orange);color:#fff;font-size:10.5px;font-weight:900;border-radius:99px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+  .tab.active{color:var(--orange);border-bottom-color:var(--orange)}
+  .pane{display:none}.pane.active{display:block}
+
+  /* history table */
+  table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  th{background:var(--orange-bg);text-align:left;padding:11px 14px;font-size:12px;color:var(--orange-dark)}
+  td{padding:11px 14px;border-top:1px solid var(--line)}
+  tr:hover td{background:#FFFDF8}
+  td.t{font-family:'Roboto Mono',monospace;font-size:13.5px;font-weight:700}
+  .chip{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px}
+  .chip.nyrr{background:var(--blue-bg);color:var(--blue)}
+  .chip.board{background:var(--green-bg);color:var(--green)}
+  .chip.pending{background:var(--orange-bg);color:var(--orange-dark);border:1px dashed var(--orange)}
+  .chip.self{background:#f3f3f3;color:var(--muted)}
+  .prtag{background:var(--gold);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:4px;margin-left:6px}
+
+  /* submissions pane */
+  .subcard{border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-bottom:14px;box-shadow:0 2px 4px rgba(0,0,0,.06)}
+  .subcard.open{border:1.5px dashed var(--orange);background:#FFFDF8}
+  .subtop{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .subtop b{font-size:15px}
+  .subtop .t{font-family:'Roboto Mono',monospace;font-weight:700;color:var(--orange-dark)}
+  .subtop .when{margin-left:auto;font-size:12px;color:var(--muted)}
+  .prooffiles{font-size:12px;color:var(--muted);margin-top:6px}
+  .prooffiles a{color:var(--blue);text-decoration:none}
+  .track{display:flex;align-items:center;margin-top:14px}
+  .tstep{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;color:var(--muted);width:110px;text-align:center}
+  .tstep .dot{width:26px;height:26px;border-radius:50%;border:2px solid #ddd;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .tstep.done{color:var(--green)} .tstep.done .dot{border-color:var(--green);background:var(--green-bg)}
+  .tstep.now{color:var(--orange-dark);font-weight:700}
+  .tstep.now .dot{border-color:var(--orange);background:var(--orange-bg);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,165,0,.45)}50%{box-shadow:0 0 0 7px rgba(255,165,0,0)}}
+  .tbar{flex:1;height:2.5px;background:#e8e2d5;margin:0 -18px;margin-bottom:20px}
+  .tbar.done{background:var(--green)}
+  .newrace{border:2px dashed #d9d0bf;border-radius:12px;padding:20px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px}
+  .newrace:hover{border-color:var(--orange);color:var(--orange)}
+  .newrace b{display:block;font-size:15px;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option C · Stadium Scoreboard 个人主场</b> — The profile is your home stadium. A dark <b>LED scoreboard</b>
+shows personal bests in glowing digits with <b>your own photo from each race</b> (hover a thumbnail → 📷 change it), and
+<b>⬇ SAVE AS IMAGE</b> exports the board as one dramatic dark poster — built to be printed, shared to WeChat, or set as a phone
+wallpaper. The athlete card carries streaks and unlockable badges; tabs keep History / <b>My Submissions</b> organized, each
+submission with a live 4-step tracker: Submitted → Committee Review → Approved → On Leaderboard. Competitive &amp; gamified —
+the "empty seat" row nags you to race a 1-miler, and every new PR relights the board.</div>
+
+<div class="layout">
+
+  <!-- left rail -->
+  <div class="athlete">
+    <div class="acover"></div>
+    <div class="avatar">WC</div>
+    <div class="abody">
+      <h1>Wei Chen</h1>
+      <div class="cn">陈伟 · Flushing, NY</div>
+      <div class="bibnum">NB-0087</div>
+      <div style="height:12px"></div>
+      <div class="arow"><span>Member since 加入</span><b>2022</b></div>
+      <div class="arow"><span>NYRR ID</span><b>20481376</b></div>
+      <div class="arow"><span>Races 完赛</span><b>42</b></div>
+      <div class="arow"><span>Race miles 里程</span><b>486</b></div>
+      <div class="arow"><span>Club credits 积分</span><b>128</b></div>
+      <div class="streak">🔥 <b>7</b> race streak — 7 场连续参赛月</div>
+      <div class="badges">
+        <div class="badge" title="Marathon Finisher">🏅</div>
+        <div class="badge" title="Sub-3:30 Club">⚡</div>
+        <div class="badge" title="5-Borough Slam">🗽</div>
+        <div class="badge" title="Volunteer x5">💛</div>
+        <div class="badge locked" title="Boston Qualifier — locked">🦄</div>
+        <div class="badge locked" title="Sub-20 5K — locked">🚀</div>
+      </div>
+      <div class="badgecap">4 of 12 badges unlocked 已解锁徽章 · tap to see how</div>
+      <div class="aactions">
+        <button class="pillbtn solid">＋ Add Race Record 添加成绩</button>
+        <button class="pillbtn">⟳ Sync NYRR 同步</button>
+        <span class="syncnote">✓ auto-synced weekly · last: today 04:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- right column -->
+  <div>
+    <!-- scoreboard -->
+    <div class="board">
+      <div class="bhead">
+        <h2>PERSONAL BESTS</h2><span>个人最好成绩</span>
+        <span class="live"><i></i>SYNCED WITH NYRR</span>
+        <button class="savebtn">⬇ SAVE AS IMAGE 保存图片</button>
+      </div>
+      <div class="ledrows">
+        <div class="ledrow">
+          <div class="ph" style="background-image:url('../ProjectCode/client/public/master-image-1.jpg')" title="Change photo 更换照片"></div>
+          <div class="d">Marathon<small>全程马拉松</small></div>
+          <div class="r"><b>Boston Marathon</b>Apr 20, 2026 · pace 7:52</div>
+          <div class="ledtime">3:25:58</div>
+          <span class="ledtag board2">✓ ON LEADERBOARD</span>
+        </div>
+        <div class="ledrow">
+          <div class="ph" style="background-image:url('../ProjectCode/client/public/images/2025/20250517_bk_half.jpg')" title="Change photo 更换照片"></div>
+          <div class="d">Half<small>半程马拉松</small></div>
+          <div class="r"><b>RBC Brooklyn Half</b>May 16, 2026 · pace 7:30</div>
+          <div class="ledtime">1:38:12</div>
+          <span class="ledtag nyrr">NYRR</span>
+        </div>
+        <div class="ledrow dim">
+          <div class="ph none" title="Add your race photo 添加照片">📷</div>
+          <div class="d">Half ⧗<small>challenger 挑战中</small></div>
+          <div class="r"><b>Jersey City Half</b>Jun 28, 2026 · pending committee review</div>
+          <div class="ledtime">1:36:40</div>
+          <span class="ledtag pend">⧗ IN REVIEW</span>
+        </div>
+        <div class="ledrow">
+          <div class="ph" style="background-image:url('../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg')" title="Change photo 更换照片"></div>
+          <div class="d">10K</div>
+          <div class="r"><b>NYRR Queens 10K</b>Jun 21, 2025 · pace 7:06</div>
+          <div class="ledtime">44:05</div>
+          <span class="ledtag nyrr">NYRR</span>
+        </div>
+        <div class="ledrow">
+          <div class="ph" style="background-image:url('../ProjectCode/client/public/master-image-2.jpg')" title="Change photo 更换照片"></div>
+          <div class="d">5K</div>
+          <div class="r"><b>Abbott Dash to the Finish Line 5K</b>Nov 2, 2024 · pace 6:58</div>
+          <div class="ledtime">21:37</div>
+          <span class="ledtag nyrr">NYRR</span>
+        </div>
+        <div class="ledrow dim">
+          <div class="ph none">＋</div>
+          <div class="d">1 Mile</div>
+          <div class="r ledempty">Empty seat — run one to light it up · <a href="#">＋ add a result 添加成绩</a></div>
+          <div class="ledtime">--:--</div>
+          <span></span>
+        </div>
+      </div>
+      <div class="bfoot"><span>NEWBEE RUNNING CLUB · EST. 2019</span><span>3 RECORDS ON CLUB LEADERBOARD 榜上纪录</span></div>
+    </div>
+
+    <!-- tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="show(0)">Race History<small>比赛历史</small></div>
+      <div class="tab" onclick="show(1)">My Submissions<small>我的提交</small><span class="n">1</span></div>
+    </div>
+
+    <!-- history -->
+    <div class="pane active">
+      <table>
+        <tr><th>Date 日期</th><th>Race 比赛</th><th>Dist</th><th>Time 成绩</th><th>Pace</th><th>Source 来源</th></tr>
+        <tr><td>2026-06-28</td><td>Jersey City Half Marathon</td><td>13.1</td><td class="t">1:36:40<span class="prtag">PR?</span></td><td>7:23</td><td><span class="chip pending">⧗ 待审核</span></td></tr>
+        <tr><td>2026-05-16</td><td>RBC Brooklyn Half</td><td>13.1</td><td class="t">1:38:12<span class="prtag">PR</span></td><td>7:30</td><td><span class="chip nyrr">NYRR</span></td></tr>
+        <tr><td>2026-04-20</td><td>Boston Marathon</td><td>26.2</td><td class="t">3:25:58<span class="prtag">PR</span></td><td>7:52</td><td><span class="chip board">已上榜</span></td></tr>
+        <tr><td>2025-11-02</td><td>TCS New York City Marathon</td><td>26.2</td><td class="t">3:28:46</td><td>7:58</td><td><span class="chip nyrr">NYRR</span></td></tr>
+        <tr><td>2025-10-12</td><td>Chicago Marathon</td><td>26.2</td><td class="t">3:31:20</td><td>8:04</td><td><span class="chip self">自录</span></td></tr>
+        <tr><td>2025-06-21</td><td>NYRR Queens 10K</td><td>6.2</td><td class="t">44:05<span class="prtag">PR</span></td><td>7:06</td><td><span class="chip nyrr">NYRR</span></td></tr>
+      </table>
+    </div>
+
+    <!-- submissions -->
+    <div class="pane">
+      <div class="subcard open">
+        <div class="subtop"><b>Jersey City Half Marathon</b><span class="t">1:36:40</span><span class="chip pending">⧗ In review</span><span class="when">submitted Jul 8, 2026</span></div>
+        <div class="prooffiles">Race created by you 你创建的比赛 · proof 证明: <a href="#">official results page ↗</a> · <a href="#">bib-photo.jpg</a></div>
+        <div class="track">
+          <div class="tstep done"><div class="dot">✓</div>Submitted<br>已提交</div><div class="tbar done"></div>
+          <div class="tstep now"><div class="dot">2</div>Committee Review<br>委员会审核</div><div class="tbar"></div>
+          <div class="tstep"><div class="dot">3</div>Approved<br>批准</div><div class="tbar"></div>
+          <div class="tstep"><div class="dot">4</div>On Leaderboard<br>上榜</div>
+        </div>
+      </div>
+      <div class="subcard">
+        <div class="subtop"><b>Boston Marathon</b><span class="t">3:25:58</span><span class="chip board">✓ On Leaderboard</span><span class="when">approved Apr 24, 2026</span></div>
+        <div class="prooffiles">Reviewed by committee · visible on club Records page 俱乐部纪录页 🎉</div>
+        <div class="track">
+          <div class="tstep done"><div class="dot">✓</div>Submitted</div><div class="tbar done"></div>
+          <div class="tstep done"><div class="dot">✓</div>Reviewed</div><div class="tbar done"></div>
+          <div class="tstep done"><div class="dot">✓</div>Approved</div><div class="tbar done"></div>
+          <div class="tstep done"><div class="dot">✓</div>On Leaderboard 🎉</div>
+        </div>
+      </div>
+      <div class="newrace">
+        <b>＋ New submission 新提交</b>
+        Pick one of your races — or <b style="display:inline">create a race</b> (name · date · distance · official results link) — attach proof, submit for review
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function show(i){
+    document.querySelectorAll('.tab').forEach((t,k)=>t.classList.toggle('active',k===i));
+    document.querySelectorAll('.pane').forEach((p,k)=>p.classList.toggle('active',k===i));
+  }
+</script>
+</body>
+</html>
