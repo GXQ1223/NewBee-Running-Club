@@ -163,6 +163,15 @@ def legacy_engine(monkeypatch):
             "(4, 'Normal Past',      '2020-01-01', 'Past'), "
             "(5, 'Stale Upcoming',   '2020-01-01', 'Upcoming')"
         ))
+        # Pre-ledger donors table (no status/thank_you_sent_at/email_excerpt)
+        conn.execute(text(
+            'CREATE TABLE donors (donation_id INTEGER PRIMARY KEY, '
+            'name VARCHAR(255), donor_type VARCHAR(20), amount DECIMAL(10,2))'
+        ))
+        conn.execute(text(
+            "INSERT INTO donors (donation_id, name, donor_type, amount) "
+            "VALUES (1, 'Legacy Donor', 'individual', 100)"
+        ))
         conn.commit()
     monkeypatch.setattr(main, 'engine', eng)
     return eng
@@ -192,6 +201,14 @@ def test_run_migrations_adds_columns_and_backfills(legacy_engine):
     index_names = {ix['name'] for ix in inspect(legacy_engine).get_indexes('events')}
     assert 'idx_event_is_highlight' in index_names
 
+    # Donation ledger columns added, legacy row defaulted to 'confirmed'
+    donor_cols = [c['name'] for c in inspect(legacy_engine).get_columns('donors')]
+    for col in ('status', 'thank_you_sent_at', 'email_excerpt'):
+        assert col in donor_cols
+    with legacy_engine.connect() as conn:
+        row = conn.execute(text('SELECT status FROM donors WHERE donation_id = 1')).fetchone()
+    assert row[0] == 'confirmed'
+
 
 def test_run_migrations_is_idempotent(legacy_engine):
     main._run_migrations()
@@ -202,6 +219,8 @@ def test_run_migrations_is_idempotent(legacy_engine):
     assert event_rows(legacy_engine) == first
     member_cols = [c['name'] for c in inspect(legacy_engine).get_columns('members')]
     assert member_cols.count('nickname') == 1
+    donor_cols = [c['name'] for c in inspect(legacy_engine).get_columns('donors')]
+    assert donor_cols.count('status') == 1
 
 
 # ---------------------------------------------------------------------------
