@@ -88,6 +88,21 @@ class Donor(Base):
         Index('idx_donor_status', 'status'),
     )
 
+# Thank-you letter templates for the donation ledger, tiered by amount:
+# the template with the highest min_amount <= donation amount is used.
+# Bodies are plain text with {name} / {amount} / {date} placeholders.
+class ThankYouTemplate(Base):
+    __tablename__ = "thank_you_templates"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(100), nullable=False)  # e.g. 'Standard', 'Major donor $1000+'
+    min_amount = Column(DECIMAL(10, 2), nullable=False, default=0)
+    subject = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
 # Results Model for race results
 class Results(Base):
     __tablename__ = "results"

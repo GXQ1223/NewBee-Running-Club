@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger Option A — Status Filter Chips · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option A: STATUS CHIPS. One row of status filters with live counts —
+     All / Pending / Approved / Ignored — so ignored rows are one click away.
+     Every row shows its full action set: approved rows can be Ignored
+     directly, ignored rows can be Restored (approved) directly. */
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe;--red:#c62828}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1280px;margin:0 auto;padding:32px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:20px}
+  .optlabel b{color:var(--orange-dark)}
+
+  .bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .grouplabel{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
+  .chip{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 15px;border-radius:99px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+  .chip:hover{border-color:var(--orange);color:var(--orange)}
+  .chip.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .chip .n{background:rgba(0,0,0,.08);border-radius:99px;font-size:10.5px;padding:1px 7px}
+  .chip.active .n{background:rgba(255,255,255,.25)}
+  .chip.ign.active{background:var(--muted);border-color:var(--muted)}
+  .divider{width:1px;height:22px;background:var(--line);margin:0 6px}
+
+  table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  thead th{background:#FDFBF7;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+  tbody td{font-size:13.5px;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--orange-bg)}
+  tr.pending td{background:#FFFDF8;border-left:3px solid var(--orange)}
+  tr.ignored td{background:#FAFAFA;color:#9a9a9a}
+  tr.ignored .amt{color:#bda06a}
+  .amt{font-weight:700;color:var(--orange);white-space:nowrap}
+  .badge{font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap;margin-left:6px}
+  .badge.pend{background:var(--orange);color:#fff}
+  .badge.ign{background:#e0e0e0;color:#777}
+  .badge.auto{background:#f3e8ff;color:#7b3ff2}
+  .src{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--blue-bg);color:var(--blue);white-space:nowrap}
+  .src.manual{background:#f1f1f1;color:var(--muted)}
+  .ok{color:var(--green);font-weight:700}
+  .btn{font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 14px;border-radius:99px;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .btn.approve{border:none;background:var(--orange);color:#fff}
+  .btn.approve:hover{background:var(--orange-dark)}
+  .btn.restore{border:1.5px solid var(--green);background:#fff;color:var(--green)}
+  .btn.restore:hover{background:var(--green);color:#fff}
+  .btn.ignore{border:1.5px solid var(--line);background:#fff;color:var(--muted)}
+  .btn.ignore:hover{border-color:var(--red);color:var(--red)}
+  .btn.thank{border:1.5px solid var(--orange);background:#fff;color:var(--orange)}
+  .btn.thank:hover{background:var(--orange);color:#fff}
+  .sent{font-size:11.5px;color:var(--green);font-weight:700;white-space:nowrap}
+  .note{font-size:11px;color:#9a9a9a;margin-top:3px}
+  .actions{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option A — Status Chips 状态筛选：</b>筛选行分成两组——<b>状态</b>（All / Pending / Approved / <b>Ignored 已忽略</b>，带实时计数）和来源（Gmail / Manual）。一键即可只看已忽略的记录。每行按状态显示对应操作：<b>已忽略行有绿色「Restore 恢复为已确认」按钮</b>；已确认行有「Ignore 忽略」按钮（误批准时一键改判，不用先撤回）。自动忽略的行带紫色 AUTO 标签并显示命中的关键词。</div>
+
+<div class="bar">
+  <span class="grouplabel">Status 状态</span>
+  <button class="chip">All 全部 <span class="n">71</span></button>
+  <button class="chip">Pending 待审核 <span class="n">1</span></button>
+  <button class="chip">Approved 已确认 <span class="n">47</span></button>
+  <button class="chip ign active">Ignored 已忽略 <span class="n">23</span></button>
+  <span class="divider"></span>
+  <span class="grouplabel">Source 来源</span>
+  <button class="chip">Gmail</button>
+  <button class="chip">Manual 手动</button>
+</div>
+
+<table>
+  <thead><tr><th>Date 日期</th><th>Donor 赞助者</th><th>Amount 金额</th><th>Source 来源</th><th>Memo 备注</th><th style="text-align:right">Actions 操作</th></tr></thead>
+  <tbody>
+    <tr class="ignored">
+      <td>Jul 8, 2026</td>
+      <td>connie zhou <span class="badge ign">IGNORED 已忽略</span></td>
+      <td class="amt">$20.00</td>
+      <td><span class="src">✉ Gmail · Venmo</span></td>
+      <td>carpool bear mountain - 岑岑</td>
+      <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+    </tr>
+    <tr class="ignored">
+      <td>Jul 8, 2026</td>
+      <td>Ryan Young <span class="badge ign">IGNORED 已忽略</span><span class="badge auto">AUTO</span></td>
+      <td class="amt">$20.00</td>
+      <td><span class="src">✉ Gmail · Venmo</span></td>
+      <td>拼车费用 <div class="note">Auto-ignored 自动忽略: memo matched '拼车'</div></td>
+      <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+    </tr>
+    <tr class="ignored">
+      <td>Jul 7, 2026</td>
+      <td>Tracy Chen <span class="badge ign">IGNORED 已忽略</span><span class="badge auto">AUTO</span></td>
+      <td class="amt">$23.00</td>
+      <td><span class="src">✉ Gmail · Venmo</span></td>
+      <td>1 red + 1 white 队服 <div class="note">Auto-ignored 自动忽略: memo matched '队服'</div></td>
+      <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-size:12px;color:var(--muted);margin:18px 0 8px">…and with the <b>All 全部</b> chip selected, every state is visible together — approved rows gain an inline “Ignore” action: / 选「全部」时三种状态同屏，已确认行多一个「忽略」按钮：</p>
+
+<table>
+  <thead><tr><th>Date 日期</th><th>Donor 赞助者</th><th>Amount 金额</th><th>Source 来源</th><th>Thank-you 感谢邮件</th><th style="text-align:right">Actions 操作</th></tr></thead>
+  <tbody>
+    <tr class="pending">
+      <td>Jul 5, 2026</td>
+      <td><b>Zheyuan Florence Hu</b> <span class="badge pend">PENDING 待审核</span></td>
+      <td class="amt">$15.00</td>
+      <td><span class="src">✉ Gmail · Venmo</span></td>
+      <td>—</td>
+      <td><div class="actions"><button class="btn approve">✓ Approve 确认</button><button class="btn ignore">✕ Ignore 忽略</button></div></td>
+    </tr>
+    <tr>
+      <td>Jul 7, 2026</td>
+      <td>Yinuo Zhen</td>
+      <td class="amt">$40.00</td>
+      <td><span class="src">✉ Gmail · Zelle</span></td>
+      <td><button class="btn thank">Send thank-you 发送感谢</button></td>
+      <td><div class="actions"><button class="btn ignore">✕ Ignore 忽略</button></div></td>
+    </tr>
+    <tr>
+      <td>Jul 6, 2026</td>
+      <td>Kevin Gu</td>
+      <td class="amt">$15.00</td>
+      <td><span class="src">✉ Gmail · Venmo</span></td>
+      <td><span class="sent">✓ Sent Jul 11, 2026</span></td>
+      <td><div class="actions"><button class="btn ignore">✕ Ignore 忽略</button></div></td>
+    </tr>
+    <tr class="ignored">
+      <td>Jul 7, 2026</td>
+      <td>Haotian Fu <span class="badge ign">IGNORED 已忽略</span></td>
+      <td class="amt">$20.00</td>
+      <td><span class="src">✉ Gmail · Zelle</span></td>
+      <td>—</td>
+      <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

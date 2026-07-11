@@ -128,8 +128,38 @@ class ApproveDonationRequest(BaseModel):
 
 class SendThankYouRequest(BaseModel):
     """Recipient for a donation thank-you email (payment emails carry no
-    donor address, so committee provides one)"""
+    donor address, so committee provides one). Edited subject/message
+    override the matched template; attach_receipt adds the receipt PDF."""
     email: EmailStr
+    subject: Optional[str] = Field(None, max_length=255)
+    message: Optional[str] = None
+    attach_receipt: bool = False
+
+
+class ThankYouTemplateBase(BaseModel):
+    """Thank-you letter template, tiered by donation amount"""
+    name: str = Field(..., max_length=100)
+    min_amount: Decimal = Field(default=0, ge=0)
+    subject: str = Field(..., max_length=255)
+    body: str
+
+
+class ThankYouTemplateCreate(ThankYouTemplateBase):
+    pass
+
+
+class ThankYouTemplateUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=100)
+    min_amount: Optional[Decimal] = Field(None, ge=0)
+    subject: Optional[str] = Field(None, max_length=255)
+    body: Optional[str] = None
+
+
+class ThankYouTemplateResponse(ThankYouTemplateBase):
+    id: int
+
+    class Config:
+        from_attributes = True
     
 class DonationSummary(BaseModel):
     donor_type: str

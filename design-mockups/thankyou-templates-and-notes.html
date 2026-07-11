@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank-you Templates + Editable Notes · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--blue:#1a63d0;--blue-bg:#e8f0fe;--purple:#7b3ff2;--purple-bg:#f3e8ff}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#F2EFE9;color:var(--ink);max-width:1280px;margin:0 auto;padding:32px 24px 80px}
+  h2{font-size:16px;margin:34px 0 6px}
+  h2 small{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .optlabel b{color:var(--orange-dark)}
+
+  .dialog{background:#fff;border-radius:14px;max-width:620px;padding:24px 26px;box-shadow:0 16px 48px rgba(0,0,0,.18);margin:10px 0}
+  .dialog h3{font-size:16.5px;font-weight:700;margin-bottom:10px}
+  .sub{font-size:13px;color:var(--ink);margin-bottom:4px;font-weight:600}
+  .hint{font-size:11.5px;color:var(--muted);margin-bottom:12px;line-height:1.5}
+  label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 5px;text-transform:uppercase;letter-spacing:.4px}
+  input[type=text],input[type=email],input[type=number],textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font-family:inherit;font-size:13px;color:var(--ink);background:#fff}
+  textarea{line-height:1.65;resize:vertical}
+  input:focus,textarea:focus{outline:none;border-color:var(--orange)}
+  .tplbanner{display:flex;align-items:center;gap:8px;background:var(--purple-bg);border-radius:9px;padding:8px 12px;font-size:12px;color:var(--purple);font-weight:600;margin-bottom:4px}
+  .tplbanner .tier{background:var(--purple);color:#fff;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:99px}
+  .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  .btn{font-family:inherit;font-size:13px;font-weight:700;padding:8px 20px;border-radius:99px;cursor:pointer}
+  .btn.solid{border:none;background:var(--orange);color:#fff}
+  .btn.solid:hover{background:var(--orange-dark)}
+  .btn.ghost{border:none;background:none;color:var(--muted)}
+  .btn.small{font-size:11.5px;padding:5px 14px}
+  .btn.outline{border:1.5px solid var(--orange);background:#fff;color:var(--orange)}
+  .btn.danger{border:1.5px solid #eee;background:#fff;color:#c62828}
+
+  /* templates manager */
+  .tplrow{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+  .tplrow b{font-size:13.5px}
+  .tplrow .tier{background:var(--purple-bg);color:var(--purple);font-size:11px;font-weight:700;padding:3px 11px;border-radius:99px}
+  .tplrow small{color:var(--muted);font-size:11.5px}
+  .tplrow .sp{flex:1}
+  .editform{background:#FDFBF7;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0}
+  .grid2{display:flex;gap:12px}
+  .grid2>div{flex:1}
+  .grid2>div.narrow{flex:0 0 160px}
+  .varchips{display:flex;gap:6px;margin-top:6px}
+  .varchip{font-size:11px;font-weight:700;background:var(--blue-bg);color:var(--blue);padding:3px 10px;border-radius:99px;font-family:monospace}
+  .addbtn{border:1.5px dashed var(--orange);background:none;color:var(--orange);font-family:inherit;font-size:12.5px;font-weight:700;padding:9px;border-radius:10px;cursor:pointer;width:100%;margin-top:12px}
+  .footnote{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5}
+
+  /* toolbar strip */
+  .toolbar{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:10px 0}
+  .pill{border:1.5px solid var(--orange);background:#fff;color:var(--orange);font-size:12px;font-weight:700;padding:7px 15px;border-radius:99px}
+  .pill.solid{background:var(--orange);color:#fff}
+  .pill.new{border-color:var(--purple);color:var(--purple)}
+  .sp{flex:1}
+
+  /* notes editing */
+  .detailrow{background:#FDFBF7;border:1px solid var(--line);border-radius:12px;padding:14px 18px;max-width:900px;margin:10px 0}
+  .excerpt{background:var(--blue-bg);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--muted);margin-bottom:10px}
+  .excerpt b{color:var(--blue)}
+  .noteshead{display:flex;align-items:center;gap:10px}
+  .notestext{font-size:12px;color:var(--muted);line-height:1.6;white-space:pre-line;flex:1}
+  .editlink{font-size:11.5px;color:var(--orange);font-weight:700;cursor:pointer;white-space:nowrap}
+  .savebar{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Design — 感谢信模板 + 可编辑备注（三件套，一次审批）：</b>① 工具栏新增紫色「✉ Templates 模板」按钮 → 模板管理弹窗，可增删改按<b>金额档位</b>匹配的感谢信模板；② 发送弹窗预填匹配到的模板（标题+正文都可先编辑再发）；③ 展开行的 Notes 备注可编辑。以下为三个界面的完整设计。</div>
+
+<h2>1 · Ledger toolbar 工具栏 <small>新增入口按钮</small></h2>
+<div class="toolbar">
+  <span style="font-size:12px;color:var(--muted)">All 全部 · Pending 待审核 · Gmail · Manual 手动 · 🔄 sync healthy…</span>
+  <span class="sp"></span>
+  <span class="pill new">✉ Templates 感谢信模板</span>
+  <span class="pill">↻ Sync now 立即同步</span>
+  <span class="pill solid">🧾 Generate Tax File 生成税务文件</span>
+</div>
+
+<h2>2 · Templates manager 模板管理 <small>「✉ Templates」点开的弹窗</small></h2>
+<div class="dialog" style="max-width:680px">
+  <h3>✉ Thank-you templates 感谢信模板</h3>
+  <div class="hint">Each donation uses the template with the <b>highest tier at or below its amount</b>. 每笔捐款自动匹配「不超过其金额的最高档位」模板。Placeholders 可用变量：<span class="varchip">{name}</span> <span class="varchip">{amount}</span> <span class="varchip">{date}</span></div>
+
+  <div class="tplrow">
+    <b>Standard 标准</b> <span class="tier">≥ $0</span> <small>updated Jul 11, 2026</small>
+    <span class="sp"></span>
+    <button class="btn small outline">✎ Edit 编辑</button>
+    <button class="btn small danger">Delete 删除</button>
+  </div>
+
+  <div class="tplrow" style="border-bottom:none">
+    <b>Major donor 大额捐赠</b> <span class="tier">≥ $300</span> <small>updated Jul 11, 2026</small>
+    <span class="sp"></span>
+    <button class="btn small outline">✎ Edit 编辑</button>
+    <button class="btn small danger">Delete 删除</button>
+  </div>
+
+  <!-- expanded edit form (shown when Edit / Add is clicked) -->
+  <div class="editform">
+    <div class="grid2">
+      <div>
+        <label>Template name 模板名称</label>
+        <input type="text" value="Major donor 大额捐赠">
+      </div>
+      <div class="narrow">
+        <label>Applies from 适用金额 ≥ $</label>
+        <input type="number" value="300">
+      </div>
+    </div>
+    <label>Subject 邮件标题</label>
+    <input type="text" value="Your generous gift to NewBee Running Club 感谢您的慷慨捐赠">
+    <label>Body 正文（plain text, placeholders filled at send time 发送时自动填充变量）</label>
+    <textarea rows="7">Dear {name},
+
+On behalf of the entire NewBee Running Club, thank you for your extraordinarily generous donation of {amount} on {date}. Gifts like yours fund our race programs, community events, and youth outreach for the whole year.
+
+亲爱的 {name}：
+新蜂跑团全体成员衷心感谢您于 {date} 慷慨捐赠 {amount}。您的支持将用于全年赛事项目、社区活动与青少年公益。
+
+With deepest gratitude 满怀感激,
+NewBee Running Club 新蜂跑团</textarea>
+    <div class="savebar">
+      <button class="btn ghost">Cancel 取消</button>
+      <button class="btn solid small">Save 保存</button>
+    </div>
+  </div>
+
+  <button class="addbtn">＋ Add template 添加模板（例如 ≥ $1,000、≥ $10,000 各一档）</button>
+  <div class="footnote">If no templates are defined, the current built-in bilingual letter is used as the ≥$0 fallback. 未配置任何模板时，使用现有内置双语感谢信。Deleting all templates 同理回退。</div>
+</div>
+
+<h2>3 · Send dialog 发送弹窗 <small>预填匹配模板，可编辑后再发</small></h2>
+<div class="dialog">
+  <h3>✉ Send thank-you email 发送感谢邮件</h3>
+  <div class="sub">Yue Ma · $500.00 · Jun 4, 2026</div>
+  <div class="tplbanner">Matched template 匹配模板: <span class="tier">Major donor ≥ $300</span> — you can edit everything below before sending 发送前可任意修改</div>
+  <label>Subject 邮件标题</label>
+  <input type="text" value="Your generous gift to NewBee Running Club 感谢您的慷慨捐赠">
+  <label>Message 正文</label>
+  <textarea rows="9">Dear Yue Ma,
+
+On behalf of the entire NewBee Running Club, thank you for your extraordinarily generous donation of $500.00 on June 04, 2026. Gifts like yours fund our race programs, community events, and youth outreach for the whole year.
+
+亲爱的 Yue Ma：
+新蜂跑团全体成员衷心感谢您于 2026年6月4日 慷慨捐赠 $500.00。您的支持将用于全年赛事项目、社区活动与青少年公益。
+
+With deepest gratitude 满怀感激,
+NewBee Running Club 新蜂跑团</textarea>
+  <label>Donor email 捐赠者邮箱</label>
+  <input type="email" placeholder="yue.ma@example.com">
+  <div class="hint" style="margin-top:8px">The exact subject + message you send is recorded into the donation's Notes. 实际发送的标题和正文将完整记录到该捐款的备注中。</div>
+  <div class="actions">
+    <button class="btn ghost">Cancel 取消</button>
+    <button class="btn solid">Send 发送</button>
+  </div>
+</div>
+
+<h2>4 · Receipt 捐款收据 <small>每笔已确认捐款可生成 PDF 收据，可随感谢邮件附送</small></h2>
+
+<div class="optlabel" style="border-color:var(--blue);background:var(--blue-bg)"><b style="color:var(--blue)">Receipt 收据：</b>① 已确认行的 Receipt 列 ✓ 旁新增 <b>⬇ 收据</b> 下载图标 → 生成 PDF，文件名 <span style="font-family:monospace">NewBee_Donation_Receipt_20260703_Yue_Ma.pdf</span>；② 发送感谢邮件弹窗新增复选框「Attach receipt PDF 附上收据」；③ 收据抬头信息（EIN、地址、签名人、免税声明）在 Templates 弹窗的「Receipt info 收据信息」区统一配置一次。</div>
+
+<div class="dialog" style="max-width:560px;font-size:13px">
+  <div style="text-align:center;border-bottom:3px solid var(--orange);padding-bottom:14px;margin-bottom:16px">
+    <div style="font-size:20px;font-weight:700">NEWBEE RUNNING CLUB <span style="color:var(--orange)">新蜂跑团</span></div>
+    <div style="font-size:11.5px;color:var(--muted)">New York, NY · newbeerunningclub.org · EIN: XX-XXXXXXX</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+    <b style="font-size:15px">Donation Receipt 捐款收据</b>
+    <span style="color:var(--muted);font-size:12px">Receipt No. 2026-0042 · Issued Jul 11, 2026</span>
+  </div>
+  <table style="width:100%;font-size:13px;border-collapse:collapse">
+    <tr><td style="padding:7px 0;color:var(--muted);width:200px">Donor 捐赠人</td><td><b>Yue Ma</b></td></tr>
+    <tr><td style="padding:7px 0;color:var(--muted)">Donation date 捐款日期</td><td>June 4, 2026</td></tr>
+    <tr><td style="padding:7px 0;color:var(--muted)">Amount 金额</td><td><b style="color:var(--orange-dark);font-size:16px">$500.00</b></td></tr>
+    <tr><td style="padding:7px 0;color:var(--muted)">Payment method 支付方式</td><td>Venmo · Transaction #4611763060226964693</td></tr>
+  </table>
+  <div style="background:#FDFBF7;border-radius:9px;padding:10px 14px;font-size:11.5px;color:var(--muted);line-height:1.6;margin:14px 0">
+    No goods or services were provided in exchange for this contribution. Please retain this receipt for your tax records.<br>本次捐赠未换取任何商品或服务，请保留此收据用于税务申报。
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:18px">
+    <div style="font-size:12px;color:var(--muted)">With gratitude 满怀感激,<br><b style="color:var(--ink);font-size:13.5px">NewBee Running Club Committee</b></div>
+    <div style="font-size:11px;color:#aaa">Generated by newbeerunningclub.org</div>
+  </div>
+</div>
+
+<div class="toolbar" style="max-width:700px">
+  <span style="font-size:12.5px">Yue Ma · $500.00 · <span style="color:var(--green);font-weight:700">✓</span></span>
+  <span class="sp"></span>
+  <span class="pill" style="border-color:var(--blue);color:var(--blue)">⬇ Receipt 收据</span>
+  <span style="font-size:11px;color:var(--muted)">← Receipt 列新增的下载按钮（仅已确认捐款）</span>
+</div>
+
+<div class="dialog" style="max-width:620px;padding:16px 22px">
+  <div style="font-size:12px;color:var(--muted);margin-bottom:6px">…in the send dialog, below Donor email: 发送弹窗邮箱栏下方：</div>
+  <label style="display:flex;align-items:center;gap:8px;font-size:13px;text-transform:none;letter-spacing:0;color:var(--ink);font-weight:500;margin:0">
+    <input type="checkbox" checked style="width:16px;height:16px;accent-color:#FFA500">
+    Attach donation receipt PDF 随邮件附上捐款收据（NewBee_Donation_Receipt_20260604_Yue_Ma.pdf）
+  </label>
+</div>
+
+<h2>5 · Editable notes 可编辑备注 <small>展开行中，✎ 编辑 → 文本框 → 保存</small></h2>
+<div class="detailrow">
+  <div class="excerpt"><b>✉</b> Zelle payment received — Ci Ping Wu sent you $300.00 · Sent on Apr 01, 2025 · Transaction #24271147625</div>
+  <div class="noteshead">
+    <div class="notestext">Notes 备注: Zelle Transaction #24271147625
+
+—— Thank-you email 感谢邮件 ——
+Sent to cpwu@example.com on Jul 11, 2026 15:02 UTC
+Subject: Thank you for supporting NewBee Running Club! …</div>
+    <span class="editlink">✎ Edit 编辑</span>
+  </div>
+</div>
+<div class="detailrow">
+  <div class="excerpt"><b>✉</b> Zelle payment received — Ci Ping Wu sent you $300.00 · Sent on Apr 01, 2025 · Transaction #24271147625</div>
+  <label style="margin-top:0">Notes 备注 (editing 编辑中)</label>
+  <textarea rows="5">Zelle Transaction #24271147625
+
+—— Thank-you email 感谢邮件 ——
+Sent to cpwu@example.com on Jul 11, 2026 15:02 UTC
+Subject: Thank you for supporting NewBee Running Club! …
+
+Board approved matching grant — follow up in Q3. 理事会已批准配捐，Q3 跟进。</textarea>
+  <div class="savebar">
+    <button class="btn ghost">Cancel 取消</button>
+    <button class="btn solid small">Save 保存</button>
+  </div>
+</div>
+
+</body>
+</html>

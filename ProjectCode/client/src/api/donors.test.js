@@ -16,6 +16,12 @@ import {
   dismissDonation,
   revertDonation,
   sendThankYou,
+  getThankYouPreview,
+  getThankYouTemplates,
+  createThankYouTemplate,
+  updateThankYouTemplate,
+  deleteThankYouTemplate,
+  downloadReceipt,
   runGmailSync,
   downloadTaxReport,
 } from './donors';
@@ -56,7 +62,12 @@ test('createDonor POSTs donor data', async () => {
 test('updateDonor PUTs donor data', async () => {
   const data = { amount: 200 };
   await expect(updateDonor('D-1', data)).resolves.toBe('PUT');
-  expect(api.put).toHaveBeenCalledWith('/api/donors/D-1', data);
+  expect(api.put).toHaveBeenCalledWith('/api/donors/D-1', data, {});
+});
+
+test('updateDonor passes the auth header when a uid is given', async () => {
+  await updateDonor('D-1', { notes: 'x' }, 'uid-1');
+  expect(api.put).toHaveBeenCalledWith('/api/donors/D-1', { notes: 'x' }, { 'X-Firebase-UID': 'uid-1' });
 });
 
 test('deleteDonor DELETEs the donor', async () => {
@@ -131,13 +142,79 @@ test('dismissDonation POSTs with auth header', async () => {
   );
 });
 
-test('sendThankYou POSTs the recipient email with auth header', async () => {
-  await expect(sendThankYou(7, 'kevin@example.com', 'uid-1')).resolves.toBe('POST');
+test('sendThankYou POSTs recipient, edited letter and receipt flag', async () => {
+  await expect(sendThankYou(7, {
+    email: 'kevin@example.com',
+    subject: 'Custom subject',
+    message: 'Custom body',
+    attachReceipt: true,
+  }, 'uid-1')).resolves.toBe('POST');
   expect(api.post).toHaveBeenCalledWith(
     '/api/donors/donations/7/send-thank-you',
-    { email: 'kevin@example.com' },
+    { email: 'kevin@example.com', subject: 'Custom subject', message: 'Custom body', attach_receipt: true },
     { 'X-Firebase-UID': 'uid-1' }
   );
+});
+
+test('getThankYouPreview GETs the rendered letter, skipping cache', async () => {
+  await getThankYouPreview(7, 'uid-1');
+  expect(api.get).toHaveBeenCalledWith(
+    '/api/donors/donations/7/thank-you-preview', {},
+    { 'X-Firebase-UID': 'uid-1' }, { skipCache: true }
+  );
+});
+
+test('template CRUD helpers hit the right endpoints with auth', async () => {
+  await getThankYouTemplates('uid-1');
+  expect(api.get).toHaveBeenCalledWith(
+    '/api/donors/thank-you-templates', {},
+    { 'X-Firebase-UID': 'uid-1' }, { skipCache: true }
+  );
+  await createThankYouTemplate({ name: 'T' }, 'uid-1');
+  expect(api.post).toHaveBeenCalledWith(
+    '/api/donors/thank-you-templates', { name: 'T' }, { 'X-Firebase-UID': 'uid-1' }
+  );
+  await updateThankYouTemplate(5, { body: 'B' }, 'uid-1');
+  expect(api.put).toHaveBeenCalledWith(
+    '/api/donors/thank-you-templates/5', { body: 'B' }, { 'X-Firebase-UID': 'uid-1' }
+  );
+  await deleteThankYouTemplate(5, 'uid-1');
+  expect(api.delete).toHaveBeenCalledWith(
+    '/api/donors/thank-you-templates/5', { 'X-Firebase-UID': 'uid-1' }
+  );
+});
+
+describe('downloadReceipt', () => {
+  afterEach(() => {
+    delete global.fetch;
+  });
+
+  test('fetches the receipt PDF and returns blob + filename', async () => {
+    const blob = new Blob(['pdf']);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'attachment; filename="NewBee_Donation_Receipt_20260703_Test_Donor.pdf"' },
+      blob: () => Promise.resolve(blob),
+    });
+    const result = await downloadReceipt(7, 'uid-1');
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/donors/donations/7/receipt'),
+      { headers: { 'X-Firebase-UID': 'uid-1' } }
+    );
+    expect(result.filename).toBe('NewBee_Donation_Receipt_20260703_Test_Donor.pdf');
+    expect(result.blob).toBe(blob);
+  });
+
+  test('throws the API detail message on failure', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ detail: 'Receipts are only issued for confirmed donations' }),
+    });
+    await expect(downloadReceipt(7, 'uid-1')).rejects.toThrow(
+      'Receipts are only issued for confirmed donations'
+    );
+  });
 });
 
 test('runGmailSync POSTs with auth header', async () => {

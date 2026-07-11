@@ -43,10 +43,15 @@ export async function createDonor(donorData) {
  * Update a donor
  * @param {string} donorId - Donor ID
  * @param {Object} donorData - Updated donor data
+ * @param {string} [firebaseUid] - Committee/admin Firebase UID
  * @returns {Promise<Object>} Updated donor
  */
-export async function updateDonor(donorId, donorData) {
-  return api.put(`/api/donors/${donorId}`, donorData);
+export async function updateDonor(donorId, donorData, firebaseUid) {
+  return api.put(
+    `/api/donors/${donorId}`,
+    donorData,
+    firebaseUid ? { 'X-Firebase-UID': firebaseUid } : {}
+  );
 }
 
 /**
@@ -159,14 +164,97 @@ export async function dismissDonation(donationId, firebaseUid) {
  * Email the donor a thank-you letter and stamp the donation as thanked.
  * Payment emails carry no donor address, so the committee provides one.
  * @param {number} donationId - Donation ID
- * @param {string} email - Recipient email address
+ * @param {Object} payload - { email, subject, message, attachReceipt }
  * @param {string} firebaseUid - Committee/admin Firebase UID
  * @returns {Promise<Object>} Updated ledger entry
  */
-export async function sendThankYou(donationId, email, firebaseUid) {
-  return api.post(`/api/donors/donations/${donationId}/send-thank-you`, { email }, {
+export async function sendThankYou(donationId, { email, subject, message, attachReceipt }, firebaseUid) {
+  return api.post(`/api/donors/donations/${donationId}/send-thank-you`, {
+    email,
+    subject,
+    message,
+    attach_receipt: Boolean(attachReceipt),
+  }, {
     'X-Firebase-UID': firebaseUid,
   });
+}
+
+/**
+ * The letter a donation would receive (matched tier template, rendered),
+ * for review/editing in the send dialog
+ * @param {number} donationId - Donation ID
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ * @returns {Promise<Object>} { subject, body, template_name }
+ */
+export async function getThankYouPreview(donationId, firebaseUid) {
+  return api.get(`/api/donors/donations/${donationId}/thank-you-preview`, {},
+    { 'X-Firebase-UID': firebaseUid }, { skipCache: true });
+}
+
+/**
+ * List thank-you templates (lowest tier first)
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ * @returns {Promise<Array>} Templates
+ */
+export async function getThankYouTemplates(firebaseUid) {
+  return api.get('/api/donors/thank-you-templates', {},
+    { 'X-Firebase-UID': firebaseUid }, { skipCache: true });
+}
+
+/**
+ * Create a thank-you template
+ * @param {Object} data - { name, min_amount, subject, body }
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ */
+export async function createThankYouTemplate(data, firebaseUid) {
+  return api.post('/api/donors/thank-you-templates', data, { 'X-Firebase-UID': firebaseUid });
+}
+
+/**
+ * Update a thank-you template
+ * @param {number} templateId - Template ID
+ * @param {Object} data - Fields to update
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ */
+export async function updateThankYouTemplate(templateId, data, firebaseUid) {
+  return api.put(`/api/donors/thank-you-templates/${templateId}`, data, { 'X-Firebase-UID': firebaseUid });
+}
+
+/**
+ * Delete a thank-you template
+ * @param {number} templateId - Template ID
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ */
+export async function deleteThankYouTemplate(templateId, firebaseUid) {
+  return api.delete(`/api/donors/thank-you-templates/${templateId}`, { 'X-Firebase-UID': firebaseUid });
+}
+
+/**
+ * Download the official donation receipt PDF (confirmed donations only).
+ * Raw fetch because the response is a file, not JSON.
+ * @param {number} donationId - Donation ID
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ * @returns {Promise<{blob: Blob, filename: string}>}
+ */
+export async function downloadReceipt(donationId, firebaseUid) {
+  const response = await fetch(`${API_BASE_URL}/api/donors/donations/${donationId}/receipt`, {
+    headers: { 'X-Firebase-UID': firebaseUid },
+  });
+  if (!response.ok) {
+    let detail = `Request failed with status ${response.status}`;
+    try {
+      const data = await response.json();
+      detail = data?.detail || detail;
+    } catch {
+      // Response body is not JSON
+    }
+    throw new Error(detail);
+  }
+  const disposition = response.headers.get('content-disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/);
+  const filename = match ? match[1] : `NewBee_Donation_Receipt_${donationId}.pdf`;
+  const blob = await response.blob();
+  return { blob, filename };
 }
 
 /**

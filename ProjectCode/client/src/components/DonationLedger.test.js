@@ -5,8 +5,14 @@ import {
   getDonationLedger,
   approveDonation,
   dismissDonation,
-  revertDonation,
   sendThankYou,
+  getThankYouPreview,
+  getThankYouTemplates,
+  createThankYouTemplate,
+  updateThankYouTemplate,
+  deleteThankYouTemplate,
+  downloadReceipt,
+  updateDonor,
   runGmailSync,
   downloadTaxReport,
 } from '../api/donors';
@@ -18,8 +24,14 @@ jest.mock('../api/donors', () => ({
   getDonationLedger: jest.fn(),
   approveDonation: jest.fn(),
   dismissDonation: jest.fn(),
-  revertDonation: jest.fn(),
   sendThankYou: jest.fn(),
+  getThankYouPreview: jest.fn(),
+  getThankYouTemplates: jest.fn(),
+  createThankYouTemplate: jest.fn(),
+  updateThankYouTemplate: jest.fn(),
+  deleteThankYouTemplate: jest.fn(),
+  downloadReceipt: jest.fn(),
+  updateDonor: jest.fn(),
   runGmailSync: jest.fn(),
   downloadTaxReport: jest.fn(),
 }));
@@ -105,8 +117,21 @@ beforeEach(() => {
   getDonationLedger.mockResolvedValue(ledgerData);
   approveDonation.mockResolvedValue({});
   dismissDonation.mockResolvedValue({});
-  revertDonation.mockResolvedValue({});
   sendThankYou.mockResolvedValue({});
+  getThankYouPreview.mockResolvedValue({
+    subject: 'Thank you for supporting NewBee Running Club!',
+    body: 'Dear donor, thank you for your generous donation.',
+    template_name: null,
+  });
+  getThankYouTemplates.mockResolvedValue([]);
+  createThankYouTemplate.mockResolvedValue({});
+  updateThankYouTemplate.mockResolvedValue({});
+  deleteThankYouTemplate.mockResolvedValue({});
+  downloadReceipt.mockResolvedValue({
+    blob: new Blob(['pdf']),
+    filename: 'NewBee_Donation_Receipt_20260604_Yue_Ma.pdf',
+  });
+  updateDonor.mockResolvedValue({});
   runGmailSync.mockResolvedValue({ emails_found: 1, inserted: 1 });
   downloadTaxReport.mockResolvedValue({
     blob: new Blob(['pdf']),
@@ -218,12 +243,17 @@ test('thank-you column shows sent state or an enabled send button', async () => 
   expect(sendButton).toBeEnabled();
 });
 
-test('send thank-you asks for the donor email then sends', async () => {
+test('send dialog prefills the matched letter and sends the edited version', async () => {
   render(<DonationLedger />);
   await screen.findByText('Golden Wheat Bakery');
 
   fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
   expect(await screen.findByText('✉ Send thank-you email 发送感谢邮件')).toBeInTheDocument();
+  await waitFor(() => expect(getThankYouPreview).toHaveBeenCalledWith(12, 'admin-uid'));
+
+  // Prefilled from the preview; built-in default badge shown
+  expect(await screen.findByDisplayValue(/Dear donor, thank you/)).toBeInTheDocument();
+  expect(screen.getByText('Built-in default 内置模板')).toBeInTheDocument();
 
   // Send is disabled until a plausible email is entered
   const sendBtn = screen.getByText('Send 发送').closest('button');
@@ -233,13 +263,93 @@ test('send thank-you asks for the donor email then sends', async () => {
   });
   expect(sendBtn).toBeEnabled();
 
+  // Edit the letter before sending
+  fireEvent.change(screen.getByLabelText(/Message 正文/), {
+    target: { value: 'Edited letter body' },
+  });
+
   fireEvent.click(sendBtn);
-  await waitFor(() => expect(sendThankYou).toHaveBeenCalledWith(12, 'baker@example.com', 'admin-uid'));
-  // Dialog closes and the ledger refreshes
+  await waitFor(() => expect(sendThankYou).toHaveBeenCalledWith(12, {
+    email: 'baker@example.com',
+    subject: 'Thank you for supporting NewBee Running Club!',
+    message: 'Edited letter body',
+    attachReceipt: true,
+  }, 'admin-uid'));
   await waitFor(() =>
     expect(screen.queryByText('✉ Send thank-you email 发送感谢邮件')).not.toBeInTheDocument()
   );
   expect(getDonationLedger).toHaveBeenCalledTimes(2);
+});
+
+test('attach-receipt checkbox can be unchecked before sending', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  await screen.findByText('✉ Send thank-you email 发送感谢邮件');
+  await screen.findByDisplayValue(/Dear donor, thank you/); // preview loaded
+
+  fireEvent.click(screen.getByLabelText(/Attach donation receipt/));
+  fireEvent.change(screen.getByLabelText(/Donor email 捐赠者邮箱/), {
+    target: { value: 'baker@example.com' },
+  });
+  fireEvent.click(screen.getByText('Send 发送'));
+  await waitFor(() => expect(sendThankYou).toHaveBeenCalledWith(
+    12, expect.objectContaining({ attachReceipt: false }), 'admin-uid'
+  ));
+});
+
+test('receipt download button generates the PDF for reviewed rows', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  // Li Chen + Golden Wheat (approved) — pending Ming Zhao has no receipt button
+  const buttons = screen.getAllByLabelText('Receipt 收据');
+  expect(buttons).toHaveLength(2);
+  fireEvent.click(buttons[0]);
+  await waitFor(() => expect(downloadReceipt).toHaveBeenCalledWith(11, 'admin-uid'));
+  await waitFor(() => expect(global.URL.createObjectURL).toHaveBeenCalled());
+});
+
+test('templates dialog lists, adds, and deletes templates', async () => {
+  getThankYouTemplates
+    .mockResolvedValueOnce([])
+    .mockResolvedValue([{ id: 5, name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' }]);
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  expect(await screen.findByText(/No templates yet/)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByText('＋ Add template 添加模板'));
+  fireEvent.change(screen.getByLabelText(/Template name 模板名称/), { target: { value: 'Major donor' } });
+  fireEvent.change(screen.getByLabelText(/Applies from/), { target: { value: '300' } });
+  fireEvent.change(screen.getByLabelText(/Subject 邮件标题/), { target: { value: 'S' } });
+  fireEvent.change(screen.getByLabelText(/Body 正文/), { target: { value: 'B' } });
+  fireEvent.click(screen.getByText('Save 保存'));
+
+  await waitFor(() => expect(createThankYouTemplate).toHaveBeenCalledWith(
+    { name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' }, 'admin-uid'
+  ));
+  // Refreshed list shows the new template with its tier
+  expect(await screen.findByText('≥ $300.00')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByText('Delete 删除'));
+  await waitFor(() => expect(deleteThankYouTemplate).toHaveBeenCalledWith(5, 'admin-uid'));
+});
+
+test('notes can be edited and saved from the expanded row', async () => {
+  render(<DonationLedger />);
+  const row = (await screen.findByText('Ming Zhao')).closest('tr');
+  fireEvent.click(row);
+  fireEvent.click(await screen.findByText('✎ Edit 编辑'));
+
+  const field = screen.getByLabelText('Notes 备注');
+  fireEvent.change(field, { target: { value: 'Zelle Transaction #23456789012\nBoard follow-up in Q3' } });
+  fireEvent.click(screen.getByText('Save 保存'));
+
+  await waitFor(() => expect(updateDonor).toHaveBeenCalledWith(
+    'IND_10', { notes: 'Zelle Transaction #23456789012\nBoard follow-up in Q3' }, 'admin-uid'
+  ));
+  await waitFor(() => expect(getDonationLedger).toHaveBeenCalledTimes(2));
 });
 
 test('shows an error when the thank-you email fails to send', async () => {
@@ -247,6 +357,7 @@ test('shows an error when the thank-you email fails to send', async () => {
   render(<DonationLedger />);
   await screen.findByText('Golden Wheat Bakery');
   fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  await screen.findByDisplayValue(/Dear donor, thank you/); // preview loaded
   fireEvent.change(await screen.findByLabelText(/Donor email 捐赠者邮箱/), {
     target: { value: 'baker@example.com' },
   });

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger Option B — Collapsible Ignored Section · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option B: IGNORED SECTION. The main table stays clean — pending +
+     approved only. All ignored rows live in a separate collapsible band
+     underneath ("Ignored 已忽略 (23)"), expanded on click, each with a
+     Restore button. Approved rows still get an inline Ignore action. */
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--blue:#1a63d0;--blue-bg:#e8f0fe;--red:#c62828}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1280px;margin:0 auto;padding:32px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:20px}
+  .optlabel b{color:var(--orange-dark)}
+
+  .bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 15px;border-radius:99px;cursor:pointer}
+  .chip.active{background:var(--orange);border-color:var(--orange);color:#fff}
+
+  table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  thead th{background:#FDFBF7;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+  tbody td{font-size:13.5px;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr:hover td{background:var(--orange-bg)}
+  tr.pending td{background:#FFFDF8;border-left:3px solid var(--orange)}
+  .amt{font-weight:700;color:var(--orange);white-space:nowrap}
+  .badge{font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap;margin-left:6px}
+  .badge.pend{background:var(--orange);color:#fff}
+  .badge.auto{background:#f3e8ff;color:#7b3ff2}
+  .src{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--blue-bg);color:var(--blue);white-space:nowrap}
+  .btn{font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 14px;border-radius:99px;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .btn.approve{border:none;background:var(--orange);color:#fff}
+  .btn.restore{border:1.5px solid var(--green);background:#fff;color:var(--green)}
+  .btn.restore:hover{background:var(--green);color:#fff}
+  .btn.ignore{border:1.5px solid var(--line);background:#fff;color:var(--muted)}
+  .btn.ignore:hover{border-color:var(--red);color:var(--red)}
+  .btn.thank{border:1.5px solid var(--orange);background:#fff;color:var(--orange)}
+  .sent{font-size:11.5px;color:var(--green);font-weight:700}
+  .actions{display:flex;gap:6px;justify-content:flex-end}
+  .note{font-size:11px;color:#9a9a9a;margin-top:3px}
+
+  /* ignored band */
+  .ignband{margin-top:16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+  .ignhead{display:flex;align-items:center;gap:10px;padding:13px 18px;background:#FAFAFA;cursor:pointer;user-select:none}
+  .ignhead b{font-size:13.5px;color:var(--muted)}
+  .ignhead .n{background:#e0e0e0;color:#777;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:99px}
+  .ignhead small{color:#9a9a9a;font-size:11.5px}
+  .chev{margin-left:auto;color:var(--muted);font-size:13px;transition:transform .25s}
+  .ignband.open .chev{transform:rotate(180deg)}
+  .ignbody{display:none}
+  .ignband.open .ignbody{display:block}
+  .ignband tbody td{background:#FAFAFA;color:#9a9a9a}
+  .ignband .amt{color:#bda06a}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option B — Ignored Section 折叠式忽略区：</b>主表只显示待审核 + 已确认，保持干净。所有已忽略记录集中在下方的<b>折叠区「Ignored 已忽略 (23)」</b>——点击展开，每行有绿色「Restore 恢复为已确认」按钮；已确认行仍有行内「Ignore 忽略」。找回误删/误忽略的记录 = 展开一个固定的地方，永远不会看丢。</div>
+
+<div class="bar">
+  <button class="chip active">All 全部</button>
+  <button class="chip">Pending 待审核</button>
+  <button class="chip">Gmail</button>
+  <button class="chip">Manual 手动</button>
+</div>
+
+<table>
+  <thead><tr><th>Date 日期</th><th>Donor 赞助者</th><th>Amount 金额</th><th>Source 来源</th><th>Thank-you 感谢邮件</th><th style="text-align:right">Actions 操作</th></tr></thead>
+  <tbody>
+    <tr class="pending">
+      <td>Jul 5, 2026</td>
+      <td><b>Zheyuan Florence Hu</b> <span class="badge pend">PENDING 待审核</span></td>
+      <td class="amt">$15.00</td>
+      <td><span class="src">✉ Gmail · Venmo</span></td>
+      <td>—</td>
+      <td><div class="actions"><button class="btn approve">✓ Approve 确认</button><button class="btn ignore">✕ Ignore 忽略</button></div></td>
+    </tr>
+    <tr>
+      <td>Jul 7, 2026</td>
+      <td>Yinuo Zhen</td>
+      <td class="amt">$40.00</td>
+      <td><span class="src">✉ Gmail · Zelle</span></td>
+      <td><button class="btn thank">Send thank-you 发送感谢</button></td>
+      <td><div class="actions"><button class="btn ignore">✕ Ignore 忽略</button></div></td>
+    </tr>
+    <tr>
+      <td>Jul 6, 2026</td>
+      <td>Kevin Gu</td>
+      <td class="amt">$15.00</td>
+      <td><span class="src">✉ Gmail · Venmo</span></td>
+      <td><span class="sent">✓ Sent Jul 11, 2026</span></td>
+      <td><div class="actions"><button class="btn ignore">✕ Ignore 忽略</button></div></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="ignband open" id="band">
+  <div class="ignhead" onclick="document.getElementById('band').classList.toggle('open')">
+    <b>Ignored 已忽略</b> <span class="n">23</span>
+    <small>carpool fees, gear payments, mistakes — restore anytime 拼车/装备/误操作，可随时恢复</small>
+    <span class="chev">▼</span>
+  </div>
+  <div class="ignbody">
+    <table style="border:none;border-radius:0;box-shadow:none">
+      <tbody>
+        <tr>
+          <td>Jul 8, 2026</td>
+          <td>connie zhou</td>
+          <td class="amt">$20.00</td>
+          <td><span class="src">✉ Gmail · Venmo</span></td>
+          <td>carpool bear mountain - 岑岑</td>
+          <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+        </tr>
+        <tr>
+          <td>Jul 8, 2026</td>
+          <td>Ryan Young <span class="badge auto">AUTO</span></td>
+          <td class="amt">$20.00</td>
+          <td><span class="src">✉ Gmail · Venmo</span></td>
+          <td>拼车费用 <div class="note">Auto-ignored 自动忽略: memo matched '拼车'</div></td>
+          <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+        </tr>
+        <tr>
+          <td>Jul 7, 2026</td>
+          <td>Tracy Chen <span class="badge auto">AUTO</span></td>
+          <td class="amt">$23.00</td>
+          <td><span class="src">✉ Gmail · Venmo</span></td>
+          <td>1 red + 1 white 队服 <div class="note">Auto-ignored 自动忽略: memo matched '队服'</div></td>
+          <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+        </tr>
+        <tr>
+          <td>Jul 7, 2026</td>
+          <td>Haotian Fu</td>
+          <td class="amt">$20.00</td>
+          <td><span class="src">✉ Gmail · Zelle</span></td>
+          <td>thanks for carpool</td>
+          <td><div class="actions"><button class="btn restore">✓ Restore 恢复为已确认</button></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
