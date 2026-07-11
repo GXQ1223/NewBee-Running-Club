@@ -357,6 +357,28 @@ def parse_venmo_email(raw_email):
     }
 
 
+# Payments that are almost certainly not donations (carpool fees, team-gear
+# purchases). They are still imported — the ledger row is what stops the next
+# sync from re-importing the same transaction — but arrive pre-ignored so the
+# committee doesn't dismiss them one by one. The ledger's Approve button
+# flips any false positive.
+AUTO_IGNORE_MEMO_KEYWORDS = [
+    '拼车', 'carpool', '车费', '🚗',
+    '队服', '衣服', 't-shirt', 'tshirt', 't shirt', 'tee', 'shirt', 'jersey',
+]
+
+
+def auto_ignore_keyword(memo):
+    """Return the matched keyword if the memo marks a non-donation payment."""
+    if not memo:
+        return None
+    lowered = memo.lower()
+    for keyword in AUTO_IGNORE_MEMO_KEYWORDS:
+        if keyword in lowered:
+            return keyword
+    return None
+
+
 def is_duplicate(session, transaction_number):
     """
     Check if a donation with this transaction number already exists.
@@ -507,9 +529,18 @@ def _process_provider_emails(mail, email_ids, parser, provider, session, stats,
 
             record = build_donor_record(parsed, status=status, provider=provider)
 
+            # Non-donation payments (carpool, gear) come in pre-ignored,
+            # regardless of the requested status — even confirmed backfills
+            # shouldn't publish a carpool fee as a donation
+            matched = auto_ignore_keyword(parsed["memo"])
+            if matched:
+                record["status"] = "dismissed"
+                record["notes"] += f" · Auto-ignored 自动忽略: memo matched '{matched}'"
+
             if dry_run:
                 print(
-                    f"  [{provider} {i}] Would insert: {record['name']} - "
+                    f"  [{provider} {i}] Would insert ({record['status']}): "
+                    f"{record['name']} - "
                     f"${record['amount']} on {record['donation_date']} "
                     f"| source: {record['source']} "
                     f"| notes: {record['notes']}"
@@ -520,7 +551,8 @@ def _process_provider_emails(mail, email_ids, parser, provider, session, stats,
                 session.add(donor)
                 session.commit()
                 print(
-                    f"  [{provider} {i}] Inserted: {record['name']} - "
+                    f"  [{provider} {i}] Inserted ({record['status']}): "
+                    f"{record['name']} - "
                     f"${record['amount']} on {record['donation_date']}"
                 )
 

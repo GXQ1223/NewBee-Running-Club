@@ -11,11 +11,10 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import ReplayIcon from '@mui/icons-material/Replay';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '../context';
 import {
   getDonationLedger, approveDonation, dismissDonation, revertDonation,
-  deleteDonor, sendThankYou, runGmailSync, downloadTaxReport
+  sendThankYou, runGmailSync, downloadTaxReport
 } from '../api/donors';
 
 // Design tokens (match HomePage / NavBar design language)
@@ -129,7 +128,6 @@ export default function DonationLedger({ onLedgerChange }) {
   const [syncing, setSyncing] = useState(false);
   const [actingId, setActingId] = useState(null);
   const [pendingTypes, setPendingTypes] = useState({});
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [thankTarget, setThankTarget] = useState(null);
   const [thankEmail, setThankEmail] = useState('');
   const [sendingThanks, setSendingThanks] = useState(false);
@@ -206,23 +204,6 @@ export default function DonationLedger({ onLedgerChange }) {
     } catch (err) {
       console.error('Error reverting donation:', err);
       setError('Failed to un-approve donation. / 撤回捐款失败。');
-    } finally {
-      setActingId(null);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    setActingId(deleteTarget.donation_id);
-    setError('');
-    try {
-      await deleteDonor(deleteTarget.donor_id, firebaseUid);
-      setDeleteTarget(null);
-      await fetchLedger();
-      if (onLedgerChange) onLedgerChange();
-    } catch (err) {
-      console.error('Error deleting donation:', err);
-      setError('Failed to delete donation. / 删除捐款失败。');
     } finally {
       setActingId(null);
     }
@@ -538,13 +519,6 @@ export default function DonationLedger({ onLedgerChange }) {
                                 </IconButton>
                               </span>
                             </Tooltip>
-                            <Tooltip title="Delete permanently / 永久删除">
-                              <span>
-                                <IconButton size="small" onClick={() => setDeleteTarget(donation)} disabled={acting} aria-label="Delete 删除">
-                                  <DeleteOutlineIcon sx={{ fontSize: 16, color: '#c62828' }} />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
                           </Box>
                         )}
                         <KeyboardArrowDownIcon sx={{
@@ -634,31 +608,6 @@ export default function DonationLedger({ onLedgerChange }) {
             sx={pillButtonSx(true)}
           >
             {sendingThanks ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Send 发送'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete confirmation dialog */}
-      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Delete donation? / 删除捐款？</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: '0.875rem' }}>
-            {deleteTarget?.name} · {formatAmount(deleteTarget?.amount)} · {formatDate(deleteTarget?.donation_date)}
-          </Typography>
-          <Typography sx={{ fontSize: '0.78125rem', color: MUTED, mt: 1 }}>
-            This permanently removes the record from the ledger. To just take it off the public page, use Un-approve instead. / 此操作将从账本中永久删除该记录；若只想从公开页面移除，请使用「撤回」。
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)}>Cancel 取消</Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleConfirmDelete}
-            disabled={actingId === deleteTarget?.donation_id}
-            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '99px', boxShadow: 'none' }}
-          >
-            {actingId === deleteTarget?.donation_id ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Delete 删除'}
           </Button>
         </DialogActions>
       </Dialog>
