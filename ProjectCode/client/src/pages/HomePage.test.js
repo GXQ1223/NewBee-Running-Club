@@ -287,7 +287,7 @@ describe('fallbacks', () => {
 
     expect(screen.getByRole('heading', { name: 'About Us' })).toBeInTheDocument();
     // Some titles also appear as fallback banner labels, so use getAllByText
-    ['Event Registration', 'Memories', 'Upcoming', 'Club Credits/Records', 'Join NewBee', 'Training With Us'].forEach(
+    ['Event Registration', 'Memories', 'Upcoming', 'Club Credits/Records', 'Join NewBee'].forEach(
       (title) => expect(screen.getAllByText(title).length).toBeGreaterThan(0)
     );
     // Fallback sections without an image show the placeholder

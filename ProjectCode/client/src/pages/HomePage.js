@@ -81,8 +81,9 @@ const fallbackSections = [
   { id: 2, title_en: 'Memories', title_cn: '回忆', link_path: '/highlights', image_url: '/Highlights.png' },
   { id: 3, title_en: 'Upcoming', title_cn: '即将到来', link_path: '/calendar', image_url: null },
   { id: 4, title_en: 'Club Credits/Records', title_cn: '俱乐部积分/记录', link_path: '/records', image_url: null },
-  { id: 5, title_en: 'Join NewBee', title_cn: '加入新蜂', link_path: '/join', image_url: null },
-  { id: 6, title_en: 'Training With Us', title_cn: '与我们训练', link_path: '/training', image_url: null }
+  { id: 5, title_en: 'Join NewBee', title_cn: '加入新蜂', link_path: '/join', image_url: null }
+  // Training With Us ('/training') hidden for now — restore an entry here (and
+  // reactivate the DB section in admin mode) to bring it back
 ];
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
