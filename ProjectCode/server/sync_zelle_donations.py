@@ -42,6 +42,7 @@ GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 IMAP_SERVER = "imap.gmail.com"
 IMAP_PORT = 993
 IMAP_FOLDER = '"NewBee Finance/Chase"'
+VENMO_FOLDER = '"NewBee Finance/Venmo"'
 
 
 def connect_to_gmail():
@@ -91,6 +92,33 @@ def search_zelle_emails(mail, since_date=None):
     return email_ids
 
 
+def search_venmo_emails(mail, since_date=None):
+    """
+    Search for incoming Venmo payment notification emails.
+
+    Args:
+        mail: IMAP connection (with the Venmo folder selected)
+        since_date: Optional date string (DD-Mon-YYYY) to filter emails
+
+    Returns:
+        List of email IDs
+    """
+    criteria = '(FROM "venmo@venmo.com" SUBJECT "paid you")'
+    if since_date:
+        criteria = f'(FROM "venmo@venmo.com" SUBJECT "paid you" SINCE {since_date})'
+
+    print(f"Searching emails with criteria: {criteria}")
+    status, data = mail.search(None, criteria)
+
+    if status != "OK":
+        print(f"Search failed with status: {status}")
+        return []
+
+    email_ids = data[0].split()
+    print(f"Found {len(email_ids)} Venmo email(s).")
+    return email_ids
+
+
 def strip_html(html_text):
     """Remove HTML tags and decode entities from text."""
     # Remove style/script blocks
@@ -110,19 +138,8 @@ def strip_html(html_text):
     return text.strip()
 
 
-def parse_zelle_email(raw_email):
-    """
-    Parse a raw Chase Zelle notification email into structured data.
-
-    Args:
-        raw_email: Raw email bytes
-
-    Returns:
-        Dictionary with parsed fields, or None if parsing fails
-    """
-    msg = email.message_from_bytes(raw_email)
-
-    # Get email body
+def _get_email_body(msg):
+    """Extract the decoded body from an email message, preferring HTML."""
     body = ""
     if msg.is_multipart():
         for part in msg.walk():
@@ -136,8 +153,44 @@ def parse_zelle_email(raw_email):
                 body = part.get_payload(decode=True).decode(charset, errors="replace")
     else:
         charset = msg.get_content_charset() or "utf-8"
-        body = msg.get_payload(decode=True).decode(charset, errors="replace")
+        payload = msg.get_payload(decode=True)
+        if payload is not None:
+            body = payload.decode(charset, errors="replace")
+    return body
 
+
+def _decode_subject(msg):
+    """Decode a possibly RFC 2047-encoded Subject header to a string."""
+    decoded = ""
+    for value, charset in decode_header(msg.get("Subject", "")):
+        if isinstance(value, bytes):
+            decoded += value.decode(charset or "utf-8", errors="replace")
+        else:
+            decoded += value
+    return decoded
+
+
+def _date_from_header(msg):
+    """Donation date from the email Date header, today as a last resort."""
+    try:
+        return email.utils.parsedate_to_datetime(msg.get("Date", "")).date()
+    except Exception:
+        return datetime.now().date()
+
+
+def parse_zelle_email(raw_email):
+    """
+    Parse a raw Chase Zelle notification email into structured data.
+
+    Args:
+        raw_email: Raw email bytes
+
+    Returns:
+        Dictionary with parsed fields, or None if parsing fails
+    """
+    msg = email.message_from_bytes(raw_email)
+
+    body = _get_email_body(msg)
     if not body:
         return None
 
@@ -207,6 +260,80 @@ def parse_zelle_email(raw_email):
     }
 
 
+def _extract_venmo_memo(text):
+    """
+    Pull the payment note from a stripped Venmo email body: the lines between
+    "{NAME} paid you" / the amount and the "See transaction" button.
+    """
+    lines = [line.strip() for line in text.split('\n')]
+    start = None
+    for i, line in enumerate(lines):
+        if 'paid you' in line.lower():
+            start = i + 1
+            break
+    if start is None:
+        return None
+
+    stop_markers = ('see transaction', 'money credited', 'payment id',
+                    'transfer', 'for any issues')
+    memo_lines = []
+    for line in lines[start:]:
+        lowered = line.lower()
+        if any(lowered.startswith(marker) for marker in stop_markers):
+            break
+        # Skip blanks and standalone amount fragments like "$15.00" / "$15 00"
+        if not line or re.fullmatch(r'[\$\d.,\s]+', line):
+            continue
+        memo_lines.append(line)
+
+    memo = ' '.join(memo_lines).strip()
+    return memo or None
+
+
+def parse_venmo_email(raw_email):
+    """
+    Parse a raw Venmo payment notification email into structured data.
+
+    Venmo puts the payer and amount in the subject ("Xiao Yang paid you
+    $15.00") and the payment note in the body. Dedup uses the transaction id
+    from the "See transaction" link, falling back to the email Message-ID.
+
+    Args:
+        raw_email: Raw email bytes
+
+    Returns:
+        Dictionary with parsed fields, or None if parsing fails
+    """
+    msg = email.message_from_bytes(raw_email)
+
+    subject = _decode_subject(msg)
+    subject_match = re.search(r'(.+?)\s+paid\s+you\s+\$([\d,]+\.?\d*)', subject)
+    if not subject_match:
+        return None
+    sender_name = subject_match.group(1).strip()
+    amount = Decimal(subject_match.group(2).replace(",", ""))
+
+    body = _get_email_body(msg)
+    memo = _extract_venmo_memo(strip_html(body)) if body else None
+
+    # Transaction id from the "See transaction" link, else the Message-ID
+    txn_match = re.search(
+        r'venmo\.com/(?:story|payment)s?/([A-Za-z0-9_\-]+)', body or ''
+    )
+    if txn_match:
+        transaction_number = txn_match.group(1)
+    else:
+        transaction_number = (msg.get("Message-ID") or "").strip().strip("<>") or None
+
+    return {
+        "sender_name": sender_name,
+        "amount": amount,
+        "donation_date": _date_from_header(msg),
+        "transaction_number": transaction_number,
+        "memo": memo,
+    }
+
+
 def is_duplicate(session, transaction_number):
     """
     Check if a donation with this transaction number already exists.
@@ -228,10 +355,10 @@ def is_duplicate(session, transaction_number):
     return existing is not None
 
 
-def build_email_excerpt(parsed_data):
-    """Build a human-readable summary of the source Zelle email."""
+def build_email_excerpt(parsed_data, provider="Zelle"):
+    """Build a human-readable summary of the source payment email."""
     parts = [
-        f"Zelle payment received — {parsed_data['sender_name']} sent you "
+        f"{provider} payment received — {parsed_data['sender_name']} sent you "
         f"${parsed_data['amount']}"
     ]
     if parsed_data["donation_date"]:
@@ -243,15 +370,17 @@ def build_email_excerpt(parsed_data):
     return " · ".join(parts)
 
 
-def build_donor_record(parsed_data, status="pending"):
+def build_donor_record(parsed_data, status="pending", provider="Zelle"):
     """
     Build a Donor table row dict from parsed email data.
 
     Args:
-        parsed_data: Dict from parse_zelle_email()
+        parsed_data: Dict from parse_zelle_email() / parse_venmo_email()
         status: Ledger status for the new record — 'pending' for the weekly
             sync (committee reviews in the ledger before it goes public),
             'confirmed' for trusted backfills.
+        provider: Payment provider name ('Zelle' or 'Venmo'), used in the
+            source/notes/excerpt strings.
 
     Returns:
         Dict ready for Donor(**record) insertion
@@ -265,18 +394,18 @@ def build_donor_record(parsed_data, status="pending"):
         "donor_type": "individual",
         "amount": parsed_data["amount"],
         "donation_date": parsed_data["donation_date"],
-        "source": f"Zelle ({name})",
+        "source": f"{provider} ({name})",
         "notes": (
-            f"Zelle Transaction #{parsed_data['transaction_number']}"
+            f"{provider} Transaction #{parsed_data['transaction_number']}"
             if parsed_data["transaction_number"]
-            else "Zelle (no transaction #)"
+            else f"{provider} (no transaction #)"
         ),
         "message": parsed_data["memo"],
         "donation_event": "General Support",
         "receipt_confirmed": True,
         "quantity": 1,
         "status": status,
-        "email_excerpt": build_email_excerpt(parsed_data),
+        "email_excerpt": build_email_excerpt(parsed_data, provider=provider),
     }
     return record
 
@@ -311,9 +440,82 @@ def record_sync_status(stats):
         session.close()
 
 
+def _process_provider_emails(mail, email_ids, parser, provider, session, stats,
+                             dry_run, status):
+    """
+    Fetch, parse, dedup and insert one provider's emails, updating stats.
+
+    Args:
+        mail: IMAP connection with the provider's folder selected
+        email_ids: IMAP message ids to process
+        parser: parse_zelle_email or parse_venmo_email
+        provider: 'Zelle' or 'Venmo' (used in source/notes/excerpt strings)
+        session: SQLAlchemy session
+        stats: Mutable stats dict shared across providers
+        dry_run: If True, print results without inserting
+        status: Ledger status for inserted rows
+    """
+    for i, eid in enumerate(email_ids, 1):
+        try:
+            status_code, msg_data = mail.fetch(eid, "(RFC822)")
+            if status_code != "OK":
+                print(f"  [{provider} {i}] Failed to fetch email ID {eid}")
+                stats["errors"] += 1
+                continue
+
+            raw_email = msg_data[0][1]
+            parsed = parser(raw_email)
+
+            if not parsed:
+                print(f"  [{provider} {i}] Could not parse (not an incoming payment)")
+                continue
+
+            stats["parsed"] += 1
+
+            # Check for duplicates
+            if is_duplicate(session, parsed["transaction_number"]):
+                print(
+                    f"  [{provider} {i}] Duplicate: {parsed['sender_name']} "
+                    f"${parsed['amount']} on {parsed['donation_date']} "
+                    f"(txn #{parsed['transaction_number']})"
+                )
+                stats["duplicates"] += 1
+                continue
+
+            record = build_donor_record(parsed, status=status, provider=provider)
+
+            if dry_run:
+                print(
+                    f"  [{provider} {i}] Would insert: {record['name']} - "
+                    f"${record['amount']} on {record['donation_date']} "
+                    f"| source: {record['source']} "
+                    f"| notes: {record['notes']}"
+                    f"{' | memo: ' + record['message'] if record['message'] else ''}"
+                )
+            else:
+                donor = Donor(**record)
+                session.add(donor)
+                session.commit()
+                print(
+                    f"  [{provider} {i}] Inserted: {record['name']} - "
+                    f"${record['amount']} on {record['donation_date']}"
+                )
+
+            stats["inserted"] += 1
+
+            # Small delay between inserts to ensure unique timestamps
+            time.sleep(0.01)
+
+        except Exception as e:
+            print(f"  [{provider} {i}] Error processing email: {e}")
+            session.rollback()
+            stats["errors"] += 1
+
+
 def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False, status="pending"):
     """
-    Main sync function: connect to Gmail, fetch Zelle emails, parse and insert.
+    Main sync function: connect to Gmail, fetch Zelle and Venmo payment
+    emails, parse and insert.
 
     Args:
         since_date: Optional YYYY-MM-DD string
@@ -347,65 +549,25 @@ def sync_zelle_donations(since_date=None, fetch_all=False, dry_run=False, status
     session = Session()
 
     try:
-        mail = connect_to_gmail()
-        email_ids = search_zelle_emails(mail, imap_since)
-        stats["emails_found"] = len(email_ids)
+        mail = connect_to_gmail()  # logs in and selects the Zelle folder
+        zelle_ids = search_zelle_emails(mail, imap_since)
+        stats["emails_found"] += len(zelle_ids)
+        _process_provider_emails(mail, zelle_ids, parse_zelle_email, "Zelle",
+                                 session, stats, dry_run, status)
 
-        for i, eid in enumerate(email_ids, 1):
-            try:
-                status_code, msg_data = mail.fetch(eid, "(RFC822)")
-                if status_code != "OK":
-                    print(f"  [{i}] Failed to fetch email ID {eid}")
-                    stats["errors"] += 1
-                    continue
-
-                raw_email = msg_data[0][1]
-                parsed = parse_zelle_email(raw_email)
-
-                if not parsed:
-                    print(f"  [{i}] Could not parse (not a Zelle incoming payment)")
-                    continue
-
-                stats["parsed"] += 1
-
-                # Check for duplicates
-                if is_duplicate(session, parsed["transaction_number"]):
-                    print(
-                        f"  [{i}] Duplicate: {parsed['sender_name']} "
-                        f"${parsed['amount']} on {parsed['donation_date']} "
-                        f"(txn #{parsed['transaction_number']})"
-                    )
-                    stats["duplicates"] += 1
-                    continue
-
-                record = build_donor_record(parsed, status=status)
-
-                if dry_run:
-                    print(
-                        f"  [{i}] Would insert: {record['name']} - "
-                        f"${record['amount']} on {record['donation_date']} "
-                        f"| source: {record['source']} "
-                        f"| notes: {record['notes']}"
-                        f"{' | memo: ' + record['message'] if record['message'] else ''}"
-                    )
-                else:
-                    donor = Donor(**record)
-                    session.add(donor)
-                    session.commit()
-                    print(
-                        f"  [{i}] Inserted: {record['name']} - "
-                        f"${record['amount']} on {record['donation_date']}"
-                    )
-
-                stats["inserted"] += 1
-
-                # Small delay between inserts to ensure unique timestamps
-                time.sleep(0.01)
-
-            except Exception as e:
-                print(f"  [{i}] Error processing email: {e}")
-                session.rollback()
-                stats["errors"] += 1
+        # Venmo notifications live in a separate Gmail label
+        try:
+            select_status, _ = mail.select(VENMO_FOLDER, readonly=True)
+        except Exception as e:
+            select_status = "NO"
+            print(f"Venmo folder unavailable, skipping: {e}")
+        if select_status == "OK":
+            venmo_ids = search_venmo_emails(mail, imap_since)
+            stats["emails_found"] += len(venmo_ids)
+            _process_provider_emails(mail, venmo_ids, parse_venmo_email, "Venmo",
+                                     session, stats, dry_run, status)
+        else:
+            print(f"Could not select {VENMO_FOLDER}, skipping Venmo sync.")
 
     except Exception as e:
         print(f"\nSync error: {e}")

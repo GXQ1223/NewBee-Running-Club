@@ -101,6 +101,153 @@ def test_build_email_excerpt_without_optional_fields():
     assert excerpt == 'Zelle payment received — Li Chen sent you $88'
 
 
+# ---------------------------------------------------------------- venmo
+
+def make_venmo_email(sender='Xiao Yang', amount='$15.00',
+                     memo='拉什福德贝林莱斯加油 凯恩进球 英格兰过关西瓜',
+                     txn_link='https://venmo.com/story/4236712345',
+                     message_id='<venmo-abc-123@venmo.com>'):
+    link_html = f'<a href="{txn_link}">See transaction</a>' if txn_link else ''
+    html = f"""
+    <html><body>
+      <p>venmo</p>
+      <p>{sender} paid you</p>
+      <p>$15 00</p>
+      <p>{memo}</p>
+      {link_html}
+      <p>Money credited to your Venmo account.</p>
+    </body></html>
+    """
+    msg = MIMEText(html, 'html', 'utf-8')
+    msg['From'] = 'Venmo <venmo@venmo.com>'
+    msg['Subject'] = f'{sender} paid you {amount}'
+    msg['Date'] = 'Sun, 05 Jul 2026 19:49:00 -0400'
+    if message_id:
+        msg['Message-ID'] = message_id
+    return msg.as_bytes()
+
+
+def test_parse_venmo_email_extracts_all_fields():
+    parsed = zelle.parse_venmo_email(make_venmo_email())
+    assert parsed['sender_name'] == 'Xiao Yang'
+    assert parsed['amount'] == Decimal('15.00')
+    assert parsed['donation_date'] == date(2026, 7, 5)
+    assert parsed['transaction_number'] == '4236712345'
+    assert '拉什福德' in parsed['memo']
+
+
+def test_parse_venmo_email_falls_back_to_message_id_for_dedup():
+    parsed = zelle.parse_venmo_email(make_venmo_email(txn_link=None))
+    assert parsed['transaction_number'] == 'venmo-abc-123@venmo.com'
+
+
+def test_parse_venmo_email_no_dedup_key_at_all():
+    parsed = zelle.parse_venmo_email(make_venmo_email(txn_link=None, message_id=None))
+    assert parsed['transaction_number'] is None
+
+
+def test_parse_venmo_email_rejects_outgoing_payment():
+    msg = MIMEText('<p>details</p>', 'html', 'utf-8')
+    msg['Subject'] = 'You paid Xiao Yang $15.00'
+    assert zelle.parse_venmo_email(msg.as_bytes()) is None
+
+
+def test_parse_venmo_email_without_memo():
+    parsed = zelle.parse_venmo_email(make_venmo_email(memo=''))
+    assert parsed['memo'] is None
+    assert parsed['amount'] == Decimal('15.00')
+
+
+def test_parse_venmo_email_encoded_subject():
+    raw = make_venmo_email()
+    # Re-encode the subject as RFC 2047 UTF-8 (how Gmail delivers CJK names)
+    import email as email_mod
+    from email.header import Header
+    msg = email_mod.message_from_bytes(raw)
+    del msg['Subject']
+    msg['Subject'] = Header('王小 paid you $88.00', 'utf-8')
+    parsed = zelle.parse_venmo_email(msg.as_bytes())
+    assert parsed['sender_name'] == '王小'
+    assert parsed['amount'] == Decimal('88.00')
+
+
+def test_build_donor_record_venmo_provider_strings():
+    parsed = zelle.parse_venmo_email(make_venmo_email())
+    record = zelle.build_donor_record(parsed, provider='Venmo')
+    assert record['status'] == 'pending'
+    assert record['source'] == 'Venmo (Xiao Yang)'
+    assert record['notes'] == 'Venmo Transaction #4236712345'
+    assert record['email_excerpt'].startswith(
+        'Venmo payment received — Xiao Yang sent you $15.00')
+
+
+def test_sync_processes_both_zelle_and_venmo(db_session, monkeypatch):
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+    class FakeMail:
+        def __init__(self, zelle_emails, venmo_emails):
+            self.emails = {**zelle_emails, **venmo_emails}
+            self.selected = []
+
+        def select(self, folder, readonly=False):
+            self.selected.append(folder)
+            return ('OK', [b''])
+
+        def fetch(self, eid, spec):
+            return ('OK', [(b'1 (RFC822)', self.emails[eid])])
+
+        def close(self):
+            pass
+
+        def logout(self):
+            pass
+
+    zelle_emails = {b'z1': make_zelle_email()}
+    venmo_emails = {b'v1': make_venmo_email()}
+    mail = FakeMail(zelle_emails, venmo_emails)
+
+    monkeypatch.setattr(zelle, 'Session', _sessionmaker(bind=db_session.get_bind()))
+    monkeypatch.setattr(zelle.time, 'sleep', lambda seconds: None)
+    monkeypatch.setattr(zelle, 'connect_to_gmail', lambda: mail)
+    monkeypatch.setattr(zelle, 'search_zelle_emails',
+                        lambda m, since=None: list(zelle_emails.keys()))
+    monkeypatch.setattr(zelle, 'search_venmo_emails',
+                        lambda m, since=None: list(venmo_emails.keys()))
+
+    stats = zelle.sync_zelle_donations()
+
+    assert stats == {'emails_found': 2, 'parsed': 2, 'duplicates': 0,
+                     'inserted': 2, 'errors': 0}
+    assert zelle.VENMO_FOLDER in mail.selected
+    donors = {d.name: d for d in db_session.query(Donor).all()}
+    assert set(donors) == {'Ming Zhao', 'Xiao Yang'}
+    assert donors['Xiao Yang'].source == 'Venmo (Xiao Yang)'
+    assert donors['Xiao Yang'].status == 'pending'
+    assert donors['Ming Zhao'].source == 'Zelle (Ming Zhao)'
+
+
+def test_sync_skips_venmo_when_folder_missing(db_session, monkeypatch):
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+    class NoVenmoMail:
+        def select(self, folder, readonly=False):
+            return ('NO', [b''])
+
+        def close(self):
+            pass
+
+        def logout(self):
+            pass
+
+    monkeypatch.setattr(zelle, 'Session', _sessionmaker(bind=db_session.get_bind()))
+    monkeypatch.setattr(zelle, 'connect_to_gmail', lambda: NoVenmoMail())
+    monkeypatch.setattr(zelle, 'search_zelle_emails', lambda m, since=None: [])
+
+    stats = zelle.sync_zelle_donations()
+    assert stats['emails_found'] == 0
+    assert stats['errors'] == 0
+
+
 # ---------------------------------------------------------------- dedup + sync status
 
 def test_is_duplicate_matches_transaction_number(db_session):

@@ -74,6 +74,7 @@ const ledgerData = {
       source: 'Zelle (Spam Sender)',
       receipt_confirmed: false,
       status: 'dismissed',
+      email_excerpt: 'Zelle payment received — Spam Sender sent you $5.00',
     },
   ],
   stats: {
@@ -136,6 +137,49 @@ test('pending donations sort to the top and show source chips', async () => {
   expect(screen.getAllByText('✉ Gmail · Zelle').length).toBe(3);
   // Filter chip + one manual source chip
   expect(screen.getAllByText('Manual 手动').length).toBe(2);
+});
+
+test('Venmo-imported donations show a Venmo source chip', async () => {
+  getDonationLedger.mockResolvedValue({
+    ...ledgerData,
+    donations: [{
+      donation_id: 20,
+      donor_id: 'IND_20',
+      name: 'Xiao Yang',
+      donor_type: 'individual',
+      amount: '15.00',
+      donation_date: `${currentYear}-07-05`,
+      source: 'Venmo (Xiao Yang)',
+      receipt_confirmed: true,
+      status: 'pending',
+      email_excerpt: 'Venmo payment received — Xiao Yang sent you $15.00 · Memo: 加油',
+    }],
+  });
+  render(<DonationLedger />);
+  expect(await screen.findByText('Xiao Yang')).toBeInTheDocument();
+  expect(screen.getByText('✉ Gmail · Venmo')).toBeInTheDocument();
+});
+
+test('manual entries with a payment-app source name still show as Manual', async () => {
+  getDonationLedger.mockResolvedValue({
+    ...ledgerData,
+    donations: [{
+      donation_id: 21,
+      donor_id: 'IND_21',
+      name: 'Wei Zhang',
+      donor_type: 'individual',
+      amount: '120.00',
+      donation_date: `${currentYear}-05-10`,
+      source: 'Venmo',           // manually entered, no email excerpt
+      receipt_confirmed: true,
+      status: 'confirmed',
+    }],
+  });
+  render(<DonationLedger />);
+  await screen.findByText('Wei Zhang');
+  // Filter chip + the row's source chip
+  expect(screen.getAllByText('Manual 手动').length).toBe(2);
+  expect(screen.queryByText(/✉ Gmail/)).not.toBeInTheDocument();
 });
 
 test('thank-you column shows sent state and disabled placeholder', async () => {
