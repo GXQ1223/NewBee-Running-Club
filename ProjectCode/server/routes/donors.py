@@ -349,7 +349,17 @@ def send_thank_you(
             detail="Failed to send the email — check the server email configuration"
         )
 
-    donor.thank_you_sent_at = datetime.utcnow()
+    sent_at = datetime.utcnow()
+    donor.thank_you_sent_at = sent_at
+    # Audit trail: record the full acknowledgment in the notes so the ledger
+    # shows exactly what was sent, to whom, and when
+    ack_record = (
+        f"—— Thank-you email 感谢邮件 ——\n"
+        f"Sent to {request.email} on {sent_at.strftime('%b %d, %Y %H:%M')} UTC\n"
+        f"Subject: {subject}\n\n"
+        f"{body_text}"
+    )
+    donor.notes = f"{donor.notes}\n\n{ack_record}" if donor.notes else ack_record
     db.commit()
     db.refresh(donor)
     return donor

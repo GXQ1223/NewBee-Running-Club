@@ -335,11 +335,32 @@ def test_send_thank_you_sends_and_stamps(client, db_session, committee_member, m
                        json={'email': 'kevin@example.com'},
                        headers=auth(committee_member))
     assert resp.status_code == 200
-    assert resp.json()['thank_you_sent_at'] is not None
+    body = resp.json()
+    assert body['thank_you_sent_at'] is not None
     assert sent['to'] == 'kevin@example.com'
     assert 'Thank you' in sent['subject']
     assert 'Kevin Gu' in sent['html'] and '$15.00' in sent['html']
     assert '新蜂跑团' in sent['text']
+    # Full acknowledgment recorded in the notes as an audit trail
+    assert 'Sent to kevin@example.com' in body['notes']
+    assert sent['subject'] in body['notes']
+    assert sent['text'] in body['notes']
+
+
+def test_send_thank_you_appends_ack_to_existing_notes(client, db_session, committee_member, monkeypatch):
+    import email_service
+    monkeypatch.setattr(email_service.EmailService, 'send_email',
+                        staticmethod(lambda *a, **k: True))
+
+    donor = seed_donation(db_session, 'C1', notes='Zelle Transaction #24271147625')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'donor@example.com'},
+                       headers=auth(committee_member))
+    notes = resp.json()['notes']
+    # Original note preserved, acknowledgment appended after it
+    assert notes.startswith('Zelle Transaction #24271147625')
+    assert 'Thank-you email 感谢邮件' in notes
+    assert 'Sent to donor@example.com' in notes
 
 
 def test_send_thank_you_502_when_email_fails(client, db_session, committee_member, monkeypatch):
