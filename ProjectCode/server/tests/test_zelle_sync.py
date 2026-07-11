@@ -152,6 +152,24 @@ def test_parse_venmo_email_rejects_outgoing_payment():
     assert zelle.parse_venmo_email(msg.as_bytes()) is None
 
 
+def test_parse_venmo_email_inline_memo_same_line_as_paid_you():
+    # Real Venmo HTML renders "{NAME} paid you {note}" inline in one block
+    html = """
+    <html><body>
+      <div>Hamilton Chen paid you ⛽ 加油</div>
+      <div>$15.00</div>
+      <a href="https://venmo.com/story/4611697894995121599">See transaction</a>
+      <div>Money credited to your Venmo account.</div>
+    </body></html>
+    """
+    msg = MIMEText(html, 'html', 'utf-8')
+    msg['Subject'] = 'Hamilton Chen paid you $15.00'
+    msg['Date'] = 'Wed, 03 Jun 2026 10:00:00 -0400'
+    parsed = zelle.parse_venmo_email(msg.as_bytes())
+    assert parsed['memo'] == '⛽ 加油'
+    assert parsed['transaction_number'] == '4611697894995121599'
+
+
 def test_parse_venmo_email_without_memo():
     parsed = zelle.parse_venmo_email(make_venmo_email(memo=''))
     assert parsed['memo'] is None
