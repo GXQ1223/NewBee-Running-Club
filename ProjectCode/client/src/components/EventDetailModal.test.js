@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import EventDetailModal from './EventDetailModal';
 import { getEventEngagement, updateEvent, getEventById } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -441,6 +441,36 @@ describe('EventDetailModal', () => {
       // edit mode exits
       await waitFor(() =>
         expect(screen.queryByLabelText(/Event Name/)).not.toBeInTheDocument()
+      );
+    });
+
+    test('status and type dropdowns open above the overlay and change values', async () => {
+      updateEvent.mockResolvedValue({ id: 1, name: 'Server Name', status: 'Cancelled' });
+      renderModal();
+      fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
+      await screen.findByLabelText(/Event Name/);
+
+      // The modal overlay uses zIndex 9999 — menus must portal above it or
+      // they open invisibly behind the backdrop (regression: uneditable selects)
+      fireEvent.mouseDown(screen.getByLabelText(/Status \/ 状态/));
+      let listbox = await screen.findByRole('listbox');
+      expect(Number(getComputedStyle(listbox.closest('.MuiModal-root')).zIndex)).toBeGreaterThan(9999);
+      fireEvent.click(within(listbox).getByText('Cancelled / 已取消'));
+      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+
+      fireEvent.mouseDown(screen.getByLabelText(/Type \/ 类型/));
+      listbox = await screen.findByRole('listbox');
+      expect(Number(getComputedStyle(listbox.closest('.MuiModal-root')).zIndex)).toBeGreaterThan(9999);
+      fireEvent.click(within(listbox).getByText('Standard'));
+      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /Save \/ 保存/ }));
+      await waitFor(() =>
+        expect(updateEvent).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({ status: 'Cancelled', event_type: 'standard' }),
+          'user-1'
+        )
       );
     });
 

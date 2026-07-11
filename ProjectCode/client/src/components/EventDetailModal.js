@@ -391,6 +391,8 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                   onChange={handleEditFieldChange('status')}
                   size="small"
                   sx={{ flex: 1 }}
+                  // Menu must portal above this modal's zIndex: 9999 overlay
+                  SelectProps={{ MenuProps: { sx: { zIndex: 10000 } } }}
                 >
                   <MenuItem value="Upcoming">Upcoming / 即将举行</MenuItem>
                   <MenuItem value="Past">Past / 已结束</MenuItem>
@@ -403,6 +405,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                   onChange={handleEditFieldChange('event_type')}
                   size="small"
                   sx={{ flex: 1 }}
+                  SelectProps={{ MenuProps: { sx: { zIndex: 10000 } } }}
                 >
                   <MenuItem value="standard">Standard</MenuItem>
                   <MenuItem value="heylo">Heylo</MenuItem>
