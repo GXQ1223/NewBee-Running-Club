@@ -353,6 +353,56 @@ def transition_past_events():
         logger.info(f"Past events transition complete. Transitioned {count} event(s).")
 
 
+def sync_nyrr_results():
+    """
+    Weekly job to sync NYRR race results for the current year.
+
+    Runs the same fetch/import pipeline as the admin "Sync NYRR Data"
+    button (routes/results.py /sync) across all known race patterns.
+    Scheduled after each weekend so Saturday/Sunday race results land
+    automatically. Unknown/renamed event codes yield no data and are
+    logged rather than raising.
+    """
+    import time as _time
+
+    logger.info("Starting weekly NYRR results sync job...")
+    try:
+        from fetch_historical_data import (
+            RACE_PATTERNS, generate_event_code, generate_race_config,
+            fetch_race_data, import_race_data,
+        )
+    except Exception as e:
+        logger.error(f"NYRR sync: failed to import fetch_historical_data: {e}")
+        return
+
+    year = date.today().year
+    total_imported = 0
+    total_errors = 0
+
+    for code, info in RACE_PATTERNS.items():
+        event_code = generate_event_code(code, year)
+        config = generate_race_config(code, info, year)
+        race_name = config["name"]
+        try:
+            df = fetch_race_data(event_code)
+            if df is not None and len(df) > 0:
+                count = import_race_data(event_code, config, df)
+                total_imported += count
+                logger.info(f"NYRR sync: {race_name} ({event_code}): imported {count} results")
+            else:
+                logger.info(f"NYRR sync: {race_name} ({event_code}): no data")
+        except Exception as e:
+            total_errors += 1
+            logger.error(f"NYRR sync: {race_name} ({event_code}): {e}")
+        # Be polite to the NYRR API between races
+        _time.sleep(0.5)
+
+    logger.info(
+        f"NYRR results sync complete: {total_imported} results imported, "
+        f"{total_errors} error(s)."
+    )
+
+
 def start_scheduler():
     """
     Start the APScheduler with configured jobs.
@@ -381,9 +431,22 @@ def start_scheduler():
         max_instances=1
     )
 
+    # Weekly NYRR results sync — Monday 4 AM UTC (Sunday night in New York),
+    # right after each race weekend. Replaces the old weekly_sync.sh crontab.
+    scheduler.add_job(
+        sync_nyrr_results,
+        CronTrigger(day_of_week='mon', hour=4, minute=0),
+        id='sync_nyrr_results',
+        replace_existing=True,
+        max_instances=1
+    )
+
     # Start the scheduler
     scheduler.start()
-    logger.info("Scheduler started - recurring events job (daily 2 AM), past events transition (weekly Mon 3 AM)")
+    logger.info(
+        "Scheduler started - recurring events job (daily 2 AM), past events "
+        "transition (weekly Mon 3 AM), NYRR results sync (weekly Mon 4 AM UTC)"
+    )
 
     # Run transition immediately on startup to catch any stale events
     transition_past_events()
@@ -414,6 +477,15 @@ def run_transition_job_now():
     """
     logger.info("Manually triggering past events transition...")
     transition_past_events()
+
+
+def run_nyrr_sync_now():
+    """
+    Manually trigger the weekly NYRR results sync job.
+    Useful for testing or administrative purposes.
+    """
+    logger.info("Manually triggering NYRR results sync...")
+    sync_nyrr_results()
 
 
 if __name__ == "__main__":

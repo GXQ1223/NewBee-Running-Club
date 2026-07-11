@@ -26,14 +26,15 @@ const HeyloIcon = (props) => (
   </SvgIcon>
 );
 
-// Primary navigation links shown as pills in the top bar (and in the mobile drawer)
+// Primary navigation links shown as pills in the top bar (and in the mobile drawer).
+// Training ('/training', 与我们训练) is intentionally hidden for now — the page
+// still exists at its URL; re-add an entry here to bring it back.
 export const navLinks = [
   { en: 'Home', cn: '主页', path: '/' },
   { en: 'About Us', cn: '关于我们', path: '/about' },
   { en: 'Upcoming', cn: '即将到来', path: '/calendar' },
   { en: 'Memories', cn: '活动回忆', path: '/highlights' },
   { en: 'Credits/Records', cn: '俱乐部积分', path: '/records' },
-  { en: 'Training', cn: '与我们训练', path: '/training' },
   { en: 'Sponsors', cn: '赞助者', path: '/sponsors' },
 ];
 
@@ -202,9 +203,6 @@ export default function NavBar() {
                           fontSize: '0.6875rem',
                           fontWeight: 400,
                           color: isActive ? 'rgba(255,255,255,0.85)' : MUTED,
-                          // Inline Chinese labels need ~1800px of bar width — only show on very wide screens
-                          display: 'none',
-                          '@media (min-width:1800px)': { display: 'inline' },
                         }}
                       >
                         {link.cn}
