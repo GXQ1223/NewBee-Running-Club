@@ -46,6 +46,7 @@ import { getDonationSummary } from '../api/donors';
 import { getAllBanners, createBanner, updateBanner, deleteBanner } from '../api/banners';
 import { getAllSections, createSection, updateSection, deleteSection } from '../api/homepageSections';
 import { getPendingActivities, verifyActivity, getMemberActivities } from '../api/activities';
+import { getPendingRaceSubmissions, reviewRaceSubmission } from '../api/raceSubmissions';
 import { getSettingsByCategory, updateSetting } from '../api/settings';
 import { useSocialLinks } from '../context';
 import { committeeMembers } from '../data/committeeMembers';
@@ -64,6 +65,7 @@ import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import GroupsIcon from '@mui/icons-material/Groups';
 
 const ORANGE = '#FFA500';
@@ -143,6 +145,11 @@ export default function AdminPanelPage() {
   const [editMemberDialogOpen, setEditMemberDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [editMemberFormData, setEditMemberFormData] = useState({});
+
+  // Race record submission review state
+  const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [rejectSubmissionDialog, setRejectSubmissionDialog] = useState(null); // submission being rejected
+  const [rejectSubmissionNote, setRejectSubmissionNote] = useState('');
 
   // Activity verification state
   const [pendingActivities, setPendingActivities] = useState([]);
@@ -268,14 +275,15 @@ export default function AdminPanelPage() {
       }
 
       try {
-        const [pending, members, eventList, donations, bannerList, sectionList, activities] = await Promise.all([
+        const [pending, members, eventList, donations, bannerList, sectionList, activities, raceSubmissions] = await Promise.all([
           getPendingMembers(currentUser.uid).catch(() => []),
           getAllMembers(currentUser.uid).catch(() => []),
           getAllEvents().catch(() => []),
           getDonationSummary().catch(() => []),
           getAllBanners(currentUser.uid).catch(() => []),
           getAllSections(currentUser.uid).catch(() => []),
-          getPendingActivities(currentUser.uid).catch(() => [])
+          getPendingActivities(currentUser.uid).catch(() => []),
+          getPendingRaceSubmissions(currentUser.uid).catch(() => [])
         ]);
 
         setPendingMembers(pending);
@@ -285,6 +293,7 @@ export default function AdminPanelPage() {
         setBanners(bannerList);
         setSections(sectionList);
         setPendingActivities(activities);
+        setPendingSubmissions(raceSubmissions);
         setError('');
       } catch (err) {
         console.error('Error fetching admin data:', err);
@@ -674,6 +683,26 @@ export default function AdminPanelPage() {
     setActivityDetailsOpen(true);
   };
 
+  const handleReviewSubmission = async (submission, approved, note = null) => {
+    setActionLoading(`submission-${submission.id}`);
+    try {
+      await reviewRaceSubmission(submission.id, approved, note, currentUser.uid);
+      setSuccessMessage(
+        approved
+          ? `"${submission.race_name}" approved — posted to the club leaderboard. / 已批准并上榜。`
+          : `"${submission.race_name}" rejected. / 已拒绝。`
+      );
+      setPendingSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
+      setRejectSubmissionDialog(null);
+      setRejectSubmissionNote('');
+    } catch (err) {
+      console.error('Error reviewing submission:', err);
+      setError('Failed to review submission. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleVerifyActivity = async (activityId, approved, rejectionReason = null) => {
     setActionLoading(`activity-${activityId}`);
     try {
@@ -921,6 +950,7 @@ export default function AdminPanelPage() {
             <Tab icon={<BarChartIcon />} label="Analytics" iconPosition="start" />
             <Tab icon={<DescriptionIcon />} label="Meeting Notes" iconPosition="start" />
             <Tab icon={<SettingsIcon />} label="Settings" iconPosition="start" />
+            <Tab icon={<EmojiEventsIcon />} label={`Race Records${pendingSubmissions.length > 0 ? ` (${pendingSubmissions.length})` : ''}`} iconPosition="start" />
             {isAdmin && <Tab icon={<AdminPanelSettingsIcon />} label="Committee Mgmt" iconPosition="start" />}
           </Tabs>
         </Paper>
@@ -1728,9 +1758,119 @@ export default function AdminPanelPage() {
           </Paper>
         </TabPanel>
 
-        {/* Tab 9: Committee Management (Admin Only) */}
+        {/* Tab 9: Race Record Submissions Review */}
+        <TabPanel value={tabValue} index={9}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+            Race Record Submissions ({pendingSubmissions.length})
+          </Typography>
+          <Typography sx={{ color: MUTED, fontSize: '0.85rem', mb: 3 }}>
+            Members submit PRs from non-NYRR races with proof. Approved records are posted to the
+            member's profile and the club Records leaderboard. / 会员提交非NYRR比赛成绩，审核通过后登上俱乐部排行榜。
+          </Typography>
+
+          {pendingSubmissions.length === 0 ? (
+            <Alert severity="info">
+              No race records awaiting review. / 没有待审核的比赛成绩。
+            </Alert>
+          ) : (
+            <TableContainer component={Paper} elevation={0} sx={panelSx}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: ORANGE_BG }}>
+                    <TableCell><strong>Member</strong></TableCell>
+                    <TableCell><strong>Race</strong></TableCell>
+                    <TableCell><strong>Date</strong></TableCell>
+                    <TableCell><strong>Distance</strong></TableCell>
+                    <TableCell><strong>Time</strong></TableCell>
+                    <TableCell><strong>Proof</strong></TableCell>
+                    <TableCell align="right"><strong>Actions</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {pendingSubmissions.map((submission) => (
+                    <TableRow key={submission.id} hover>
+                      <TableCell>
+                        {submission.member_name || `Member #${submission.member_id}`}
+                        {submission.member_name_cn && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            {submission.member_name_cn}
+                          </Typography>
+                        )}
+                        {!(submission.member_gender && submission.member_birth_year) && (
+                          <Typography variant="caption" display="block" sx={{ color: ORANGE_DARK }}>
+                            ⚠ no gender/birth year — won't rank on leaderboard
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>{submission.race_name}</TableCell>
+                      <TableCell>{submission.race_date}</TableCell>
+                      <TableCell>{submission.race_distance}</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>
+                        {submission.finish_time}
+                        {submission.pace && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            Pace {submission.pace}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {submission.proof_url ? (
+                          <Button
+                            size="small"
+                            href={submission.proof_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ textTransform: 'none', fontSize: '0.72rem' }}
+                          >
+                            Results ↗
+                          </Button>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">—</Typography>
+                        )}
+                        {submission.photo_url && (
+                          <Box
+                            component="img"
+                            src={submission.photo_url}
+                            alt="Race proof"
+                            sx={{ display: 'block', width: 56, height: 38, objectFit: 'cover', borderRadius: '6px', mt: 0.5 }}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Tooltip title="Approve & post to leaderboard">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleReviewSubmission(submission, true)}
+                            disabled={actionLoading === `submission-${submission.id}`}
+                          >
+                            {actionLoading === `submission-${submission.id}` ?
+                              <CircularProgress size={16} /> :
+                              <CheckIcon fontSize="small" />
+                            }
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Reject with note">
+                          <IconButton
+                            size="small"
+                            onClick={() => { setRejectSubmissionDialog(submission); setRejectSubmissionNote(''); }}
+                            disabled={actionLoading === `submission-${submission.id}`}
+                          >
+                            <CloseIcon fontSize="small" color="error" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </TabPanel>
+
+        {/* Tab 10: Committee Management (Admin Only) */}
         {isAdmin && (
-          <TabPanel value={tabValue} index={9}>
+          <TabPanel value={tabValue} index={10}>
             <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
               Committee Management
             </Typography>
@@ -2180,6 +2320,45 @@ export default function AdminPanelPage() {
       </Dialog>
 
       {/* Activity Details Dialog */}
+      {/* Reject Race Record Submission Dialog */}
+      <Dialog open={!!rejectSubmissionDialog} onClose={() => setRejectSubmissionDialog(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Race Record / 拒绝比赛成绩</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Rejecting "{rejectSubmissionDialog?.race_name}" ({rejectSubmissionDialog?.finish_time}) by{' '}
+            {rejectSubmissionDialog?.member_name}. A note is required — the member will see it and can
+            edit &amp; resubmit. / 请填写拒绝原因，会员可修改后重新提交。
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={2}
+            label="Review Note / 审核备注"
+            value={rejectSubmissionNote}
+            onChange={(e) => setRejectSubmissionNote(e.target.value)}
+            placeholder="e.g., results link doesn't show this runner"
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setRejectSubmissionDialog(null)}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '99px', color: MUTED }}
+          >
+            Cancel / 取消
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={!rejectSubmissionNote.trim() || actionLoading === `submission-${rejectSubmissionDialog?.id}`}
+            onClick={() => handleReviewSubmission(rejectSubmissionDialog, false, rejectSubmissionNote.trim())}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '99px' }}
+          >
+            Reject / 拒绝
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={activityDetailsOpen} onClose={() => setActivityDetailsOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           Verify Activity / 验证活动

@@ -9,6 +9,7 @@ import * as bannersApi from '../api/banners';
 import * as sectionsApi from '../api/homepageSections';
 import * as activitiesApi from '../api/activities';
 import * as settingsApi from '../api/settings';
+import * as raceSubmissionsApi from '../api/raceSubmissions';
 import { committeeMembers } from '../data/committeeMembers';
 
 jest.mock('../api/members');
@@ -18,6 +19,7 @@ jest.mock('../api/banners');
 jest.mock('../api/homepageSections');
 jest.mock('../api/activities');
 jest.mock('../api/settings');
+jest.mock('../api/raceSubmissions');
 
 const mockUseAuth = jest.fn();
 jest.mock('../context/AuthContext', () => ({
@@ -114,6 +116,23 @@ const memberActivitiesFixture = [
   { id: 38, activity_number: 3, status: 'rejected' },
 ];
 
+const raceSubmissionsFixture = [
+  {
+    id: 501, member_id: 102, member_name: 'Runner A', member_name_cn: '甲',
+    member_gender: 'M', member_birth_year: 1990,
+    race_name: 'Boston Marathon', race_date: '2026-04-20', race_distance: 'Marathon',
+    finish_time: '3:25:58', pace: '07:51',
+    proof_url: 'https://results.baa.org/x', photo_url: 'https://img/boston.jpg', status: 'pending',
+  },
+  {
+    id: 502, member_id: 104, member_name: 'user104', member_name_cn: null,
+    member_gender: null, member_birth_year: null,
+    race_name: 'Jersey City Half', race_date: '2026-06-28', race_distance: 'Half Marathon',
+    finish_time: '1:36:40', pace: null,
+    proof_url: null, photo_url: null, status: 'pending',
+  },
+];
+
 const socialSettingsFixture = [
   { key: 'social_instagram', value: 'https://insta' },
   { key: 'social_xiaohongshu', value: 'https://xhs' },
@@ -177,6 +196,8 @@ beforeEach(() => {
   activitiesApi.getPendingActivities.mockResolvedValue(activitiesFixture);
   activitiesApi.getMemberActivities.mockResolvedValue(memberActivitiesFixture);
   activitiesApi.verifyActivity.mockResolvedValue({});
+  raceSubmissionsApi.getPendingRaceSubmissions.mockResolvedValue(raceSubmissionsFixture);
+  raceSubmissionsApi.reviewRaceSubmission.mockResolvedValue({});
   settingsApi.getSettingsByCategory.mockImplementation((category) =>
     Promise.resolve(category === 'social' ? socialSettingsFixture : joinSettingsFixture)
   );
@@ -1072,5 +1093,84 @@ describe('empty states', () => {
     openTab('Analytics');
     expect(await screen.findByText('From 0 donors')).toBeInTheDocument();
     expect(screen.getAllByText('$0.00')).toHaveLength(2);
+  });
+});
+
+describe('race records tab', () => {
+  test('lists pending submissions with member info and proof', async () => {
+    renderPage();
+    await waitForDashboard();
+    openTab(/Race Records/);
+
+    expect(await screen.findByText('Race Record Submissions (2)')).toBeInTheDocument();
+    expect(screen.getByText('Boston Marathon')).toBeInTheDocument();
+    expect(screen.getByText('甲')).toBeInTheDocument();
+    expect(screen.getByText('3:25:58')).toBeInTheDocument();
+    expect(screen.getByText('Pace 07:51')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Results ↗' })).toHaveAttribute('href', 'https://results.baa.org/x');
+    expect(screen.getByAltText('Race proof')).toHaveAttribute('src', 'https://img/boston.jpg');
+    // member without gender/birth year gets a leaderboard warning
+    expect(screen.getByText(/no gender\/birth year/)).toBeInTheDocument();
+  });
+
+  test('shows tab badge count and empty state', async () => {
+    raceSubmissionsApi.getPendingRaceSubmissions.mockResolvedValue([]);
+    renderPage();
+    await waitForDashboard();
+    openTab('Race Records');
+    expect(await screen.findByText('No race records awaiting review. / 没有待审核的比赛成绩。')).toBeInTheDocument();
+  });
+
+  test('approves a submission and removes it from the list', async () => {
+    renderPage();
+    await waitForDashboard();
+    openTab(/Race Records/);
+    await screen.findByText('Boston Marathon');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Approve & post to leaderboard/i })[0]);
+
+    await waitFor(() => {
+      expect(raceSubmissionsApi.reviewRaceSubmission).toHaveBeenCalledWith(501, true, null, ADMIN_UID);
+    });
+    expect(await screen.findByText(/approved — posted to the club leaderboard/)).toBeInTheDocument();
+    expect(screen.queryByText('Boston Marathon')).not.toBeInTheDocument();
+    expect(screen.getByText('Jersey City Half')).toBeInTheDocument();
+  });
+
+  test('rejecting requires a note and sends it', async () => {
+    renderPage();
+    await waitForDashboard();
+    openTab(/Race Records/);
+    await screen.findByText('Boston Marathon');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Reject with note/i })[0]);
+    expect(await screen.findByText('Reject Race Record / 拒绝比赛成绩')).toBeInTheDocument();
+
+    // Reject button disabled until a note is entered
+    const rejectButton = screen.getByRole('button', { name: 'Reject / 拒绝' });
+    expect(rejectButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Review Note / 审核备注'), { target: { value: 'link broken' } });
+    fireEvent.click(rejectButton);
+
+    await waitFor(() => {
+      expect(raceSubmissionsApi.reviewRaceSubmission).toHaveBeenCalledWith(501, false, 'link broken', ADMIN_UID);
+    });
+    expect(await screen.findByText(/rejected/)).toBeInTheDocument();
+    expect(screen.queryByText('Boston Marathon')).not.toBeInTheDocument();
+  });
+
+  test('shows an error when review fails', async () => {
+    raceSubmissionsApi.reviewRaceSubmission.mockRejectedValue(new Error('boom'));
+    renderPage();
+    await waitForDashboard();
+    openTab(/Race Records/);
+    await screen.findByText('Boston Marathon');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Approve & post to leaderboard/i })[0]);
+
+    expect(await screen.findByText('Failed to review submission. Please try again.')).toBeInTheDocument();
+    // submission stays in the list
+    expect(screen.getByText('Boston Marathon')).toBeInTheDocument();
   });
 });

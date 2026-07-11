@@ -6,6 +6,14 @@ import { logout } from '../firebase/auth';
 import { getMemberByFirebaseUid, updateMember } from '../api/members';
 import { getMemberRaceResults } from '../api/results';
 import { getMemberCredits } from '../api/credits';
+import {
+  getMyRaceSubmissions,
+  getMyRacePhotos,
+  deleteRaceSubmission,
+  updateRaceSubmission,
+  upsertRacePhoto,
+  createRaceSubmission,
+} from '../api/raceSubmissions';
 import { uploadBytes, getDownloadURL } from 'firebase/storage';
 
 jest.mock('../context', () => ({ useAuth: jest.fn() }));
@@ -25,6 +33,20 @@ jest.mock('../api/members', () => ({
 }));
 jest.mock('../api/results', () => ({ getMemberRaceResults: jest.fn() }));
 jest.mock('../api/credits', () => ({ getMemberCredits: jest.fn() }));
+jest.mock('../api/raceSubmissions', () => ({
+  getMyRaceSubmissions: jest.fn(),
+  getMyRacePhotos: jest.fn(),
+  deleteRaceSubmission: jest.fn(),
+  updateRaceSubmission: jest.fn(),
+  upsertRacePhoto: jest.fn(),
+  createRaceSubmission: jest.fn(),
+}));
+jest.mock('html2canvas', () => ({
+  __esModule: true,
+  default: jest.fn(() =>
+    Promise.resolve({ toDataURL: () => 'data:image/png;base64,MOCK' })
+  ),
+}));
 
 const fbUser = {
   uid: 'uid-1',
@@ -99,12 +121,24 @@ const settle = async () => {
 
 const firstDataRowText = () => screen.getAllByRole('row')[1].textContent;
 
+const submissionsFixture = [
+  { id: 11, member_id: 7, race_name: 'Jersey City Half', race_date: '2026-06-28', race_distance: 'Half Marathon', finish_time: '1:36:40', pace: '07:23', proof_url: 'https://jch/results', photo_url: null, status: 'pending', result_id: null, review_note: null },
+  { id: 12, member_id: 7, race_name: 'Delta Marathon', race_date: '2022-11-01', race_distance: 'Marathon', finish_time: '3:30:00', pace: '8:00', proof_url: null, photo_url: 'https://img/delta.jpg', status: 'approved', result_id: 4, review_note: null },
+  { id: 13, member_id: 7, race_name: 'Backyard Ultra', race_date: '2025-10-01', race_distance: '50K', finish_time: '5:00:00', pace: null, proof_url: null, photo_url: null, status: 'rejected', result_id: null, review_note: 'no proof' },
+];
+
 beforeEach(() => {
   jest.clearAllMocks();
   useAuth.mockReturnValue({ currentUser: fbUser });
   getMemberByFirebaseUid.mockResolvedValue(member);
   getMemberCredits.mockResolvedValue(credits);
   getMemberRaceResults.mockResolvedValue(raceData);
+  getMyRaceSubmissions.mockResolvedValue([]);
+  getMyRacePhotos.mockResolvedValue([]);
+  deleteRaceSubmission.mockResolvedValue({});
+  updateRaceSubmission.mockResolvedValue({});
+  upsertRacePhoto.mockResolvedValue({});
+  createRaceSubmission.mockResolvedValue({});
   logout.mockResolvedValue({ error: null });
   updateMember.mockResolvedValue({});
 });
@@ -143,11 +177,11 @@ test('renders profile fields, credits, PRs, and race history from member data', 
   expect(screen.getByText('5')).toBeInTheDocument();
   expect(screen.getByText('3')).toBeInTheDocument();
 
-  // Race stats + PR cards
+  // Race stats + record wall plaques
   expect(screen.getByText('8')).toBeInTheDocument(); // total races
-  expect(screen.getByText('NYRR Personal Records')).toBeInTheDocument();
-  expect(screen.getAllByText('0:20:00').length).toBeGreaterThanOrEqual(2); // PR card + table
-  expect(screen.getByText(/Pace: 6:26/)).toBeInTheDocument();
+  expect(screen.getByText('My Record Wall')).toBeInTheDocument();
+  expect(screen.getAllByText('0:20:00').length).toBeGreaterThanOrEqual(2); // PR plaque + table
+  expect(screen.getByText(/Pace 6:26/)).toBeInTheDocument();
 
   // Race history rows (8 data rows + header)
   expect(screen.getAllByRole('row')).toHaveLength(9);
@@ -347,8 +381,8 @@ test('shows hints and empty race history when matching info is missing', async (
   ).toBe(2);
   expect(await screen.findByText(/No race results found/)).toBeInTheDocument();
   expect(screen.getByText(/Add your NYRR ID/)).toBeInTheDocument();
-  // No PR section, no Running Profile section
-  expect(screen.queryByText('NYRR Personal Records')).not.toBeInTheDocument();
+  // Empty record wall, no Running Profile section
+  expect(screen.getByText(/Your wall is waiting for its first medal/)).toBeInTheDocument();
   expect(screen.queryByText('Running Profile')).not.toBeInTheDocument();
 });
 
@@ -380,4 +414,191 @@ test('credits and race fetch errors do not break the page', async () => {
   const zeros = screen.getAllByText('0');
   expect(zeros.length).toBeGreaterThanOrEqual(4);
   errSpy.mockRestore();
+});
+
+describe('record wall & submissions', () => {
+  test('wall shows pending plaques, leaderboard chips and photos from submissions', async () => {
+    getMyRaceSubmissions.mockResolvedValue(submissionsFixture);
+    getMyRacePhotos.mockResolvedValue([
+      { id: 1, member_id: 7, result_id: 1, photo_url: 'https://img/alpha.jpg' },
+    ]);
+    renderProfile();
+    await settle();
+
+    // Pending submission hangs on the wall as a challenger plaque
+    expect((await screen.findAllByText('Jersey City Half')).length).toBeGreaterThanOrEqual(2); // wall plaque + tracker
+    expect(screen.getAllByText(/Pending Review 待审核/).length).toBeGreaterThanOrEqual(1);
+
+    // Approved submission (result_id 4 = Delta Marathon PR) shows the leaderboard seal
+    expect(screen.getAllByText(/On Leaderboard 已上榜/).length).toBeGreaterThanOrEqual(1);
+    // ...and its Source column chip in race history
+    expect(screen.getByText('已上榜 Leaderboard')).toBeInTheDocument();
+    expect(screen.getAllByText('NYRR').length).toBeGreaterThanOrEqual(1);
+
+    // Stat card counts approved submissions on the leaderboard
+    expect(screen.getByText('On Leaderboard / 榜上纪录')).toBeInTheDocument();
+
+    // Submissions tracker section lists all three with statuses
+    expect(screen.getByText('My Submissions')).toBeInTheDocument();
+    expect(screen.getByText('Backyard Ultra')).toBeInTheDocument();
+    expect(screen.getByText(/no proof/)).toBeInTheDocument(); // rejection note
+  });
+
+  test('add-record plaque opens the submission dialog and submits', async () => {
+    renderProfile();
+    await settle();
+
+    fireEvent.click(screen.getByTestId('add-record-plaque'));
+    expect(await screen.findByText('Add Race Record / 添加比赛成绩')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Race Name/), { target: { value: 'Boston Marathon' } });
+    fireEvent.change(screen.getByLabelText(/Race Date/), { target: { value: '2026-04-20' } });
+    fireEvent.change(screen.getByLabelText(/Finish Time/), { target: { value: '3:25:58' } });
+    fireEvent.click(screen.getByRole('button', { name: /Submit for Review/ }));
+
+    await waitFor(() =>
+      expect(createRaceSubmission).toHaveBeenCalledWith(
+        expect.objectContaining({
+          race_name: 'Boston Marathon',
+          race_date: '2026-04-20',
+          race_distance: 'Marathon',
+          finish_time: '3:25:58',
+        }),
+        'uid-1'
+      )
+    );
+    expect(await screen.findByText(/Record submitted for committee review/)).toBeInTheDocument();
+    // Submissions are refetched after submitting
+    await waitFor(() => expect(getMyRaceSubmissions).toHaveBeenCalledTimes(2));
+  });
+
+  test('editing a rejected submission opens the dialog pre-filled and resubmits', async () => {
+    getMyRaceSubmissions.mockResolvedValue(submissionsFixture);
+    renderProfile();
+    await settle();
+    await screen.findByText('Backyard Ultra');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Edit & resubmit/ })[0]);
+    expect(await screen.findByText('Edit Race Record / 编辑比赛成绩')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Race Name/)).toHaveValue('Backyard Ultra');
+    // 50K is not a preset distance -> custom field pre-filled
+    expect(screen.getByLabelText(/Custom Distance/)).toHaveValue('50K');
+
+    fireEvent.change(screen.getByLabelText(/Finish Time/), { target: { value: '4:59:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Submit for Review/ }));
+
+    await waitFor(() =>
+      expect(updateRaceSubmission).toHaveBeenCalledWith(
+        13,
+        expect.objectContaining({ finish_time: '4:59:00', race_distance: '50K' }),
+        'uid-1'
+      )
+    );
+  });
+
+  test('withdrawing a pending submission asks for confirmation', async () => {
+    getMyRaceSubmissions.mockResolvedValue(submissionsFixture);
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    renderProfile();
+    await settle();
+    await screen.findAllByText('Jersey City Half');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Withdraw 撤回/ })[0]);
+    await waitFor(() => expect(deleteRaceSubmission).toHaveBeenCalledWith(11, 'uid-1'));
+    expect(await screen.findByText(/Submission withdrawn/)).toBeInTheDocument();
+
+    // Declining the confirm does nothing
+    deleteRaceSubmission.mockClear();
+    confirmSpy.mockReturnValue(false);
+    fireEvent.click(screen.getAllByRole('button', { name: /Withdraw 撤回/ })[0]);
+    expect(deleteRaceSubmission).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  test('withdraw failure shows an error', async () => {
+    getMyRaceSubmissions.mockResolvedValue(submissionsFixture);
+    deleteRaceSubmission.mockRejectedValueOnce(new Error('nope'));
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    renderProfile();
+    await settle();
+    await screen.findAllByText('Jersey City Half');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Withdraw 撤回/ })[0]);
+    expect(await screen.findByText(/Failed to withdraw submission/)).toBeInTheDocument();
+    window.confirm.mockRestore();
+  });
+
+  test('changing a race photo on a synced PR uploads and saves via race-photos API', async () => {
+    uploadBytes.mockResolvedValue({});
+    getDownloadURL.mockResolvedValue('https://cdn/race.png');
+    renderProfile();
+    await settle();
+
+    // Wall plaques sort longest distance first: Marathon then 5K.
+    // Both are NYRR results -> photoTarget {type:'result'}.
+    const camButtons = screen.getAllByRole('button', { name: /Add 添加|Change 更换/ });
+    fireEvent.click(camButtons[0]); // Marathon plaque (result id 4)
+
+    const input = screen.getByTestId('race-wall-photo-input');
+    const file = new File(['img'], 'race.png', { type: 'image/png' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => expect(upsertRacePhoto).toHaveBeenCalledWith(4, 'https://cdn/race.png', 'uid-1'));
+    expect(await screen.findByText(/Race photo updated/)).toBeInTheDocument();
+  });
+
+  test('changing a photo on a pending submission updates the submission', async () => {
+    getMyRaceSubmissions.mockResolvedValue(submissionsFixture);
+    uploadBytes.mockResolvedValue({});
+    getDownloadURL.mockResolvedValue('https://cdn/jch.png');
+    renderProfile();
+    await settle();
+    await screen.findAllByText('Jersey City Half');
+
+    // Last plaque cam button belongs to the pending submission plaque
+    const camButtons = screen.getAllByRole('button', { name: /Add 添加|Change 更换/ });
+    fireEvent.click(camButtons[camButtons.length - 1]);
+
+    const input = screen.getByTestId('race-wall-photo-input');
+    fireEvent.change(input, { target: { files: [new File(['x'], 'jch.png', { type: 'image/png' })] } });
+
+    await waitFor(() =>
+      expect(updateRaceSubmission).toHaveBeenCalledWith(11, { photo_url: 'https://cdn/jch.png' }, 'uid-1')
+    );
+  });
+
+  test('race photo input validates type and size and surfaces upload errors', async () => {
+    renderProfile();
+    await settle();
+
+    const camButtons = screen.getAllByRole('button', { name: /Add 添加|Change 更换/ });
+    fireEvent.click(camButtons[0]);
+    const input = screen.getByTestId('race-wall-photo-input');
+
+    fireEvent.change(input, { target: { files: [new File(['t'], 'a.txt', { type: 'text/plain' })] } });
+    expect(await screen.findByText(/Please select an image file/)).toBeInTheDocument();
+
+    fireEvent.click(camButtons[0]);
+    const big = new File(['x'], 'big.png', { type: 'image/png' });
+    Object.defineProperty(big, 'size', { value: 6 * 1024 * 1024 });
+    fireEvent.change(input, { target: { files: [big] } });
+    expect(await screen.findByText(/Image size must be less than 5MB/)).toBeInTheDocument();
+
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    uploadBytes.mockRejectedValueOnce(new Error('storage down'));
+    fireEvent.click(camButtons[0]);
+    fireEvent.change(input, { target: { files: [new File(['x'], 'ok.png', { type: 'image/png' })] } });
+    expect(await screen.findByText(/Failed to upload photo/)).toBeInTheDocument();
+    errSpy.mockRestore();
+  });
+
+  test('submissions fetch failure leaves the wall usable', async () => {
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    getMyRaceSubmissions.mockRejectedValueOnce(new Error('api down'));
+    renderProfile();
+    await settle();
+    expect(screen.getByText('My Record Wall')).toBeInTheDocument();
+    expect(screen.queryByText('My Submissions')).not.toBeInTheDocument();
+    errSpy.mockRestore();
+  });
 });
