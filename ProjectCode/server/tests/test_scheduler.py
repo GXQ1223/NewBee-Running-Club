@@ -8,6 +8,10 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import sys
+import time as time_mod
+import types
+
 import pytest
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import sessionmaker
@@ -412,8 +416,8 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
 
     start_scheduler()
 
-    assert fake.add_job.call_count == 2
-    (recurring_call, transition_call) = fake.add_job.call_args_list
+    assert fake.add_job.call_count == 3
+    (recurring_call, transition_call, nyrr_call) = fake.add_job.call_args_list
 
     assert recurring_call.args[0] is scheduler_mod.generate_recurring_events
     assert recurring_call.kwargs['id'] == 'generate_recurring_events'
@@ -425,6 +429,13 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
     assert isinstance(transition_call.args[1], CronTrigger)
     assert "day_of_week='mon'" in str(transition_call.args[1])
     assert "hour='3'" in str(transition_call.args[1])
+
+    assert nyrr_call.args[0] is scheduler_mod.sync_nyrr_results
+    assert nyrr_call.kwargs['id'] == 'sync_nyrr_results'
+    assert nyrr_call.kwargs['max_instances'] == 1
+    assert isinstance(nyrr_call.args[1], CronTrigger)
+    assert "day_of_week='mon'" in str(nyrr_call.args[1])
+    assert "hour='4'" in str(nyrr_call.args[1])
 
     fake.start.assert_called_once()
     # Transition also runs once immediately on startup
@@ -473,4 +484,95 @@ def test_run_transition_job_now(monkeypatch):
     calls = []
     monkeypatch.setattr(scheduler_mod, 'transition_past_events', lambda: calls.append(True))
     run_transition_job_now()
+    assert calls == [True]
+
+
+# ---------------------------------------------------------------------------
+# weekly NYRR results sync job
+# ---------------------------------------------------------------------------
+
+def _fake_nyrr_module(fetch_impl, import_impl):
+    mod = types.ModuleType('fetch_historical_data')
+    mod.RACE_PATTERNS = {
+        'BKH': {'name_template': 'Brooklyn Half {year}', 'distance': 'Half Marathon', 'typical_month': 5},
+        'Q10K': {'name_template': 'Queens 10K {year}', 'distance': '10K', 'typical_month': 6},
+    }
+    mod.generate_event_code = lambda code, year: f'{code}-{year}'
+    mod.generate_race_config = lambda code, info, year: {
+        'name': info['name_template'].format(year=year), 'distance': info['distance'],
+    }
+    mod.fetch_race_data = fetch_impl
+    mod.import_race_data = import_impl
+    return mod
+
+
+def test_sync_nyrr_results_imports_all_races(monkeypatch):
+    imported = []
+    mod = _fake_nyrr_module(
+        fetch_impl=lambda ec: ['row1', 'row2'],
+        import_impl=lambda ec, cfg, df: imported.append((ec, cfg['name'])) or len(df),
+    )
+    monkeypatch.setitem(sys.modules, 'fetch_historical_data', mod)
+    monkeypatch.setattr(time_mod, 'sleep', lambda s: None)
+
+    scheduler_mod.sync_nyrr_results()
+
+    year = date.today().year
+    assert imported == [(f'BKH-{year}', f'Brooklyn Half {year}'), (f'Q10K-{year}', f'Queens 10K {year}')]
+
+
+def test_sync_nyrr_results_skips_races_without_data(monkeypatch):
+    imported = []
+    mod = _fake_nyrr_module(
+        fetch_impl=lambda ec: [] if ec.startswith('BKH') else None,
+        import_impl=lambda ec, cfg, df: imported.append(ec) or 0,
+    )
+    monkeypatch.setitem(sys.modules, 'fetch_historical_data', mod)
+    monkeypatch.setattr(time_mod, 'sleep', lambda s: None)
+
+    scheduler_mod.sync_nyrr_results()
+
+    assert imported == []  # empty df and None both skip import
+
+
+def test_sync_nyrr_results_continues_after_race_error(monkeypatch):
+    imported = []
+
+    def fetch(ec):
+        if ec.startswith('BKH'):
+            raise RuntimeError('nyrr down')
+        return ['row']
+
+    mod = _fake_nyrr_module(fetch, lambda ec, cfg, df: imported.append(ec) or 1)
+    monkeypatch.setitem(sys.modules, 'fetch_historical_data', mod)
+    monkeypatch.setattr(time_mod, 'sleep', lambda s: None)
+
+    scheduler_mod.sync_nyrr_results()
+
+    year = date.today().year
+    assert imported == [f'Q10K-{year}']  # BKH errored, Q10K still imported
+
+
+def test_sync_nyrr_results_counts_import_errors(monkeypatch):
+    def bad_import(ec, cfg, df):
+        raise RuntimeError('db write failed')
+
+    mod = _fake_nyrr_module(lambda ec: ['row'], bad_import)
+    monkeypatch.setitem(sys.modules, 'fetch_historical_data', mod)
+    monkeypatch.setattr(time_mod, 'sleep', lambda s: None)
+
+    # Should not raise despite every import failing
+    scheduler_mod.sync_nyrr_results()
+
+
+def test_sync_nyrr_results_handles_missing_module(monkeypatch):
+    monkeypatch.setitem(sys.modules, 'fetch_historical_data', None)
+    # Import failure logs and returns without raising
+    scheduler_mod.sync_nyrr_results()
+
+
+def test_run_nyrr_sync_now(monkeypatch):
+    calls = []
+    monkeypatch.setattr(scheduler_mod, 'sync_nyrr_results', lambda: calls.append(True))
+    scheduler_mod.run_nyrr_sync_now()
     assert calls == [True]
