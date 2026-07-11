@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile Option B — Race Bib Journey 号码布足迹 · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Option B: RACE BIB JOURNEY. The page reads like a runner's scrapbook —
+     every race is a race-bib card pinned along a vertical timeline, newest on
+     top. PR races glow gold with a PR flag. A sticky PR strip stays visible
+     while you scroll your journey. Adding an outside race drops a new bib onto
+     the timeline in "pending" state until the committee approves it. */
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;
+        --gold:#D4A017;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:36px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:22px}
+  .optlabel b{color:var(--orange-dark)}
+
+  /* ── hero banner ────────────────────────────────────── */
+  .hero{position:relative;border-radius:18px;overflow:hidden;color:#fff;padding:38px 40px 30px;margin-bottom:0;
+    background:linear-gradient(120deg,#2b2118,#4a3418 55%,var(--orange-dark));box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  .hero:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 10%,rgba(255,215,120,.35),transparent 45%)}
+  .hrow{position:relative;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+  .avatar{width:84px;height:84px;border-radius:50%;background:#fff;color:var(--orange-dark);display:flex;align-items:center;justify-content:center;
+    font-size:32px;font-weight:900;border:3px solid rgba(255,255,255,.6)}
+  .hero h1{font-size:26px;font-weight:700}
+  .hero h1 small{font-size:15px;font-weight:400;opacity:.85;margin-left:10px}
+  .hero .sub{font-size:13px;opacity:.8;margin-top:4px}
+  .bigstats{position:relative;display:flex;gap:44px;margin-top:24px;flex-wrap:wrap}
+  .bs b{display:block;font-family:Oswald,sans-serif;font-size:36px;font-weight:600;line-height:1}
+  .bs span{font-size:12px;opacity:.85}
+  .heroactions{position:relative;margin-left:auto;display:flex;gap:10px;align-self:flex-start}
+  .pillbtn{border:1.5px solid #fff;background:transparent;color:#fff;font-family:inherit;font-size:13px;font-weight:600;
+    padding:9px 20px;border-radius:99px;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .pillbtn:hover{background:#fff;color:var(--orange-dark)}
+  .pillbtn.solid{background:#fff;color:var(--orange-dark)}
+
+  /* ── sticky PR strip ────────────────────────────────── */
+  .prstrip{position:sticky;top:0;z-index:20;display:flex;gap:12px;overflow-x:auto;padding:14px 6px;margin:0 0 8px;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+  .prcard{flex:0 0 auto;display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:8px 16px;background:#fff;
+    box-shadow:0 2px 4px rgba(0,0,0,.06);transition:all .2s;cursor:pointer}
+  .prcard:hover{box-shadow:0 6px 18px rgba(255,165,0,.35);transform:translateY(-2px)}
+  .prcard.best{border-color:var(--gold);background:linear-gradient(120deg,#fff,#fff8e6)}
+  .prcard .d{font-size:10.5px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase}
+  .prcard .d small{display:block;letter-spacing:0;font-weight:400}
+  .prcard .t{font-family:Oswald,sans-serif;font-size:24px;font-weight:600;color:var(--orange-dark)}
+  .prcard .tag{font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:99px}
+  .tag.nyrr{background:var(--blue-bg);color:var(--blue)}
+  .tag.board{background:var(--green-bg);color:var(--green)}
+  .tag.pend{background:var(--orange-bg);color:var(--orange-dark);border:1px dashed var(--orange)}
+
+  /* ── timeline ───────────────────────────────────────── */
+  .tlwrap{position:relative;padding:30px 0 10px}
+  .tlwrap:before{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;background:repeating-linear-gradient(#e8dfcd 0 10px,transparent 10px 18px)}
+  .yearpin{position:relative;width:max-content;margin:26px auto;background:var(--ink);color:#fff;font-family:Oswald,sans-serif;
+    font-size:16px;font-weight:600;padding:6px 26px;border-radius:99px;z-index:2;letter-spacing:2px}
+  .row{position:relative;display:flex;margin:10px 0}
+  .row.left{justify-content:flex-start}
+  .row.right{justify-content:flex-end}
+  .row .knot{position:absolute;left:50%;top:38px;width:14px;height:14px;border-radius:50%;background:#fff;border:3.5px solid var(--orange);
+    transform:translateX(-50%);z-index:2}
+  .row.pr .knot{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 5px rgba(212,160,23,.22)}
+
+  /* race bib card */
+  .bib{width:44.5%;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 3px 10px rgba(0,0,0,.09);transition:all .25s;position:relative}
+  .bib:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(255,165,0,.3)}
+  .row.pr .bib{border:1.5px solid var(--gold);box-shadow:0 4px 16px rgba(212,160,23,.28)}
+  .bib .strip{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;color:#fff;
+    background:linear-gradient(90deg,var(--orange),var(--orange-dark));font-size:11.5px;font-weight:700;letter-spacing:1px}
+  .row.pr .bib .strip{background:linear-gradient(90deg,#e3b23c,var(--gold))}
+  .bib.pending{border:1.5px dashed var(--orange);background:#FFFDF8}
+  .bib.pending .strip{background:repeating-linear-gradient(45deg,var(--orange),var(--orange) 12px,var(--orange-dark) 12px,var(--orange-dark) 24px)}
+  /* bib punch holes */
+  .bib .strip i{width:9px;height:9px;border-radius:50%;background:#fff;opacity:.9;flex:0 0 auto}
+  .bib .strip .code{flex:1;text-align:center}
+  /* member's own photo from that race, right under the strip */
+  .cover{height:128px;background-size:cover;background-position:center;position:relative}
+  .cover:after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.02),rgba(0,0,0,.25))}
+  .cover .cam{position:absolute;right:10px;bottom:8px;z-index:2;background:rgba(0,0,0,.6);color:#fff;font-size:10.5px;font-weight:600;
+    padding:4px 10px;border-radius:99px;opacity:0;transition:opacity .2s;cursor:pointer}
+  .bib:hover .cover .cam{opacity:1}
+  .sharebtn{margin-left:auto;font-size:12px;font-weight:700;color:var(--orange);cursor:pointer;border:none;background:none;font-family:inherit}
+  .sharebtn:hover{text-decoration:underline}
+  .cover.nophoto{background:var(--orange-bg);display:flex;align-items:center;justify-content:center;
+    color:var(--orange-dark);font-size:12.5px;font-weight:600;cursor:pointer}
+  .cover.nophoto:after{display:none}
+  .bibbody{padding:14px 20px 16px}
+  .rname{font-size:15.5px;font-weight:700}
+  .rdate{font-size:12px;color:var(--muted);margin-top:2px}
+  .bignum{font-family:Oswald,sans-serif;font-size:42px;font-weight:600;line-height:1.1;margin:8px 0 2px;color:var(--ink)}
+  .row.pr .bignum{color:var(--gold)}
+  .rmeta{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:2px}
+  .prflag{position:absolute;top:44px;right:-9px;background:var(--gold);color:#fff;font-size:11px;font-weight:900;
+    padding:4px 12px 4px 10px;letter-spacing:1px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+  .prflag:after{content:"";position:absolute;right:0;top:100%;border:5px solid transparent;border-top-color:#8a6a10;border-right-color:#8a6a10}
+  .bibfoot{display:flex;align-items:center;gap:8px;padding:10px 20px;border-top:1px dashed var(--line);flex-wrap:wrap}
+  .bibfoot .tag{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px}
+  .submitlink{margin-left:auto;font-size:12px;font-weight:700;color:var(--orange);cursor:pointer;text-decoration:none}
+  .submitlink:hover{text-decoration:underline}
+  .rvnote{font-size:11.5px;color:var(--orange-dark);margin-left:auto}
+
+  /* add-race composer bib */
+  .bib.composer{border:2px dashed #d9d0bf;background:#FBF8F2;box-shadow:none;text-align:center;padding:26px 20px;cursor:pointer;color:var(--muted)}
+  .bib.composer:hover{border-color:var(--orange);color:var(--orange);transform:none;box-shadow:none}
+  .bib.composer .plus{font-size:30px;line-height:1;margin-bottom:6px}
+  .bib.composer b{font-size:14px;display:block}
+  .bib.composer small{font-size:11.5px;display:block;margin-top:4px;line-height:1.6}
+
+  .finish{width:max-content;margin:30px auto 0;text-align:center;position:relative;z-index:2;background:#fff;padding:0 14px;color:var(--muted);font-size:12.5px}
+  .finish b{display:block;font-size:22px;margin-bottom:2px}
+  @media(max-width:760px){.tlwrap:before{left:16px}.row .knot{left:16px}.bib{width:calc(100% - 44px);margin-left:44px}}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option B · Race Bib Journey 号码布足迹</b> — Your running life as a scrapbook: every race is a
+<b>race-bib card with your own photo from that day</b> (hover → 📷 change photo), pinned on a vertical timeline, newest first.
+PR races glow gold; a sticky PR strip follows you as you scroll. Outside races drop on as dashed "pending" bibs after you create
+the race + submit proof — once the committee approves, the bib turns solid and the record is <b>posted to the NewBee leaderboard</b>.
+Every bib has <b>↗ Share</b> (one race = one beautiful share card) and the hero has <b>🖼 Journey Poster</b> — the whole timeline
+rendered as a single printable image. Story-driven &amp; sentimental — you come back to watch your journey grow.</div>
+
+<!-- hero -->
+<div class="hero">
+  <div class="hrow">
+    <div class="avatar">WC</div>
+    <div>
+      <h1>Wei Chen <small>陈伟 · Member since 2022 · NYRR ID 20481376</small></h1>
+      <div class="sub">"Stay healthy and enjoy running!" · Flushing, NY</div>
+    </div>
+    <div class="heroactions">
+      <button class="pillbtn solid">＋ Add Race 添加比赛</button>
+      <button class="pillbtn">🖼 Journey Poster 足迹海报</button>
+      <button class="pillbtn">⟳ Sync NYRR 同步</button>
+    </div>
+  </div>
+  <div class="bigstats">
+    <div class="bs"><b>42</b><span>Races finished 完赛</span></div>
+    <div class="bs"><b>486 mi</b><span>Race distance 累计里程</span></div>
+    <div class="bs"><b>5</b><span>Personal records 个人纪录</span></div>
+    <div class="bs"><b>3</b><span>On club leaderboard 俱乐部榜上</span></div>
+    <div class="bs"><b>4 yrs</b><span>Running with NewBee</span></div>
+  </div>
+</div>
+
+<!-- sticky PR strip -->
+<div class="prstrip">
+  <div class="prcard best"><div class="d">Marathon<small>全马</small></div><div class="t">3:25:58</div><span class="tag board">已上榜</span></div>
+  <div class="prcard"><div class="d">Half<small>半马</small></div><div class="t">1:38:12</div><span class="tag nyrr">NYRR</span></div>
+  <div class="prcard"><div class="d">10K</div><div class="t">44:05</div><span class="tag nyrr">NYRR</span></div>
+  <div class="prcard"><div class="d">5K</div><div class="t">21:37</div><span class="tag nyrr">NYRR</span></div>
+  <div class="prcard"><div class="d">Half<small>challenger</small></div><div class="t">1:36:40</div><span class="tag pend">⧗ 待审核</span></div>
+</div>
+
+<!-- timeline -->
+<div class="tlwrap">
+
+  <div class="yearpin">2026</div>
+
+  <!-- composer -->
+  <div class="row right">
+    <div class="knot" style="border-color:#d9d0bf"></div>
+    <div class="bib composer">
+      <div class="plus">＋</div>
+      <b>Pin your next race here 记录下一场比赛</b>
+      <small>Ran outside NYRR? <b>Create the race</b> — name, date, distance, official results link —<br>
+      attach your time &amp; bib photo, then submit for NewBee review 提交审核</small>
+    </div>
+  </div>
+
+  <!-- pending bib -->
+  <div class="row left">
+    <div class="knot"></div>
+    <div class="bib pending">
+      <div class="strip"><i></i><span class="code">JCH · 2026</span><i></i></div>
+      <div class="cover nophoto">📷 Add your finish-line photo 添加你的冲线照片</div>
+      <div class="bibbody">
+        <div class="rname">Jersey City Half Marathon</div>
+        <div class="rdate">Jun 28, 2026 · 13.1 mi · race created by you 你创建的比赛</div>
+        <div class="bignum">1:36:40</div>
+        <div class="rmeta"><span>Pace 7:23</span><span>would beat Half PR by 1:32 ⚡</span></div>
+      </div>
+      <div class="bibfoot">
+        <span class="tag pend">⧗ Committee reviewing 委员会审核中</span>
+        <span class="rvnote">submitted Jul 8 · proof attached ✓</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PR bib -->
+  <div class="row right pr">
+    <div class="knot"></div>
+    <div class="bib">
+      <div class="prflag">PR 纪录</div>
+      <div class="strip"><i></i><span class="code">BROOKLYN HALF · 2026</span><i></i></div>
+      <div class="cover" style="background-image:url('../ProjectCode/client/public/images/2025/20250517_bk_half.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+      <div class="bibbody">
+        <div class="rname">RBC Brooklyn Half</div>
+        <div class="rdate">May 16, 2026 · 13.1 mi · Prospect Park → Coney Island</div>
+        <div class="bignum">1:38:12</div>
+        <div class="rmeta"><span>Pace 7:30</span><span>AG 62.4%</span><span>▲ 2:05 vs 2025</span></div>
+      </div>
+      <div class="bibfoot">
+        <span class="tag nyrr">NYRR Synced</span><span class="tag board">✓ On Leaderboard 已上榜</span>
+        <button class="sharebtn">↗ Share bib 分享</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PR bib -->
+  <div class="row left pr">
+    <div class="knot"></div>
+    <div class="bib">
+      <div class="prflag">PR 纪录</div>
+      <div class="strip"><i></i><span class="code">BOSTON · 2026</span><i></i></div>
+      <div class="cover" style="background-image:url('../ProjectCode/client/public/master-image-1.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+      <div class="bibbody">
+        <div class="rname">Boston Marathon</div>
+        <div class="rdate">Apr 20, 2026 · 26.2 mi · Hopkinton → Boylston St</div>
+        <div class="bignum">3:25:58</div>
+        <div class="rmeta"><span>Pace 7:52</span><span>▲ 2:48 vs NYC 2025</span></div>
+      </div>
+      <div class="bibfoot">
+        <span class="tag board">✓ Approved &amp; on Leaderboard 已上榜 🎉</span>
+        <span class="rvnote">reviewed by committee Apr 24</span>
+        <button class="sharebtn">↗ Share bib 分享</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="yearpin">2025</div>
+
+  <div class="row right">
+    <div class="knot"></div>
+    <div class="bib">
+      <div class="strip"><i></i><span class="code">TCS NYC MARATHON · 2025</span><i></i></div>
+      <div class="cover" style="background-image:url('../ProjectCode/client/public/master-image-2.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+      <div class="bibbody">
+        <div class="rname">TCS New York City Marathon</div>
+        <div class="rdate">Nov 2, 2025 · 26.2 mi · five boroughs 五大区</div>
+        <div class="bignum">3:28:46</div>
+        <div class="rmeta"><span>Pace 7:58</span><span>first sub-3:30 首次破330</span></div>
+      </div>
+      <div class="bibfoot"><span class="tag nyrr">NYRR Synced</span><span class="tag board">✓ 已上榜</span></div>
+    </div>
+  </div>
+
+  <div class="row left">
+    <div class="knot"></div>
+    <div class="bib">
+      <div class="strip"><i></i><span class="code">CHICAGO · 2025</span><i></i></div>
+      <div class="cover" style="background-image:url('../ProjectCode/client/public/images/2025/20250727_team_champ.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+      <div class="bibbody">
+        <div class="rname">Chicago Marathon</div>
+        <div class="rdate">Oct 12, 2025 · 26.2 mi · race created by 李娜, reused by you</div>
+        <div class="bignum">3:31:20</div>
+        <div class="rmeta"><span>Pace 8:04</span></div>
+      </div>
+      <div class="bibfoot">
+        <span class="tag" style="background:#f3f3f3;color:var(--muted)">Self-added 自录</span>
+        <a class="submitlink" href="#">Submit to leaderboard 提交上榜 →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row right pr">
+    <div class="knot"></div>
+    <div class="bib">
+      <div class="prflag">PR 纪录</div>
+      <div class="strip"><i></i><span class="code">QUEENS 10K · 2025</span><i></i></div>
+      <div class="cover" style="background-image:url('../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+      <div class="bibbody">
+        <div class="rname">NYRR Queens 10K</div>
+        <div class="rdate">Jun 21, 2025 · 6.2 mi · Flushing Meadows Corona Park</div>
+        <div class="bignum">44:05</div>
+        <div class="rmeta"><span>Pace 7:06</span><span>▲ 1:12 vs 2024</span></div>
+      </div>
+      <div class="bibfoot"><span class="tag nyrr">NYRR Synced</span><span class="tag board">✓ 已上榜</span></div>
+    </div>
+  </div>
+
+  <div class="finish"><b>🏁</b>36 more races since 2022 · Load more 加载更多</div>
+</div>
+
+</body>
+</html>

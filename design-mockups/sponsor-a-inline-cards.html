@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsor Option A — Inline Cards + Drop-down Details · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Option A: MINIMAL CHANGE. Keep today's card grid. Each card gains a
+     chevron → donation-details drop-down. Gmail sync status + tax-file
+     button live inline in the existing admin toolbar. New auto-fetched
+     donations appear as normal cards with a "NEW · Gmail" badge and
+     inline Approve / Hide controls. */
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--green-bg:#eaf5ea}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:36px 24px 80px}
+
+  .viewtoggle{position:fixed;top:14px;right:16px;z-index:50;background:var(--ink);color:#fff;border:none;font-family:inherit;
+    font-size:12px;font-weight:700;padding:8px 16px;border-radius:99px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:22px}
+  .optlabel b{color:var(--orange-dark)}
+
+  .pagehead{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .pagehead h2{font-size:20px;font-weight:700}
+  .pagehead span{font-size:14px;color:var(--muted)}
+
+  /* admin toolbar */
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .syncchip{display:flex;align-items:center;gap:8px;background:var(--green-bg);border:1px solid #cfe6cf;border-radius:99px;padding:7px 14px;font-size:12px;color:var(--green);font-weight:600}
+  .syncchip .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+  .syncchip button{border:none;background:none;color:var(--green);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
+  .spacer{margin-left:auto}
+  .pillbtn{border:1.5px solid var(--orange);background:#fff;color:var(--orange);font-family:inherit;font-size:13px;font-weight:600;
+    padding:8px 18px;border-radius:99px;cursor:pointer;transition:all .15s}
+  .pillbtn:hover{background:var(--orange);color:#fff}
+  .pillbtn.solid{background:var(--orange);color:#fff}
+  .pillbtn.solid:hover{background:var(--orange-dark)}
+
+  /* intro card */
+  .introcard{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.05);padding:26px 30px;margin-bottom:26px}
+  .introcard p{font-size:15px;line-height:1.7;color:#333;margin-bottom:12px}
+  .introcard p:last-child{margin-bottom:0}
+
+  /* tabs */
+  .tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:20px}
+  .tab{flex:1;text-align:center;padding:12px 0;cursor:pointer;color:var(--muted);font-weight:700;font-size:16px;border-bottom:3px solid transparent}
+  .tab small{font-size:12.5px;font-weight:400;margin-left:6px}
+  .tab.active{color:var(--orange);border-bottom-color:var(--orange)}
+
+  /* donor cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(262px,1fr));gap:16px;align-items:start}
+  .dcard{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s;overflow:hidden}
+  .dcard:hover{box-shadow:0 8px 24px rgba(255,165,0,.35);transform:translateY(-3px)}
+  .dcard.pending{border:1.5px dashed var(--orange);background:#FFFDF8}
+  .dtop{padding:16px 18px 6px}
+  .drow1{display:flex;align-items:flex-start;gap:8px}
+  .dname{font-size:16px;font-weight:600;flex:1}
+  .icons{display:flex;gap:2px;color:var(--muted);font-size:14px}
+  .icons span{cursor:pointer;padding:2px 4px;border-radius:6px}
+  .icons span:hover{background:var(--orange-bg);color:var(--orange)}
+  .amt{font-size:22px;font-weight:700;color:var(--orange);margin:6px 0 4px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px}
+  .chip{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--orange-bg);color:var(--orange)}
+  .chip.gmail{background:#e8f0fe;color:#1a63d0}
+  .chip.new{background:var(--orange);color:#fff}
+  .chip.thanked{background:var(--green-bg);color:var(--green)}
+  .msg{font-size:13px;color:var(--muted);font-style:italic;margin:4px 0 6px}
+
+  /* drop-down details */
+  .dtoggle{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600;
+    padding:8px;border-top:1px solid var(--line);cursor:pointer;user-select:none;transition:background .15s}
+  .dtoggle:hover{background:var(--orange-bg);color:var(--orange)}
+  .dtoggle .chev{transition:transform .25s;color:var(--orange)}
+  .dcard.open .dtoggle .chev{transform:rotate(180deg)}
+  .ddetails{max-height:0;overflow:hidden;transition:max-height .35s ease;background:#FDFBF7}
+  .dcard.open .ddetails{max-height:600px}
+  .ddetails .inner{padding:12px 18px 16px;border-top:1px solid var(--line)}
+  .drec{padding:10px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+  .drec:last-of-type{border-bottom:none}
+  .drec .l1{display:flex;justify-content:space-between;font-weight:600;color:var(--ink)}
+  .drec .l1 b{color:var(--orange)}
+  .drec .l2{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;color:var(--muted)}
+  .minichip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
+  .minichip.gmail{background:#e8f0fe;color:#1a63d0}
+  .minichip.manual{background:#f1f1f1;color:var(--muted)}
+  .minichip.rcpt{background:var(--green-bg);color:var(--green)}
+  .thankbtn{border:1px solid var(--orange);background:#fff;color:var(--orange);font-family:inherit;font-size:10.5px;font-weight:700;
+    padding:3px 10px;border-radius:99px;cursor:pointer;margin-left:auto}
+  .thankbtn:hover{background:var(--orange);color:#fff}
+  .thankbtn[disabled]{border-color:var(--line);color:#bbb;cursor:default}
+  .thankbtn[disabled]:hover{background:#fff}
+  .sent{margin-left:auto;font-size:11px;color:var(--green);font-weight:700}
+
+  /* pending card actions */
+  .pendact{display:flex;gap:8px;padding:10px 18px 16px}
+  .pendact button{flex:1;font-family:inherit;font-size:12px;font-weight:700;padding:8px 0;border-radius:99px;cursor:pointer}
+  .approve{border:none;background:var(--orange);color:#fff}
+  .approve:hover{background:var(--orange-dark)}
+  .dismiss{border:1.5px solid var(--line);background:#fff;color:var(--muted)}
+  .dismiss:hover{border-color:var(--muted)}
+  .srcmail{font-size:11.5px;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 18px 0;line-height:1.5}
+  .srcmail b{color:#1a63d0}
+
+  /* tax dialog */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+  .overlay.show{display:flex}
+  .dialog{background:#fff;border-radius:14px;width:480px;max-width:92vw;padding:26px 28px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .dialog h3{font-size:17px;font-weight:700;margin-bottom:4px}
+  .dialog .sub{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .dialog label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.4px}
+  .rangechips{display:flex;gap:8px;flex-wrap:wrap}
+  .rchip{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer}
+  .rchip.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .rchip:hover:not(.active){border-color:var(--orange);color:var(--orange)}
+  .daterow{display:flex;gap:10px}
+  .daterow input{flex:1;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fmtrow{display:flex;gap:10px}
+  .fmt{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+  .fmt b{display:block;color:var(--ink);font-size:13px;margin-bottom:2px}
+  .fmt.active{border-color:var(--orange);background:var(--orange-bg)}
+  .dlgnote{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.5}
+  .dlgact{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+  .public-hide{}
+  body.public .public-hide{display:none!important}
+</style>
+</head>
+<body>
+
+<button class="viewtoggle" onclick="document.body.classList.toggle('public');this.textContent=document.body.classList.contains('public')?'👁 Viewing: Public 公开视图':'🔑 Viewing: Admin 管理员视图'">🔑 Viewing: Admin 管理员视图</button>
+
+<div class="optlabel"><b>Option A — Inline Cards 内嵌卡片式：</b>保持现有页面结构不变。每张赞助者卡片底部新增「Details 明细」下拉，展开显示每笔捐款（日期 / 金额 / 来源 Gmail 或手动 / 收据 / 感谢邮件状态）。Gmail 同步状态与「生成税务文件」按钮直接放在现有管理工具栏中。Gmail 新抓取的捐款以虚线橙框卡片出现，管理员确认后转正。改动最小、页面最紧凑。</div>
+
+<div class="pagehead"><h2>Our Sponsors/Donors</h2><span>我们的赞助者/赞助商</span></div>
+
+<!-- admin toolbar -->
+<div class="toolbar public-hide">
+  <div class="syncchip"><span class="dot"></span> Gmail weekly sync 每周邮件同步 · Last run 上次运行: Mon Jul 6, 04:00 · <b>2 new 新增 2 笔</b> <button>Sync now 立即同步</button></div>
+  <span class="spacer"></span>
+  <button class="pillbtn" onclick="document.getElementById('taxdlg').classList.add('show')">🧾 Generate Tax File 生成税务文件</button>
+  <button class="pillbtn">👁 Amounts Visible 金额可见</button>
+  <button class="pillbtn solid">＋ Add Donor 添加赞助者</button>
+</div>
+
+<div class="introcard">
+  <p>每一份捐赠，无论多少，都意义非凡。感谢您考虑为新蜂跑团捐赠。您的支持帮助我们组织跑步活动、更好地服务会员，共同建设一个更强大、更健康、更紧密的社区。欢迎通过 Zelle：newbeerunningclub@gmail.com 支持跑团运作。</p>
+  <p>Any contribution—large or small—makes a meaningful difference. Thank you for considering a gift to the NewBee Running Club. Your support enables us to organize running programs and better serve our members, fostering a stronger, healthier, and more connected community. Donate via Zelle: newbeerunningclub@gmail.com.</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active">Individual Donors<small>个人赞助者</small></div>
+  <div class="tab">Enterprise Donors<small>企业赞助者</small></div>
+</div>
+
+<div class="grid">
+
+  <!-- pending card from Gmail (admin only) -->
+  <div class="dcard pending public-hide">
+    <div class="dtop">
+      <div class="drow1"><div class="dname">Ming Zhao</div></div>
+      <div class="amt">$150.00</div>
+      <div class="badges"><span class="chip new">NEW</span><span class="chip gmail">✉ From Gmail · Zelle</span><span class="chip">Jul 8, 2026</span></div>
+    </div>
+    <div class="srcmail">✉ <b>Zelle payment received</b> — "You received $150.00 from MING ZHAO. Memo: 加油新蜂！Keep running!"<br>chase.com → newbeerunningclub@gmail.com · Jul 8, 2026 6:42 PM</div>
+    <div class="pendact">
+      <button class="approve">✓ Approve 确认发布</button>
+      <button class="dismiss">✕ Dismiss 忽略</button>
+    </div>
+  </div>
+
+  <!-- regular donor cards with drop-down -->
+  <div class="dcard open" id="c1">
+    <div class="dtop">
+      <div class="drow1"><div class="dname">Li Chen</div><div class="icons public-hide"><span>✎</span><span>🗑</span></div></div>
+      <div class="amt public-hide">$320.00 <span style="font-size:11px;color:var(--muted);font-weight:400">total 累计</span></div>
+      <div class="badges"><span class="chip">2 donations 两笔捐款</span><span class="chip thanked public-hide">✓ Thanked 已致谢</span></div>
+      <div class="msg">"Thank you for your support!"</div>
+    </div>
+    <div class="ddetails">
+      <div class="inner public-hide">
+        <div class="drec">
+          <div class="l1"><span>Jun 4, 2025 · General Support</span><b>$200.00</b></div>
+          <div class="l2"><span class="minichip gmail">✉ Gmail</span><span class="minichip rcpt">Receipt ✓</span><span class="sent">✓ Thank-you sent 已发感谢邮件</span></div>
+        </div>
+        <div class="drec">
+          <div class="l1"><span>Feb 12, 2025 · Lunar New Year Run</span><b>$120.00</b></div>
+          <div class="l2"><span class="minichip manual">Manual 手动</span><span class="minichip rcpt">Receipt ✓</span><button class="thankbtn">Send thank-you 发送感谢</button></div>
+        </div>
+      </div>
+      <div class="inner" style="display:none"></div>
+    </div>
+    <div class="dtoggle" onclick="document.getElementById('c1').classList.toggle('open')">Details 捐款明细 <span class="chev">▼</span></div>
+  </div>
+
+  <div class="dcard" id="c2">
+    <div class="dtop">
+      <div class="drow1"><div class="dname">Wei Zhang</div><div class="icons public-hide"><span>✎</span><span>🗑</span></div></div>
+      <div class="amt public-hide">$120.00</div>
+      <div class="badges"><span class="chip">May 10, 2025</span></div>
+      <div class="msg" style="color:var(--orange);font-style:normal">Thank you for your support! / 感谢您的支持！</div>
+    </div>
+    <div class="ddetails"><div class="inner public-hide">
+      <div class="drec">
+        <div class="l1"><span>May 10, 2025 · General Support</span><b>$120.00</b></div>
+        <div class="l2"><span class="minichip gmail">✉ Gmail</span><span class="minichip rcpt">Receipt ✓</span><button class="thankbtn">Send thank-you 发送感谢</button></div>
+      </div>
+    </div></div>
+    <div class="dtoggle" onclick="document.getElementById('c2').classList.toggle('open')">Details 捐款明细 <span class="chev">▼</span></div>
+  </div>
+
+  <div class="dcard" id="c3">
+    <div class="dtop">
+      <div class="drow1"><div class="dname">Anonymous Donor / 匿名捐赠者</div><div class="icons public-hide"><span>✎</span><span>🗑</span></div></div>
+      <div class="amt public-hide">$88.00</div>
+      <div class="badges"><span class="chip">Jul 1, 2025</span></div>
+    </div>
+    <div class="ddetails"><div class="inner public-hide">
+      <div class="drec">
+        <div class="l1"><span>Jul 1, 2025 · General Support</span><b>$88.00</b></div>
+        <div class="l2"><span class="minichip gmail">✉ Gmail</span><span class="minichip rcpt">Receipt ✓</span><span class="sent">✓ Thank-you sent 已发感谢邮件</span></div>
+      </div>
+    </div></div>
+    <div class="dtoggle" onclick="document.getElementById('c3').classList.toggle('open')">Details 捐款明细 <span class="chev">▼</span></div>
+  </div>
+
+</div>
+
+<!-- tax file dialog -->
+<div class="overlay" id="taxdlg" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="dialog">
+    <h3>🧾 Generate Tax File 生成税务文件</h3>
+    <div class="sub">Export all receipt-confirmed donations in a date range for tax filing. 导出指定时间范围内所有已确认收据的捐款记录。</div>
+    <label>Time range 时间范围</label>
+    <div class="rangechips">
+      <button class="rchip active">Tax Year 2025 税务年度</button>
+      <button class="rchip">Tax Year 2024</button>
+      <button class="rchip">2026 YTD 今年至今</button>
+      <button class="rchip">Custom 自定义</button>
+    </div>
+    <label>Custom dates 自定义日期</label>
+    <div class="daterow"><input type="date" value="2025-01-01"><input type="date" value="2025-12-31"></div>
+    <label>Format 格式</label>
+    <div class="fmtrow">
+      <div class="fmt active"><b>PDF Summary 汇总</b>Totals by donor, signed statement 按捐赠人汇总</div>
+      <div class="fmt"><b>CSV Detail 明细</b>Every donation row, for accountant 每笔明细</div>
+    </div>
+    <div class="dlgnote">Includes 5 donations · $1,708.00 total · 4 donors ｜ 包含 5 笔捐款，共 $1,708.00，4 位捐赠人</div>
+    <div class="dlgact">
+      <button class="pillbtn" style="border-color:var(--line);color:var(--muted)" onclick="document.getElementById('taxdlg').classList.remove('show')">Cancel 取消</button>
+      <button class="pillbtn solid">⬇ Generate &amp; Download 生成并下载</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

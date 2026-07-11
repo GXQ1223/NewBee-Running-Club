@@ -6,6 +6,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import { useEffect, useState } from 'react';
 import { useAdmin } from '../context';
 import { useAutoFillOnTab } from '../hooks';
+import DonationLedger from '../components/DonationLedger';
 import { getAllDonors, getPublicDonors, createDonor, updateDonor, deleteDonor, getHideAmounts, toggleHideAmounts } from '../api/donors';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
@@ -90,6 +91,13 @@ export default function SponsorsPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminModeEnabled]);
+
+  // Leave the admin-only ledger tab if admin mode is turned off
+  useEffect(() => {
+    if (!adminModeEnabled && selectedTab === 2) {
+      setSelectedTab(0);
+    }
+  }, [adminModeEnabled, selectedTab]);
 
   const handleToggleHideAmounts = async () => {
     try {
@@ -439,7 +447,7 @@ export default function SponsorsPage() {
           '& .MuiTab-root': {
             minHeight: 'unset',
             padding: { xs: '10px 0', sm: '12px 0' },
-            width: '50%',
+            width: adminModeEnabled ? '33.33%' : '50%',
             textTransform: 'none',
             color: MUTED,
             '&.Mui-selected': {
@@ -480,6 +488,25 @@ export default function SponsorsPage() {
                 </Box>
               }
             />
+            {adminModeEnabled && (
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                    <Typography sx={{ fontSize: { xs: '0.9375rem', sm: '1.05rem' }, fontWeight: 700 }}>
+                      All Donations · Ledger
+                    </Typography>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, color: MUTED }}>
+                      捐款账本
+                    </Typography>
+                    <Chip
+                      label="ADMIN"
+                      size="small"
+                      sx={{ fontSize: '0.625rem', fontWeight: 700, height: 18, borderRadius: '99px', backgroundColor: INK, color: 'white' }}
+                    />
+                  </Box>
+                }
+              />
+            )}
           </Tabs>
         </Box>
 
@@ -492,6 +519,13 @@ export default function SponsorsPage() {
         <Box sx={{ display: selectedTab === 1 ? 'block' : 'none', mt: 3 }}>
           {renderDonorCards(enterpriseDonors)}
         </Box>
+
+        {/* Admin Donation Ledger Tab Panel */}
+        {adminModeEnabled && (
+          <Box sx={{ display: selectedTab === 2 ? 'block' : 'none', mt: 3 }}>
+            <DonationLedger onLedgerChange={fetchDonors} />
+          </Box>
+        )}
       </Container>
 
       {/* Edit/Add Donor Dialog */}

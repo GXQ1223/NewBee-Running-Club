@@ -6,6 +6,10 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  getEventWithRecurrence,
+  createEventRecurrence,
+  updateEventRecurrence,
+  deleteEventRecurrence,
   getEventSeries,
   addEventToSeries,
   toggleSeriesParent,
@@ -68,6 +72,28 @@ test('updateEvent PUTs event data with UID header', async () => {
 test('deleteEvent DELETEs the event with UID header', async () => {
   await expect(deleteEvent(3, UID)).resolves.toBe('DELETE');
   expect(api.delete).toHaveBeenCalledWith('/api/events/3', AUTH);
+});
+
+test('getEventWithRecurrence GETs the event with its rule, skipping the cache', async () => {
+  await expect(getEventWithRecurrence(3)).resolves.toBe('GET');
+  expect(api.get).toHaveBeenCalledWith('/api/events/3/with-recurrence', {}, {}, { skipCache: true });
+});
+
+test('createEventRecurrence POSTs the rule with UID header', async () => {
+  const rule = { recurrence_type: 'yearly' };
+  await expect(createEventRecurrence(3, rule, UID)).resolves.toBe('POST');
+  expect(api.post).toHaveBeenCalledWith('/api/events/3/recurrence', rule, AUTH);
+});
+
+test('updateEventRecurrence PUTs the rule with UID header', async () => {
+  const rule = { end_date: '2027-12-31' };
+  await expect(updateEventRecurrence(3, rule, UID)).resolves.toBe('PUT');
+  expect(api.put).toHaveBeenCalledWith('/api/events/3/recurrence', rule, AUTH);
+});
+
+test('deleteEventRecurrence DELETEs the rule with UID header', async () => {
+  await expect(deleteEventRecurrence(3, UID)).resolves.toBe('DELETE');
+  expect(api.delete).toHaveBeenCalledWith('/api/events/3/recurrence', AUTH);
 });
 
 test('getEventSeries GETs the series for an event', async () => {

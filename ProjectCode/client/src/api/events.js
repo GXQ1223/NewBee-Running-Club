@@ -71,6 +71,53 @@ export const deleteEvent = async (eventId, firebaseUid) => {
 };
 
 /**
+ * Get an event together with its recurrence rule (if any)
+ * @param {number} eventId - Event ID
+ * @returns {Promise<Object>} - Event with a `recurrence` field (null if no rule)
+ */
+export const getEventWithRecurrence = async (eventId) => {
+  return api.get(`/api/events/${eventId}/with-recurrence`, {}, {}, { skipCache: true });
+};
+
+/**
+ * Create a recurrence rule for an event (committee or admin)
+ * @param {number} eventId - Event ID
+ * @param {Object} ruleData - Recurrence rule (recurrence_type, days_of_week, end_date, ...)
+ * @param {string} firebaseUid - Firebase UID for authentication
+ * @returns {Promise<Object>} - Created rule
+ */
+export const createEventRecurrence = async (eventId, ruleData, firebaseUid) => {
+  return api.post(`/api/events/${eventId}/recurrence`, ruleData, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
+/**
+ * Update an event's recurrence rule (committee or admin)
+ * @param {number} eventId - Event ID
+ * @param {Object} ruleData - Recurrence rule fields to update
+ * @param {string} firebaseUid - Firebase UID for authentication
+ * @returns {Promise<Object>} - Updated rule
+ */
+export const updateEventRecurrence = async (eventId, ruleData, firebaseUid) => {
+  return api.put(`/api/events/${eventId}/recurrence`, ruleData, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
+/**
+ * Delete an event's recurrence rule (stops future occurrences)
+ * @param {number} eventId - Event ID
+ * @param {string} firebaseUid - Firebase UID for authentication
+ * @returns {Promise<Object>} - Deletion confirmation
+ */
+export const deleteEventRecurrence = async (eventId, firebaseUid) => {
+  return api.delete(`/api/events/${eventId}/recurrence`, {
+    'X-Firebase-UID': firebaseUid,
+  });
+};
+
+/**
  * Get all events in a recurring series
  * @param {number} eventId - Event ID (can be parent or child)
  * @returns {Promise<Array>} - List of events in the series

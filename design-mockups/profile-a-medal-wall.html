@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile Option A — Medal Wall 奖牌墙 · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Option A: MEDAL WALL. The whole page is a trophy cabinet. Every distance
+     (5K / 10K / Half / Full) hangs on the wall as a medal plaque with a ribbon.
+     NYRR records sync in automatically; outside races are added by the member
+     and go through committee review before earning the "On Leaderboard" seal. */
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;
+        --gold:#D4A017;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#fff;color:var(--ink);max-width:1180px;margin:0 auto;padding:36px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:22px}
+  .optlabel b{color:var(--orange-dark)}
+
+  /* ── profile hero strip ─────────────────────────────── */
+  .hero{display:flex;align-items:center;gap:24px;border:1px solid var(--line);border-radius:16px;padding:24px 28px;
+    background:linear-gradient(120deg,#fff 55%,var(--orange-bg));box-shadow:0 2px 4px rgba(0,0,0,.06);margin-bottom:30px;flex-wrap:wrap}
+  .avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--orange-dark));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px;font-weight:700;flex-shrink:0;
+    box-shadow:0 4px 14px rgba(255,165,0,.4);border:3px solid #fff}
+  .who{flex:1;min-width:220px}
+  .who h1{font-size:24px;font-weight:700}
+  .who h1 small{font-size:16px;color:var(--muted);font-weight:400;margin-left:8px}
+  .who .meta{font-size:13px;color:var(--muted);margin-top:4px}
+  .statrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 16px;text-align:center}
+  .stat b{display:block;font-size:20px;color:var(--orange-dark);font-family:Oswald,sans-serif}
+  .stat span{font-size:11px;color:var(--muted)}
+  .heroactions{display:flex;flex-direction:column;gap:10px}
+  .pillbtn{border:1.5px solid var(--orange);background:#fff;color:var(--orange);font-family:inherit;font-size:13px;font-weight:600;
+    padding:9px 20px;border-radius:99px;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .pillbtn:hover{background:var(--orange);color:#fff}
+  .pillbtn.solid{background:var(--orange);color:#fff}
+  .pillbtn.solid:hover{background:var(--orange-dark)}
+  .synced{font-size:11px;color:var(--green);text-align:center}
+
+  /* ── section headers ────────────────────────────────── */
+  .sect{display:flex;align-items:baseline;gap:10px;margin:34px 0 6px}
+  .sect h2{font-size:20px;font-weight:700}
+  .sect span{font-size:13.5px;color:var(--muted)}
+  .sect .hint{margin-left:auto;font-size:12px;color:var(--muted)}
+  .sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+
+  /* ── THE MEDAL WALL ─────────────────────────────────── */
+  .wall{background:#FBF8F2 radial-gradient(circle,#efe9dd 1px,transparent 1px);background-size:22px 22px;
+    border:1px solid var(--line);border-radius:16px;padding:34px 30px 30px;
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:22px}
+  .medal{position:relative;background:#fff;border:1px solid var(--line);border-radius:14px;padding:0 18px 16px;
+    text-align:center;box-shadow:0 3px 8px rgba(0,0,0,.08);transition:all .25s;overflow:hidden}
+  /* member's own photo from that race — the plaque hangs over it */
+  .photo{margin:0 -18px;height:128px;background-size:cover;background-position:center;position:relative;
+    border-bottom:2.5px solid var(--orange)}
+  .photo:after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.18),transparent 40%)}
+  .photo .cam{position:absolute;right:8px;bottom:8px;z-index:3;background:rgba(0,0,0,.6);color:#fff;font-size:10.5px;font-weight:600;
+    padding:4px 10px;border-radius:99px;opacity:0;transition:opacity .2s;cursor:pointer}
+  .medal:hover .photo .cam{opacity:1}
+  .medal:hover{transform:translateY(-5px) rotate(-.5deg);box-shadow:0 12px 28px rgba(255,165,0,.35)}
+  /* ribbon that "hangs" the plaque on the wall */
+  .ribbon{position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:54px;height:40px;z-index:2}
+  .ribbon:before,.ribbon:after{content:"";position:absolute;top:0;width:20px;height:38px;background:linear-gradient(var(--orange),var(--orange-dark))}
+  .ribbon:before{left:2px;transform:skewX(-14deg);border-radius:0 0 4px 4px}
+  .ribbon:after{right:2px;transform:skewX(14deg);border-radius:0 0 4px 4px}
+  .disc{position:absolute;top:26px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffd77a,var(--gold));border:2.5px solid #fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:17px;z-index:2}
+  .medal.silver .disc{background:radial-gradient(circle at 35% 30%,#f2f2f2,#b9b9b9)}
+  /* shine sweep on hover */
+  .medal:after{content:"";position:absolute;top:0;left:-80%;width:45%;height:100%;transform:skewX(-22deg);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transition:left .5s}
+  .medal:hover:after{left:130%}
+  .dist{font-size:12px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-top:16px}
+  .dist small{display:block;letter-spacing:0;font-weight:400;font-size:11px;margin-top:1px}
+  .time{font-family:Oswald,sans-serif;font-size:38px;font-weight:600;color:var(--ink);margin:6px 0 2px;line-height:1}
+  .medal.featured .time{color:var(--orange-dark);font-size:44px}
+  .race{font-size:12.5px;color:#444;font-weight:500;margin-top:6px;min-height:32px}
+  .race small{display:block;color:var(--muted);font-weight:400;margin-top:2px}
+  .delta{font-size:11.5px;color:var(--green);font-weight:700;margin-top:4px}
+  .chips{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+  .chip{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px}
+  .chip.nyrr{background:var(--blue-bg);color:var(--blue)}
+  .chip.board{background:var(--green-bg);color:var(--green)}
+  .chip.pending{background:var(--orange-bg);color:var(--orange-dark);border:1px dashed var(--orange)}
+  .chip.self{background:#f3f3f3;color:var(--muted)}
+  /* empty slot */
+  .medal.empty{background:transparent;border:2px dashed #d9d0bf;box-shadow:none;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;min-height:300px;cursor:pointer;color:var(--muted)}
+  .medal.empty:hover{border-color:var(--orange);color:var(--orange);transform:none;box-shadow:none}
+  .medal.empty:after{display:none}
+  .medal.empty .plus{font-size:34px;line-height:1;margin-bottom:8px}
+  .medal.empty b{font-size:13.5px}
+  .medal.empty small{font-size:11.5px;margin-top:3px}
+
+  /* ── poster mode: the wall becomes ONE framed, printable image ── */
+  #posterWrap{transition:all .3s}
+  #posterWrap.poster{border:16px solid #1b1611;outline:3px solid var(--gold);outline-offset:-22px;border-radius:4px;
+    padding:30px 30px 22px;background:#FBF8F2;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+  .pheader,.pfooter{display:none;text-align:center}
+  #posterWrap.poster .pheader{display:block;margin-bottom:20px}
+  .pheader h3{font-family:Oswald,sans-serif;font-size:26px;letter-spacing:5px;color:var(--ink)}
+  .pheader h3 b{color:var(--orange-dark)}
+  .pheader p{font-size:12px;color:var(--muted);letter-spacing:2px;margin-top:4px}
+  #posterWrap.poster .pfooter{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:22px;
+    font-size:11px;color:var(--muted);letter-spacing:2px}
+  .qr{width:44px;height:44px;border:1.5px solid var(--ink);border-radius:4px;position:relative;flex:0 0 auto;
+    background:repeating-conic-gradient(var(--ink) 0 25%,#fff 0 50%) 0 0/10px 10px}
+  #posterWrap.poster .wall{border:none;background:transparent;padding:0}
+  .posterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 16px}
+  .posterbar .note{font-size:12px;color:var(--muted)}
+
+  /* ── review pipeline strip ──────────────────────────── */
+  .review{border:1.5px dashed var(--orange);background:#FFFDF8;border-radius:14px;padding:18px 22px;margin-top:26px}
+  .review h3{font-size:14.5px;font-weight:700;color:var(--orange-dark);margin-bottom:12px}
+  .rvrow{display:flex;align-items:center;gap:14px;padding:10px 0;border-top:1px dashed var(--line);flex-wrap:wrap}
+  .rvrow:first-of-type{border-top:none}
+  .rvname{font-weight:600;font-size:13.5px;min-width:250px}
+  .rvname small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+  .steps{display:flex;align-items:center;gap:0;flex:1;min-width:300px}
+  .step{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)}
+  .step .dot{width:22px;height:22px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:11px;background:#fff}
+  .step.done{color:var(--green)} .step.done .dot{border-color:var(--green);background:var(--green-bg)}
+  .step.now{color:var(--orange-dark);font-weight:700} .step.now .dot{border-color:var(--orange);background:var(--orange-bg);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,165,0,.45)}50%{box-shadow:0 0 0 6px rgba(255,165,0,0)}}
+  .bar{flex:1;height:2px;background:#e5ddcd;margin:0 8px;min-width:18px}
+  .bar.done{background:var(--green)}
+
+  /* ── race history ───────────────────────────────────── */
+  table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  th{background:var(--orange-bg);text-align:left;padding:11px 14px;font-size:12px;color:var(--orange-dark)}
+  td{padding:11px 14px;border-top:1px solid var(--line)}
+  tr:hover td{background:#FFFDF8}
+  td.t{font-family:Oswald,sans-serif;font-size:15px;font-weight:600}
+  .pr-flag{background:var(--orange);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:4px;margin-left:6px}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option A · Medal Wall 奖牌墙</b> — The profile <b>is</b> a trophy cabinet. Each distance hangs as a medal plaque
+with <b>your own photo from that race</b> behind it (hover → 📷 change photo). NYRR records sync in with a blue chip; outside races are
+added by the member — they can even <b>create the race</b> (name + official results link) — then submitted for committee review; approved
+records earn the "On Leaderboard 已上榜" seal. Click <b>🖼 Poster Mode</b>: the wall becomes ONE framed image with a QR code back to your
+live wall — save it, print it, hang it, share it to WeChat Moments. Reasons to return: new race → new medal → new poster.</div>
+
+<!-- profile hero -->
+<div class="hero">
+  <div class="avatar">WC</div>
+  <div class="who">
+    <h1>Wei Chen <small>陈伟 · NYRR ID 20481376</small></h1>
+    <div class="meta">Member since 2022 · Flushing, NY · 每周跑 3–4 次</div>
+    <div class="statrow">
+      <div class="stat"><b>42</b><span>Races 比赛</span></div>
+      <div class="stat"><b>486</b><span>Race Miles 里程</span></div>
+      <div class="stat"><b>5</b><span>PRs 个人纪录</span></div>
+      <div class="stat"><b>3</b><span>On Leaderboard 上榜</span></div>
+      <div class="stat"><b>128</b><span>Club Credits 积分</span></div>
+    </div>
+  </div>
+  <div class="heroactions">
+    <button class="pillbtn solid">＋ Add Race Record 添加比赛成绩</button>
+    <button class="pillbtn">⟳ Sync NYRR 同步 NYRR</button>
+    <div class="synced">✓ Last synced 今天 04:00</div>
+  </div>
+</div>
+
+<!-- medal wall -->
+<div class="sect"><h2>My Record Wall</h2><span>我的纪录墙</span><span class="hint">Hover a medal ✨ · your own race photo behind each plaque 每块奖牌背后是你在那场比赛的照片</span></div>
+<div class="posterbar">
+  <button class="pillbtn solid" onclick="document.getElementById('posterWrap').classList.toggle('poster')">🖼 Poster Mode 海报模式</button>
+  <button class="pillbtn">⬇ Save as Image 保存图片</button>
+  <button class="pillbtn">🖨 Print 打印</button>
+  <span class="note">One image — frame it on your real wall, or share to WeChat Moments 一张图，装裱上墙或分享朋友圈</span>
+</div>
+<div id="posterWrap">
+  <div class="pheader">
+    <h3>WEI CHEN <b>·</b> RECORD WALL <b>陈伟的纪录墙</b></h3>
+    <p>NEWBEE RUNNING CLUB · 42 RACES · 486 MILES · EST. 2022</p>
+  </div>
+<div class="wall">
+
+  <div class="medal featured">
+    <div class="ribbon"></div><div class="disc">🏆</div>
+    <div class="photo" style="background-image:url('../ProjectCode/client/public/master-image-1.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+    <div class="dist">Marathon<small>全程马拉松</small></div>
+    <div class="time">3:25:58</div>
+    <div class="race">Boston Marathon<small>Apr 20, 2026</small></div>
+    <div class="delta">▲ 2:48 faster than NYC 2025</div>
+    <div class="chips"><span class="chip board">✓ On Leaderboard 已上榜</span></div>
+  </div>
+
+  <div class="medal">
+    <div class="ribbon"></div><div class="disc">🥇</div>
+    <div class="photo" style="background-image:url('../ProjectCode/client/public/images/2025/20250517_bk_half.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+    <div class="dist">Half Marathon<small>半程马拉松</small></div>
+    <div class="time">1:38:12</div>
+    <div class="race">RBC Brooklyn Half<small>May 16, 2026</small></div>
+    <div class="delta">▲ PR this season 本季新纪录</div>
+    <div class="chips"><span class="chip nyrr">NYRR Synced</span><span class="chip board">✓ 已上榜</span></div>
+  </div>
+
+  <div class="medal">
+    <div class="ribbon"></div><div class="disc">🥇</div>
+    <div class="photo" style="background-image:url('../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+    <div class="dist">10K</div>
+    <div class="time">44:05</div>
+    <div class="race">NYRR Queens 10K<small>Jun 21, 2025</small></div>
+    <div class="delta">▲ 1:12 vs 2024</div>
+    <div class="chips"><span class="chip nyrr">NYRR Synced</span><span class="chip board">✓ 已上榜</span></div>
+  </div>
+
+  <div class="medal silver">
+    <div class="ribbon"></div><div class="disc">🥈</div>
+    <div class="photo" style="background-image:url('../ProjectCode/client/public/master-image-2.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+    <div class="dist">5K</div>
+    <div class="time">21:37</div>
+    <div class="race">Abbott Dash to the Finish Line 5K<small>Nov 2, 2024</small></div>
+    <div class="chips"><span class="chip nyrr">NYRR Synced</span></div>
+  </div>
+
+  <div class="medal silver">
+    <div class="ribbon"></div><div class="disc">⏱</div>
+    <div class="photo" style="background-image:url('../ProjectCode/client/public/master-image-3.jpg')"><span class="cam">📷 Change photo 更换照片</span></div>
+    <div class="dist">Half Marathon<small>challenger 挑战中</small></div>
+    <div class="time">1:36:40</div>
+    <div class="race">Jersey City Half Marathon<small>Jun 28, 2026 · race created by you</small></div>
+    <div class="chips"><span class="chip pending">⧗ Pending Review 待审核</span><span class="chip self">Self-added 自录</span></div>
+  </div>
+
+  <div class="medal empty">
+    <div class="plus">＋</div>
+    <b>Add a record 添加成绩</b>
+    <small>1 Mile · race outside NYRR?<br>Create the race &amp; submit 创建比赛并提交</small>
+  </div>
+</div>
+  <div class="pfooter">
+    <div class="qr"></div>
+    <span>NEWBEERUNNINGCLUB.ORG · SCAN TO SEE MY LIVE WALL 扫码看我的实时纪录墙 · 纽蜂跑团</span>
+  </div>
+</div>
+
+<!-- review pipeline -->
+<div class="review">
+  <h3>⧗ Under Review 审核中 — records you submitted to the NewBee Leaderboard</h3>
+  <div class="rvrow">
+    <div class="rvname">Jersey City Half — 1:36:40<small>Submitted Jul 8 · proof: official results link + bib photo</small></div>
+    <div class="steps">
+      <div class="step done"><div class="dot">✓</div>Submitted 已提交</div><div class="bar done"></div>
+      <div class="step now"><div class="dot">2</div>Committee Review 委员会审核</div><div class="bar"></div>
+      <div class="step"><div class="dot">3</div>Posted to Leaderboard 上榜</div>
+    </div>
+  </div>
+  <div class="rvrow">
+    <div class="rvname">Boston Marathon — 3:25:58<small>Approved Apr 24 by committee · now on club Records page</small></div>
+    <div class="steps">
+      <div class="step done"><div class="dot">✓</div>Submitted</div><div class="bar done"></div>
+      <div class="step done"><div class="dot">✓</div>Reviewed</div><div class="bar done"></div>
+      <div class="step done"><div class="dot">✓</div>On Leaderboard 已上榜 🎉</div>
+    </div>
+  </div>
+</div>
+
+<!-- race history -->
+<div class="sect"><h2>Race History</h2><span>比赛历史</span><span class="hint">42 races · sortable</span></div>
+<table>
+  <tr><th>Date 日期</th><th>Race 比赛</th><th>Distance</th><th>Time 成绩</th><th>Pace</th><th>Source 来源</th></tr>
+  <tr><td>2026-06-28</td><td>Jersey City Half Marathon</td><td>13.1 mi</td><td class="t">1:36:40<span class="pr-flag">PR?</span></td><td>7:23</td><td><span class="chip pending">待审核</span></td></tr>
+  <tr><td>2026-05-16</td><td>RBC Brooklyn Half</td><td>13.1 mi</td><td class="t">1:38:12<span class="pr-flag">PR</span></td><td>7:30</td><td><span class="chip nyrr">NYRR</span></td></tr>
+  <tr><td>2026-04-20</td><td>Boston Marathon</td><td>26.2 mi</td><td class="t">3:25:58<span class="pr-flag">PR</span></td><td>7:52</td><td><span class="chip board">已上榜</span></td></tr>
+  <tr><td>2025-11-02</td><td>TCS New York City Marathon</td><td>26.2 mi</td><td class="t">3:28:46</td><td>7:58</td><td><span class="chip nyrr">NYRR</span></td></tr>
+  <tr><td>2025-10-12</td><td>Chicago Marathon</td><td>26.2 mi</td><td class="t">3:31:20</td><td>8:04</td><td><span class="chip board">已上榜</span></td></tr>
+  <tr><td>2025-06-21</td><td>NYRR Queens 10K</td><td>6.2 mi</td><td class="t">44:05<span class="pr-flag">PR</span></td><td>7:06</td><td><span class="chip nyrr">NYRR</span></td></tr>
+</table>
+
+</body>
+</html>

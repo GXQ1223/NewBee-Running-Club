@@ -14,7 +14,10 @@ import EventDetailModal from '../components/EventDetailModal';
 import EventCardImage from '../components/EventCardImage';
 import { useAdmin, useAuth } from '../context';
 import { useAutoFillOnTab, useTranslationAutoFill } from '../hooks';
-import { getEventsByStatus, createEvent, updateEvent, deleteEvent } from '../api';
+import {
+  getEventsByStatus, createEvent, updateEvent, deleteEvent,
+  getEventWithRecurrence, createEventRecurrence, updateEventRecurrence, deleteEventRecurrence
+} from '../api';
 import { uploadImage } from '../api/homepageSections';
 
 // Design tokens — match the redesigned HomePage / NavBar
@@ -91,6 +94,7 @@ export default function CalendarPage() {
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [editingEventId, setEditingEventId] = useState(null);
+  const [hadRecurrenceRule, setHadRecurrenceRule] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -280,6 +284,7 @@ export default function CalendarPage() {
     const normalizedStatus = rawStatus === 'Highlight' ? 'Past' : rawStatus;
     const isHighlight = event.is_highlight === true || rawStatus === 'Highlight';
     setFormData({
+      ...initialFormData,
       name: event.name || event.title || '',
       chinese_name: event.chineseName || event.chineseTitle || '',
       date: event.date || '',
@@ -296,12 +301,33 @@ export default function CalendarPage() {
       heylo_embed: event.heyloEmbed || event.heylo_embed || ''
     });
     setEditingEventId(event.id);
+    setHadRecurrenceRule(false);
     setImageFile(null);
     setImagePreview(event.image || '');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
     setEventFormOpen(true);
+    // Load the recurrence rule (if any) to populate the recurrence section
+    getEventWithRecurrence(event.id)
+      .then((full) => {
+        const rule = full?.recurrence;
+        if (!rule) return;
+        setHadRecurrenceRule(true);
+        setFormData(prev => ({
+          ...prev,
+          is_recurring: true,
+          recurrence_type: rule.recurrence_type || 'weekly',
+          days_of_week: rule.days_of_week || '',
+          day_of_month: rule.day_of_month != null ? String(rule.day_of_month) : '',
+          week_of_month: rule.week_of_month != null ? String(rule.week_of_month) : '',
+          month_of_year: rule.month_of_year != null ? String(rule.month_of_year) : '',
+          recurrence_end_date: rule.end_date || ''
+        }));
+      })
+      .catch((error) => {
+        console.error('Error loading recurrence rule:', error);
+      });
   };
 
   const handleDeleteEvent = (e, event) => {
@@ -331,6 +357,7 @@ export default function CalendarPage() {
   const handleAddEvent = () => {
     setFormData(initialFormData);
     setEditingEventId(null);
+    setHadRecurrenceRule(false);
     setImageFile(null);
     setImagePreview('');
     if (fileInputRef.current) {
@@ -344,6 +371,35 @@ export default function CalendarPage() {
       ...prev,
       [field]: e.target.value
     }));
+  };
+
+  const syncRecurrenceRule = async (eventId) => {
+    if (formData.is_recurring) {
+      const rulePayload = {
+        recurrence_type: formData.recurrence_type,
+        days_of_week: formData.days_of_week || null,
+        day_of_month: formData.day_of_month ? Number(formData.day_of_month) : null,
+        week_of_month: formData.week_of_month ? Number(formData.week_of_month) : null,
+        month_of_year: formData.month_of_year ? Number(formData.month_of_year) : null,
+        end_date: formData.recurrence_end_date || null
+      };
+      if (hadRecurrenceRule) {
+        await updateEventRecurrence(eventId, rulePayload, currentUser.uid);
+      } else {
+        try {
+          await createEventRecurrence(eventId, rulePayload, currentUser.uid);
+        } catch (error) {
+          // A rule already exists (stale local state) — update it instead
+          if (error.status === 400) {
+            await updateEventRecurrence(eventId, rulePayload, currentUser.uid);
+          } else {
+            throw error;
+          }
+        }
+      }
+    } else if (hadRecurrenceRule) {
+      await deleteEventRecurrence(eventId, currentUser.uid);
+    }
   };
 
   const handleFormSubmit = async () => {
@@ -366,22 +422,32 @@ export default function CalendarPage() {
         imageUrl = await handleImageUpload();
       }
 
-      const eventData = { ...formData, image: imageUrl };
+      // Recurrence is managed via the dedicated rule endpoints below,
+      // not the event payload
+      const {
+        is_recurring, recurrence_type, days_of_week, day_of_month,
+        week_of_month, month_of_year, recurrence_end_date,
+        ...eventFields
+      } = { ...formData, image: imageUrl };
 
       // Convert empty strings to null for backend validation
       const cleanedEventData = Object.fromEntries(
-        Object.entries(eventData).map(([key, value]) => [key, value === '' ? null : value])
+        Object.entries(eventFields).map(([key, value]) => [key, value === '' ? null : value])
       );
 
+      let eventId = editingEventId;
       if (editingEventId) {
         // Update existing event
         await updateEvent(editingEventId, cleanedEventData, currentUser.uid);
         setSnackbar({ open: true, message: 'Event updated successfully / 活动已更新', severity: 'success' });
       } else {
         // Create new event
-        await createEvent(cleanedEventData, currentUser.uid);
+        const createdEvent = await createEvent(cleanedEventData, currentUser.uid);
+        eventId = createdEvent.id;
         setSnackbar({ open: true, message: 'Event created successfully / 活动已创建', severity: 'success' });
       }
+
+      await syncRecurrenceRule(eventId);
       setEventFormOpen(false);
       setFormData(initialFormData);
       setEditingEventId(null);

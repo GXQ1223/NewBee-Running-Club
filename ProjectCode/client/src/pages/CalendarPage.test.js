@@ -2,7 +2,10 @@ import { render, screen, fireEvent, waitFor, within, act } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import CalendarPage from './CalendarPage';
 import { useAdmin, useAuth } from '../context';
-import { getEventsByStatus, createEvent, updateEvent, deleteEvent } from '../api';
+import {
+  getEventsByStatus, createEvent, updateEvent, deleteEvent,
+  getEventWithRecurrence, createEventRecurrence, updateEventRecurrence, deleteEventRecurrence,
+} from '../api';
 import { uploadImage } from '../api/homepageSections';
 
 jest.mock('../context', () => ({
@@ -23,6 +26,10 @@ jest.mock('../api', () => ({
   createEvent: jest.fn(),
   updateEvent: jest.fn(),
   deleteEvent: jest.fn(),
+  getEventWithRecurrence: jest.fn(),
+  createEventRecurrence: jest.fn(),
+  updateEventRecurrence: jest.fn(),
+  deleteEventRecurrence: jest.fn(),
 }));
 jest.mock('../api/homepageSections', () => ({
   uploadImage: jest.fn(),
@@ -115,9 +122,13 @@ beforeEach(() => {
   useAdmin.mockReturnValue({ adminModeEnabled: false });
   useAuth.mockReturnValue({ currentUser: { uid: 'admin-uid' } });
   getEventsByStatus.mockResolvedValue(apiEvents);
-  createEvent.mockResolvedValue({});
+  createEvent.mockResolvedValue({ id: 42 });
   updateEvent.mockResolvedValue({});
   deleteEvent.mockResolvedValue({});
+  getEventWithRecurrence.mockResolvedValue({ recurrence: null });
+  createEventRecurrence.mockResolvedValue({});
+  updateEventRecurrence.mockResolvedValue({});
+  deleteEventRecurrence.mockResolvedValue({});
   uploadImage.mockResolvedValue({ url: 'https://s3/uploaded.png' });
   Object.defineProperty(navigator, 'clipboard', {
     value: { writeText: jest.fn().mockResolvedValue() },
@@ -501,18 +512,167 @@ describe('admin event form', () => {
     fireEvent.change(within(dialog).getByLabelText(/Event Name/), { target: { value: 'Yearly Race' } });
     fireEvent.change(within(dialog).getByLabelText(/Date \/ 日期/), { target: { value: `${YEAR}-11-01` } });
     fireEvent.click(within(dialog).getByText('Create / 创建'));
+
+    // Recurrence fields are stripped from the event payload and sent to the
+    // dedicated rule endpoint instead (numeric fields coerced, end_date mapped)
+    await waitFor(() => expect(createEvent).toHaveBeenCalled());
+    const eventPayload = createEvent.mock.calls[0][0];
+    expect(eventPayload).toEqual(expect.objectContaining({ name: 'Yearly Race' }));
+    expect(eventPayload).not.toHaveProperty('is_recurring');
+    expect(eventPayload).not.toHaveProperty('recurrence_type');
+    expect(eventPayload).not.toHaveProperty('recurrence_end_date');
     await waitFor(() =>
-      expect(createEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          is_recurring: true,
+      expect(createEventRecurrence).toHaveBeenCalledWith(
+        42,
+        {
           recurrence_type: 'yearly',
-          month_of_year: '11',
           days_of_week: '0',
-          recurrence_end_date: `${YEAR}-12-31`,
-        }),
+          day_of_month: 15,
+          week_of_month: 2,
+          month_of_year: 11,
+          end_date: `${YEAR}-12-31`,
+        },
         'admin-uid'
       )
     );
+  });
+
+  test('create without recurrence never touches the rule endpoints', async () => {
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    const dialog = await openAddForm();
+    fireEvent.change(within(dialog).getByLabelText(/Event Name/), { target: { value: 'Plain Race' } });
+    fireEvent.change(within(dialog).getByLabelText(/Date \/ 日期/), { target: { value: `${YEAR}-10-10` } });
+    fireEvent.click(within(dialog).getByText('Create / 创建'));
+    await waitFor(() => expect(createEvent).toHaveBeenCalled());
+    expect(createEventRecurrence).not.toHaveBeenCalled();
+    expect(updateEventRecurrence).not.toHaveBeenCalled();
+    expect(deleteEventRecurrence).not.toHaveBeenCalled();
+  });
+
+  test('create falls back to updating the rule when one already exists (400)', async () => {
+    createEventRecurrence.mockRejectedValue(Object.assign(new Error('exists'), { status: 400 }));
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    const dialog = await openAddForm();
+    fireEvent.click(within(dialog).getByLabelText(/Enable recurrence/));
+    fireEvent.change(within(dialog).getByLabelText(/Event Name/), { target: { value: 'Weekly Race' } });
+    fireEvent.change(within(dialog).getByLabelText(/Date \/ 日期/), { target: { value: `${YEAR}-10-10` } });
+    fireEvent.click(within(dialog).getByText('Create / 创建'));
+    await waitFor(() =>
+      expect(updateEventRecurrence).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({ recurrence_type: 'weekly' }),
+        'admin-uid'
+      )
+    );
+  });
+
+  test('edit pre-fills an existing recurrence rule and updates it on save', async () => {
+    getEventWithRecurrence.mockResolvedValue({
+      recurrence: {
+        recurrence_type: 'yearly', days_of_week: '6', day_of_month: null,
+        week_of_month: 3, month_of_year: 11, end_date: null,
+      },
+    });
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    fireEvent.click(screen.getAllByTestId('EditIcon')[0].closest('button'));
+    const dialog = await screen.findByRole('dialog');
+    expect(getEventWithRecurrence).toHaveBeenCalledWith(1);
+    // Rule loads asynchronously and enables the recurrence section
+    expect(await within(dialog).findByLabelText(/Month \/ 月份/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Enable recurrence/)).toBeChecked();
+
+    fireEvent.click(within(dialog).getByText('Update / 更新'));
+    await waitFor(() =>
+      expect(updateEventRecurrence).toHaveBeenCalledWith(
+        1,
+        {
+          recurrence_type: 'yearly',
+          days_of_week: '6',
+          day_of_month: null,
+          week_of_month: 3,
+          month_of_year: 11,
+          end_date: null,
+        },
+        'admin-uid'
+      )
+    );
+    expect(createEventRecurrence).not.toHaveBeenCalled();
+  });
+
+  test('edit that disables recurrence deletes the existing rule', async () => {
+    getEventWithRecurrence.mockResolvedValue({
+      recurrence: { recurrence_type: 'weekly', days_of_week: '0' },
+    });
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    fireEvent.click(screen.getAllByTestId('EditIcon')[0].closest('button'));
+    const dialog = await screen.findByRole('dialog');
+    const toggle = await within(dialog).findByLabelText(/Enable recurrence/);
+    await waitFor(() => expect(toggle).toBeChecked());
+
+    fireEvent.click(toggle); // turn recurrence off
+    fireEvent.click(within(dialog).getByText('Update / 更新'));
+    await waitFor(() => expect(deleteEventRecurrence).toHaveBeenCalledWith(1, 'admin-uid'));
+    expect(updateEventRecurrence).not.toHaveBeenCalled();
+  });
+
+  test('edit tolerates a failed recurrence rule fetch', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    getEventWithRecurrence.mockRejectedValue(new Error('rule fetch down'));
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    fireEvent.click(screen.getAllByTestId('EditIcon')[0].closest('button'));
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith('Error loading recurrence rule:', expect.any(Error))
+    );
+    // Form still opens with recurrence off
+    expect(within(dialog).getByLabelText(/Enable recurrence/)).not.toBeChecked();
+    errorSpy.mockRestore();
+  });
+
+  test('non-400 recurrence save failure surfaces the error and does not retry as update', async () => {
+    createEventRecurrence.mockRejectedValue(Object.assign(new Error('rule boom'), { status: 500 }));
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    const dialog = await openAddForm();
+    fireEvent.click(within(dialog).getByLabelText(/Enable recurrence/));
+    fireEvent.change(within(dialog).getByLabelText(/Event Name/), { target: { value: 'X' } });
+    fireEvent.change(within(dialog).getByLabelText(/Date \/ 日期/), { target: { value: `${YEAR}-10-10` } });
+    fireEvent.click(within(dialog).getByText('Create / 创建'));
+    expect(await screen.findByText(/Error: rule boom/)).toBeInTheDocument();
+    expect(updateEventRecurrence).not.toHaveBeenCalled();
+  });
+
+  test('edit pre-fills a day-of-month rule including its end date', async () => {
+    getEventWithRecurrence.mockResolvedValue({
+      recurrence: {
+        recurrence_type: 'monthly', days_of_week: null, day_of_month: 15,
+        week_of_month: null, month_of_year: null, end_date: '2027-01-31',
+      },
+    });
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    fireEvent.click(screen.getAllByTestId('EditIcon')[0].closest('button'));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByLabelText(/Day of Month/)).toHaveValue(15);
+    expect(within(dialog).getByLabelText(/End Date/)).toHaveValue('2027-01-31');
+  });
+
+  test('edit defaults a rule without a type to weekly', async () => {
+    getEventWithRecurrence.mockResolvedValue({
+      recurrence: { recurrence_type: null, days_of_week: '0,6' },
+    });
+    renderPage();
+    await screen.findAllByText('Summer 5K');
+    fireEvent.click(screen.getAllByTestId('EditIcon')[0].closest('button'));
+    const dialog = await screen.findByRole('dialog');
+    const toggle = await within(dialog).findByLabelText(/Enable recurrence/);
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(within(dialog).getByText('Weekly / 每周')).toBeInTheDocument();
   });
 
   test('image selection previews, uploads on save, and can be removed', async () => {

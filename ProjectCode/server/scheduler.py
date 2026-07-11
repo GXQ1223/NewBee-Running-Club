@@ -17,9 +17,9 @@ from contextlib import contextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy.orm import Session
 
 from database import SessionLocal, Event, EventRecurrenceRule
+from utils.recurrence import create_event_instance
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -194,40 +194,6 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
 
     # Default fallback
     return current_date + timedelta(weeks=1)
-
-
-def create_event_instance(db: Session, parent_event: Event, occurrence_date: date) -> Event:
-    """
-    Create a new event instance from a parent recurring event.
-
-    Args:
-        db: Database session
-        parent_event: The parent event to copy from
-        occurrence_date: The date for the new instance
-
-    Returns:
-        Event: The newly created event instance
-    """
-    new_event = Event(
-        name=parent_event.name,
-        chinese_name=parent_event.chinese_name,
-        date=occurrence_date,
-        time=parent_event.time,
-        location=parent_event.location,
-        chinese_location=parent_event.chinese_location,
-        description=parent_event.description,
-        chinese_description=parent_event.chinese_description,
-        image=parent_event.image,
-        signup_link=parent_event.signup_link,
-        status='Upcoming',
-        event_type=parent_event.event_type,
-        heylo_embed=parent_event.heylo_embed,
-        is_recurring=False,  # Instance is not itself recurring
-        parent_event_id=parent_event.id
-    )
-
-    db.add(new_event)
-    return new_event
 
 
 def generate_recurring_events():
@@ -407,6 +373,34 @@ def sync_nyrr_results():
     )
 
 
+def sync_zelle_donations_job():
+    """
+    Weekly job to fetch new Zelle donation emails from the club Gmail.
+
+    Runs the same IMAP fetch/parse pipeline as the CLI script
+    (sync_zelle_donations.py) over the last 30 days; the transaction-number
+    dedup makes the overlapping window safe. New donations land with
+    status='pending' and are reviewed in the admin donation ledger before
+    appearing on the public sponsors page.
+    """
+    logger.info("Starting weekly Zelle donation sync job...")
+    try:
+        from sync_zelle_donations import sync_zelle_donations
+    except Exception as e:
+        logger.error(f"Donation sync: failed to import sync_zelle_donations: {e}")
+        return
+
+    try:
+        stats = sync_zelle_donations(status="pending")
+        logger.info(
+            f"Donation sync complete: {stats['emails_found']} email(s) found, "
+            f"{stats['inserted']} new pending donation(s), "
+            f"{stats['duplicates']} duplicate(s), {stats['errors']} error(s)."
+        )
+    except Exception as e:
+        logger.error(f"Donation sync failed: {e}")
+
+
 def start_scheduler():
     """
     Start the APScheduler with configured jobs.
@@ -445,11 +439,23 @@ def start_scheduler():
         max_instances=1
     )
 
+    # Weekly Zelle donation sync from the club Gmail — Monday 4:30 AM UTC,
+    # right after the NYRR sync. New donations land as pending in the
+    # admin donation ledger.
+    scheduler.add_job(
+        sync_zelle_donations_job,
+        CronTrigger(day_of_week='mon', hour=4, minute=30),
+        id='sync_zelle_donations',
+        replace_existing=True,
+        max_instances=1
+    )
+
     # Start the scheduler
     scheduler.start()
     logger.info(
         "Scheduler started - recurring events job (daily 2 AM), past events "
-        "transition (weekly Mon 3 AM), NYRR results sync (weekly Mon 4 AM UTC)"
+        "transition (weekly Mon 3 AM), NYRR results sync (weekly Mon 4 AM UTC), "
+        "Zelle donation sync (weekly Mon 4:30 AM UTC)"
     )
 
     # Run transition immediately on startup to catch any stale events
@@ -490,6 +496,15 @@ def run_nyrr_sync_now():
     """
     logger.info("Manually triggering NYRR results sync...")
     sync_nyrr_results()
+
+
+def run_donation_sync_now():
+    """
+    Manually trigger the weekly Zelle donation sync job.
+    Useful for testing or administrative purposes.
+    """
+    logger.info("Manually triggering Zelle donation sync...")
+    sync_zelle_donations_job()
 
 
 if __name__ == "__main__":

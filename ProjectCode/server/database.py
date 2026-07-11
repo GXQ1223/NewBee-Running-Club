@@ -70,6 +70,13 @@ class Donor(Base):
     hide_amount = Column(Boolean, default=False)  # User can choose to hide their donation amount
     hide_name = Column(Boolean, default=False)  # Admin can mark donor as anonymous
 
+    # Donation ledger / Gmail sync fields
+    # 'pending' = auto-fetched from Gmail, awaiting committee review;
+    # 'confirmed' = visible on the public sponsors page; 'dismissed' = hidden.
+    status = Column(String(20), nullable=False, default='confirmed', server_default='confirmed')
+    thank_you_sent_at = Column(DateTime, nullable=True)
+    email_excerpt = Column(Text, nullable=True)  # Original notification email summary
+
     # Indexes for better query performance
     __table_args__ = (
         Index('idx_donor_type', 'donor_type'),
@@ -78,6 +85,7 @@ class Donor(Base):
         Index('idx_donation_date', 'donation_date'),
         Index('idx_created_at', 'created_at'),
         Index('idx_donor_member_id', 'member_id'),
+        Index('idx_donor_status', 'status'),
     )
 
 # Results Model for race results
@@ -702,6 +710,60 @@ class SiteSetting(Base):
     __table_args__ = (
         Index('idx_setting_key', 'key'),
         Index('idx_setting_category', 'category'),
+    )
+
+
+# Race Submission status enum
+class RaceSubmissionStatus(enum.Enum):
+    pending = "pending"      # Submitted, awaiting committee review
+    approved = "approved"    # Approved and posted to the club leaderboard
+    rejected = "rejected"    # Rejected by committee (member may edit and resubmit)
+
+
+# Race record submissions: members report PRs from non-NYRR races.
+# On approval a matching row is inserted into `results` so the record
+# appears on the member's profile and the club Records leaderboard.
+class RaceSubmission(Base):
+    __tablename__ = "race_submissions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    member_id = Column(Integer, ForeignKey('members.id'), nullable=False)
+    race_name = Column(String(255), nullable=False)
+    race_date = Column(Date, nullable=False)
+    race_distance = Column(String(50), nullable=False)  # e.g. "Marathon", "Half Marathon", "10K"
+    finish_time = Column(String(20), nullable=False)  # "H:MM:SS" or "MM:SS"
+    pace = Column(String(20))  # per-mile pace, computed server-side when possible
+    proof_url = Column(String(500))  # link to official results page
+    photo_url = Column(String(500))  # member's photo from the race (record wall)
+    status = Column(String(20), nullable=False, default='pending')
+    review_note = Column(String(500))
+    reviewed_by = Column(Integer, ForeignKey('members.id'))
+    reviewed_at = Column(DateTime)
+    result_id = Column(Integer)  # results-table row created on approval
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_race_submission_member', 'member_id'),
+        Index('idx_race_submission_status', 'status'),
+    )
+
+
+# Member-supplied photo for a synced (results-table) race — shown on the
+# profile record wall. One photo per member per result row.
+class RacePhoto(Base):
+    __tablename__ = "race_photos"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    member_id = Column(Integer, ForeignKey('members.id'), nullable=False)
+    result_id = Column(Integer, nullable=False)
+    photo_url = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('member_id', 'result_id', name='uq_race_photo_member_result'),
+        Index('idx_race_photo_member', 'member_id'),
     )
 
 

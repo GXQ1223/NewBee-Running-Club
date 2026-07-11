@@ -31,6 +31,14 @@ jest.mock('../api/donors', () => ({
   getHideAmounts: jest.fn(),
   toggleHideAmounts: jest.fn(),
 }));
+// The ledger has its own test suite (DonationLedger.test.js); stub it here
+jest.mock('../components/DonationLedger', () => ({
+  __esModule: true,
+  default: () => {
+    const React = require('react');
+    return React.createElement('div', { 'data-testid': 'donation-ledger' });
+  },
+}));
 
 const publicDonors = [
   { donation_id: 1, donor_id: 'IND_1', name: 'Jane Zhang', donor_type: 'individual', donation_date: '2026-01-15', message: 'Go NewBee!', amount: null },
@@ -314,5 +322,26 @@ describe('admin view', () => {
     renderPage();
     expect(await screen.findByText('Jane Zhang')).toBeInTheDocument();
     expect(screen.getByText('Amounts Visible / 金额可见')).toBeInTheDocument();
+  });
+
+  test('shows the admin-only ledger tab and renders the ledger', async () => {
+    renderPage();
+    await screen.findByText('Jane Zhang');
+    const ledgerTab = screen.getByText('All Donations · Ledger');
+    expect(ledgerTab).toBeInTheDocument();
+    expect(screen.getByText('ADMIN')).toBeInTheDocument();
+
+    fireEvent.click(ledgerTab);
+    expect(screen.getByTestId('donation-ledger')).toBeVisible();
+  });
+});
+
+describe('ledger tab visibility', () => {
+  test('ledger tab is hidden in public mode', async () => {
+    useAdmin.mockReturnValue({ adminModeEnabled: false });
+    renderPage();
+    await screen.findByText('Jane Zhang');
+    expect(screen.queryByText('All Donations · Ledger')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('donation-ledger')).not.toBeInTheDocument();
   });
 });
