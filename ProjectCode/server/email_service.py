@@ -5,9 +5,10 @@ import os
 import smtplib
 import logging
 import traceback
+from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Optional
+from typing import List, Optional, Tuple
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -72,7 +73,8 @@ class EmailService:
         to_email: str,
         subject: str,
         body_html: str,
-        body_text: Optional[str] = None
+        body_text: Optional[str] = None,
+        attachments: Optional[List[Tuple[str, bytes, str]]] = None
     ) -> bool:
         """
         Send an email using Gmail SMTP
@@ -82,6 +84,8 @@ class EmailService:
             subject: Email subject
             body_html: HTML email body
             body_text: Plain text email body (optional fallback)
+            attachments: Optional list of (filename, content_bytes, mime_subtype)
+                tuples, e.g. ("receipt.pdf", pdf_bytes, "pdf")
 
         Returns:
             True if email sent successfully, False otherwise
@@ -101,21 +105,35 @@ class EmailService:
         logger.debug(f"[EMAIL] SMTP: {SMTP_SERVER}:{SMTP_PORT}")
 
         try:
-            # Create message
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = f"NewBee Running Club <{gmail_user}>"
-            msg['To'] = to_email
+            # Create message: bodies live in an 'alternative' part; when there
+            # are attachments they are wrapped together in a 'mixed' envelope
+            alt = MIMEMultipart('alternative')
 
             # Attach plain text and HTML versions
             if body_text:
                 part1 = MIMEText(body_text, 'plain')
-                msg.attach(part1)
+                alt.attach(part1)
                 logger.debug("[EMAIL] Attached plain text body")
 
             part2 = MIMEText(body_html, 'html')
-            msg.attach(part2)
+            alt.attach(part2)
             logger.debug("[EMAIL] Attached HTML body")
+
+            if attachments:
+                msg = MIMEMultipart('mixed')
+                msg.attach(alt)
+                for filename, content, mime_subtype in attachments:
+                    attachment = MIMEApplication(content, _subtype=mime_subtype)
+                    attachment.add_header('Content-Disposition', 'attachment',
+                                          filename=filename)
+                    msg.attach(attachment)
+                    logger.debug(f"[EMAIL] Attached file {filename}")
+            else:
+                msg = alt
+
+            msg['Subject'] = subject
+            msg['From'] = f"NewBee Running Club <{gmail_user}>"
+            msg['To'] = to_email
 
             # Send email
             logger.debug(f"[EMAIL] Connecting to SMTP server {SMTP_SERVER}:{SMTP_PORT}...")

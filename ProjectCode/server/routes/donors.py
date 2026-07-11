@@ -10,12 +10,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import List, Optional
 
-from database import get_db, Donor, Member, SiteSetting
+from database import get_db, Donor, Member, SiteSetting, ThankYouTemplate
 from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest, DonorLedgerEntry,
     DonationLedgerStats, DonationSyncStatus, DonationLedgerResponse,
-    ApproveDonationRequest, SendThankYouRequest
+    ApproveDonationRequest, SendThankYouRequest, ThankYouTemplateCreate,
+    ThankYouTemplateUpdate, ThankYouTemplateResponse
 )
 from utils.auth import get_current_admin, get_current_committee_or_admin
 
@@ -317,6 +318,124 @@ def _thank_you_email(donor):
     return subject, body_html, body_text
 
 
+# ---------------------------------------------------------------------------
+# Thank-you templates (tiered by amount) and letter composition
+# ---------------------------------------------------------------------------
+
+@router.get("/thank-you-templates", response_model=List[ThankYouTemplateResponse])
+def list_thank_you_templates(db: Session = Depends(get_db), current_admin: Member = Depends(get_current_committee_or_admin)):
+    """All thank-you templates, lowest tier first."""
+    return db.query(ThankYouTemplate).order_by(ThankYouTemplate.min_amount).all()
+
+
+@router.post("/thank-you-templates", response_model=ThankYouTemplateResponse)
+def create_thank_you_template(
+    template: ThankYouTemplateCreate,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    db_template = ThankYouTemplate(**template.model_dump())
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+
+@router.put("/thank-you-templates/{template_id}", response_model=ThankYouTemplateResponse)
+def update_thank_you_template(
+    template_id: int,
+    update: ThankYouTemplateUpdate,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    template = db.query(ThankYouTemplate).filter(ThankYouTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template {template_id} not found"
+        )
+    for field, value in update.model_dump(exclude_unset=True).items():
+        setattr(template, field, value)
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@router.delete("/thank-you-templates/{template_id}")
+def delete_thank_you_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    template = db.query(ThankYouTemplate).filter(ThankYouTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template {template_id} not found"
+        )
+    db.delete(template)
+    db.commit()
+    return {"message": f"Template {template_id} deleted"}
+
+
+def _select_template(db: Session, donor):
+    """The template with the highest tier at or below the donation amount."""
+    templates = db.query(ThankYouTemplate).order_by(
+        ThankYouTemplate.min_amount.desc()
+    ).all()
+    for template in templates:
+        if donor.amount >= template.min_amount:
+            return template
+    return None
+
+
+def _render_placeholders(text: str, donor) -> str:
+    amount = f"${donor.amount:,.2f}"
+    date_str = donor.donation_date.strftime('%B %d, %Y') if donor.donation_date else ''
+    return (text.replace('{name}', donor.name)
+                .replace('{amount}', amount)
+                .replace('{date}', date_str))
+
+
+def _text_to_html(text: str) -> str:
+    import html as html_mod
+    return (
+        '<div style="font-family:Roboto,sans-serif;max-width:560px;'
+        'margin:0 auto;color:#212121;white-space:pre-line">'
+        f"{html_mod.escape(text)}</div>"
+    )
+
+
+def _compose_thank_you(db: Session, donor):
+    """(subject, body_html, body_text, template_name) for this donation —
+    the matched tier template, or the built-in default when none exist."""
+    template = _select_template(db, donor)
+    if template:
+        subject = _render_placeholders(template.subject, donor)
+        body_text = _render_placeholders(template.body, donor)
+        return subject, _text_to_html(body_text), body_text, template.name
+    subject, body_html, body_text = _thank_you_email(donor)
+    return subject, body_html, body_text, None
+
+
+@router.get("/donations/{donation_id}/thank-you-preview")
+def thank_you_preview(
+    donation_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """The letter this donation would get (matched template rendered with
+    the donor's details), for committee to review and edit before sending."""
+    donor = db.query(Donor).filter(Donor.donation_id == donation_id).first()
+    if not donor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Donation {donation_id} not found"
+        )
+    subject, _, body_text, template_name = _compose_thank_you(db, donor)
+    return {"subject": subject, "body": body_text, "template_name": template_name}
+
+
 @router.post("/donations/{donation_id}/send-thank-you", response_model=DonorLedgerEntry)
 def send_thank_you(
     donation_id: int,
@@ -342,8 +461,22 @@ def send_thank_you(
         )
 
     from email_service import EmailService
-    subject, body_html, body_text = _thank_you_email(donor)
-    if not EmailService.send_email(request.email, subject, body_html, body_text):
+    subject, body_html, body_text = _compose_thank_you(db, donor)[:3]
+    # Committee reviewed/edited the letter in the dialog — send their text
+    if request.subject and request.subject.strip():
+        subject = request.subject.strip()
+    if request.message and request.message.strip():
+        body_text = request.message
+        body_html = _text_to_html(request.message)
+
+    attachments = None
+    receipt_filename = None
+    if request.attach_receipt:
+        receipt_filename = _receipt_filename(donor)
+        attachments = [(receipt_filename, _build_receipt_pdf(donor), "pdf")]
+
+    if not EmailService.send_email(request.email, subject, body_html, body_text,
+                                   attachments=attachments):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to send the email — check the server email configuration"
@@ -356,13 +489,197 @@ def send_thank_you(
     ack_record = (
         f"—— Thank-you email 感谢邮件 ——\n"
         f"Sent to {request.email} on {sent_at.strftime('%b %d, %Y %H:%M')} UTC\n"
-        f"Subject: {subject}\n\n"
-        f"{body_text}"
+        f"Subject: {subject}\n"
+        + (f"Attachment 附件: {receipt_filename}\n" if receipt_filename else "")
+        + f"\n{body_text}"
     )
     donor.notes = f"{donor.notes}\n\n{ack_record}" if donor.notes else ack_record
     db.commit()
     db.refresh(donor)
     return donor
+
+
+# ---------------------------------------------------------------------------
+# Donation receipt PDF — replicates the club's official receipt letter
+# ---------------------------------------------------------------------------
+
+# Fixed organization facts printed on every receipt (per the club's official
+# format). Signature: drop a `signature.png` into server/assets/ to use the
+# real autograph; otherwise the signer name renders in italic script.
+RECEIPT_ORG = {
+    "name": "NewBee Running Inc",
+    "tagline": "A 501(c)(3) Nonprofit Organization",
+    "ein": "93-4936132",
+    "contact_email": "newbeerunningclub@gmail.com",
+    "signer": "Junxiao",
+}
+_ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+
+
+def _payment_method(donor) -> str:
+    """'Zelle (Li Chen)' -> 'Zelle'; plain sources pass through."""
+    import re
+    if not donor.source:
+        return "—"
+    return re.sub(r"\s*\(.*\)\s*$", "", donor.source).strip() or "—"
+
+
+def _receipt_filename(donor) -> str:
+    import re
+    date_part = donor.donation_date.strftime("%Y%m%d") if donor.donation_date else "00000000"
+    name_part = re.sub(r"[^A-Za-z0-9]+", "_", donor.name).strip("_") or "Donor"
+    return f"NewBee_Donation_Receipt_{date_part}_{name_part}.pdf"
+
+
+def _build_receipt_pdf(donor) -> bytes:
+    """Render the official donation receipt letter, matching the club's
+    format: logo, org header, gratitude letter, boxed DONATION RECEIPT
+    block, tax statement, annual-summary note, and authorized signature."""
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import (
+        HRFlowable, Image as RLImage, Paragraph, SimpleDocTemplate, Spacer,
+        Table, TableStyle,
+    )
+
+    org = RECEIPT_ORG
+    amount = f"${donor.amount:,.2f}"
+    received = donor.donation_date.strftime("%B %-d, %Y") if donor.donation_date else "—"
+    issued = datetime.utcnow().strftime("%B %-d, %Y")
+    method = _payment_method(donor)
+
+    styles = getSampleStyleSheet()
+    body = ParagraphStyle("rbody", parent=styles["Normal"], fontSize=11,
+                          leading=15, spaceAfter=9)
+    center_title = ParagraphStyle("rtitle", parent=styles["Normal"], fontSize=16,
+                                  leading=20, alignment=TA_CENTER,
+                                  fontName="Helvetica-Bold")
+    center_sub = ParagraphStyle("rsub", parent=styles["Normal"], fontSize=10.5,
+                                leading=14, alignment=TA_CENTER,
+                                textColor=colors.HexColor("#666666"))
+    box_line = ParagraphStyle("rbox", parent=styles["Normal"], fontSize=11,
+                              leading=16.5)
+
+    story = []
+
+    logo_path = os.path.join(_ASSETS_DIR, "receipt_logo.png")
+    if os.path.exists(logo_path):
+        logo = RLImage(logo_path, width=0.95 * inch, height=0.92 * inch)
+        logo.hAlign = "CENTER"
+        story.append(logo)
+        story.append(Spacer(1, 8))
+
+    story.append(Paragraph(org["name"], center_title))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        f"{org['tagline']}&nbsp;&nbsp;|&nbsp;&nbsp;EIN: {org['ein']}", center_sub))
+    story.append(Spacer(1, 12))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#999999")))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(f"Date: {issued}", body))
+    story.append(Paragraph(f"Dear {donor.name},", body))
+    story.append(Paragraph(
+        "On behalf of the committee of NewBee Running Club, please accept our "
+        "heartfelt gratitude for your sponsorship and trust in NewBee Running Club.",
+        body))
+    story.append(Paragraph(
+        "At NewBee, we believe that no act of kindness should ever be taken for "
+        "granted. Friends like you make it possible for NewBee to keep creating "
+        "meaningful events and to bring our New York community together through "
+        "running, friendship, and shared experiences.", body))
+    story.append(Spacer(1, 4))
+
+    box_rows = [
+        [Paragraph('<b><font size="12">DONATION RECEIPT</font></b>', box_line)],
+        [Paragraph(
+            f"Organization: {org['name']}, a 501(c)(3) nonprofit organization",
+            box_line)],
+        [Paragraph(f"EIN (Tax ID): {org['ein']}", box_line)],
+        [Paragraph(f"Donation amount: <b>{amount}</b>", box_line)],
+        [Paragraph(f"Date received: {received}", box_line)],
+        [Paragraph(f"Method: {method}", box_line)],
+    ]
+    box = Table(box_rows, colWidths=[6.4 * inch])
+    box.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#c8c8c8")),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FBFAF7")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 14),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+        ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ("TOPPADDING", (0, 1), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -2), 2),
+    ]))
+    story.append(box)
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph(
+        "Please consider this an official receipt for your donation and retain it "
+        "for your tax records. Your donation was made for charitable purposes and "
+        "is tax-deductible to the fullest extent of the law. No goods or services "
+        "were provided in exchange for this contribution. Unless otherwise "
+        f"specified in writing by the donor, this contribution is unrestricted and "
+        f"unconditional, and may be used at the discretion of {org['name']} for "
+        "its general charitable purposes.", body))
+    story.append(Paragraph(
+        "After the end of each calendar year, we will also send every donor an "
+        "annual donation summary statement for tax filing purposes. If you have "
+        "any questions about your donation, please contact us at "
+        f"{org['contact_email']}.", body))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(f"Sincerely,<br/>{org['name']}", body))
+
+    sig_path = os.path.join(_ASSETS_DIR, "signature.png")
+    if os.path.exists(sig_path):
+        # Authorized signature autograph (144x75 source, keep aspect)
+        sig = RLImage(sig_path, width=1.2 * inch, height=0.63 * inch)
+        sig.hAlign = "LEFT"
+        story.append(sig)
+        story.append(Spacer(1, 2))
+    else:
+        story.append(Paragraph(
+            f'<font name="Helvetica-Oblique" size="20">{org["signer"]}</font>',
+            ParagraphStyle("rsig", parent=styles["Normal"], leading=26)))
+    story.append(Paragraph("Authorized Signature", ParagraphStyle(
+        "rsigcap", parent=styles["Normal"], fontSize=11.5)))
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                            topMargin=0.55 * inch, bottomMargin=0.55 * inch,
+                            leftMargin=0.85 * inch, rightMargin=0.85 * inch)
+    doc.build(story)
+    return buffer.getvalue()
+
+
+@router.get("/donations/{donation_id}/receipt")
+def download_receipt(
+    donation_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Official donation receipt PDF (confirmed donations only)."""
+    donor = db.query(Donor).filter(Donor.donation_id == donation_id).first()
+    if not donor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Donation {donation_id} not found"
+        )
+    if donor.status != "confirmed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Receipts are only issued for confirmed donations"
+        )
+
+    filename = _receipt_filename(donor)
+    return Response(
+        content=_build_receipt_pdf(donor),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 @router.post("/sync-gmail")

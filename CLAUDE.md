@@ -120,6 +120,9 @@ python main.py                                    # Run on localhost:8000
 - `POST /api/donors/donations/{id}/dismiss` - Hide a pending donation permanently
 - `POST /api/donors/sync-gmail` - Run the Zelle Gmail sync now
 - `GET /api/donors/tax-report?start_date&end_date&format=csv|pdf` - Tax file export
+- `GET/POST/PUT/DELETE /api/donors/thank-you-templates[/{id}]` - Thank-you letter templates, tiered by `min_amount` ({name}/{amount}/{date} placeholders)
+- `GET /api/donors/donations/{id}/thank-you-preview` - Rendered letter (matched tier) for the send dialog
+- `GET /api/donors/donations/{id}/receipt` - Official donation receipt PDF (server/assets holds the letterhead logo + authorized signature)
 
 Weekly Gmail sync: APScheduler job `sync_zelle_donations` (Mon 4:30 AM UTC) reads
 Chase Zelle emails (Gmail label "NewBee Finance/Chase") and Venmo payment

@@ -1,19 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions,
-  DialogContent, DialogTitle, Grid, MenuItem, Paper, Select, Table,
-  TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-  Tooltip, Typography
+  Alert, Box, Button, Checkbox, Chip, CircularProgress, Collapse, Dialog,
+  DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, IconButton,
+  MenuItem, Paper, Select, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, TextField, Tooltip, Typography
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import SyncIcon from '@mui/icons-material/Sync';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { useAuth } from '../context';
 import {
-  getDonationLedger, approveDonation, dismissDonation,
-  sendThankYou, runGmailSync, downloadTaxReport
+  getDonationLedger, approveDonation, dismissDonation, sendThankYou,
+  getThankYouPreview, getThankYouTemplates, createThankYouTemplate,
+  updateThankYouTemplate, deleteThankYouTemplate, downloadReceipt,
+  updateDonor, runGmailSync, downloadTaxReport
 } from '../api/donors';
 
 // Design tokens (match HomePage / NavBar design language)
@@ -51,8 +54,22 @@ const pillButtonSx = (solid) => ({
   },
 });
 
+const PURPLE = '#7b3ff2';
+const PURPLE_BG = '#f3e8ff';
+
 const formatAmount = (amount) =>
   `$${parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const triggerDownload = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -129,8 +146,24 @@ export default function DonationLedger({ onLedgerChange }) {
   const [pendingTypes, setPendingTypes] = useState({});
   const [thankTarget, setThankTarget] = useState(null);
   const [thankEmail, setThankEmail] = useState('');
+  const [thankSubject, setThankSubject] = useState('');
+  const [thankMessage, setThankMessage] = useState('');
+  const [thankTemplateName, setThankTemplateName] = useState(null);
+  const [thankAttach, setThankAttach] = useState(true);
   const [sendingThanks, setSendingThanks] = useState(false);
   const [ignoredOpen, setIgnoredOpen] = useState(false);
+  const [receiptingId, setReceiptingId] = useState(null);
+
+  // Templates manager
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [tplForm, setTplForm] = useState(null); // {id?, name, min_amount, subject, body}
+  const [tplSaving, setTplSaving] = useState(false);
+
+  // Editable notes (expanded rows)
+  const [notesEditId, setNotesEditId] = useState(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
 
   // Tax report dialog
   const [taxDialogOpen, setTaxDialogOpen] = useState(false);
@@ -194,12 +227,35 @@ export default function DonationLedger({ onLedgerChange }) {
     }
   };
 
+  const openThankDialog = async (donation) => {
+    setThankTarget(donation);
+    setThankEmail('');
+    setThankSubject('');
+    setThankMessage('');
+    setThankTemplateName(null);
+    setThankAttach(true);
+    try {
+      const preview = await getThankYouPreview(donation.donation_id, firebaseUid);
+      setThankSubject(preview.subject || '');
+      setThankMessage(preview.body || '');
+      setThankTemplateName(preview.template_name);
+    } catch (err) {
+      console.error('Error loading thank-you preview:', err);
+      setError('Failed to load the letter preview. / 加载感谢信预览失败。');
+    }
+  };
+
   const handleSendThankYou = async () => {
     if (!thankTarget || !thankEmail) return;
     setSendingThanks(true);
     setError('');
     try {
-      await sendThankYou(thankTarget.donation_id, thankEmail, firebaseUid);
+      await sendThankYou(thankTarget.donation_id, {
+        email: thankEmail,
+        subject: thankSubject,
+        message: thankMessage,
+        attachReceipt: thankAttach,
+      }, firebaseUid);
       setThankTarget(null);
       setThankEmail('');
       await fetchLedger();
@@ -208,6 +264,83 @@ export default function DonationLedger({ onLedgerChange }) {
       setError('Failed to send the thank-you email. / 发送感谢邮件失败。');
     } finally {
       setSendingThanks(false);
+    }
+  };
+
+  const handleDownloadReceipt = async (donation) => {
+    setReceiptingId(donation.donation_id);
+    setError('');
+    try {
+      const { blob, filename } = await downloadReceipt(donation.donation_id, firebaseUid);
+      triggerDownload(blob, filename);
+    } catch (err) {
+      console.error('Error downloading receipt:', err);
+      setError('Failed to generate the receipt. / 生成收据失败。');
+    } finally {
+      setReceiptingId(null);
+    }
+  };
+
+  const openTemplates = async () => {
+    setTemplatesOpen(true);
+    setTplForm(null);
+    try {
+      setTemplates(await getThankYouTemplates(firebaseUid));
+    } catch (err) {
+      console.error('Error loading templates:', err);
+      setError('Failed to load templates. / 加载模板失败。');
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!tplForm) return;
+    setTplSaving(true);
+    setError('');
+    try {
+      const payload = {
+        name: tplForm.name,
+        min_amount: tplForm.min_amount || 0,
+        subject: tplForm.subject,
+        body: tplForm.body,
+      };
+      if (tplForm.id) {
+        await updateThankYouTemplate(tplForm.id, payload, firebaseUid);
+      } else {
+        await createThankYouTemplate(payload, firebaseUid);
+      }
+      setTplForm(null);
+      setTemplates(await getThankYouTemplates(firebaseUid));
+    } catch (err) {
+      console.error('Error saving template:', err);
+      setError('Failed to save the template. / 保存模板失败。');
+    } finally {
+      setTplSaving(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId) => {
+    setError('');
+    try {
+      await deleteThankYouTemplate(templateId, firebaseUid);
+      setTemplates(await getThankYouTemplates(firebaseUid));
+    } catch (err) {
+      console.error('Error deleting template:', err);
+      setError('Failed to delete the template. / 删除模板失败。');
+    }
+  };
+
+  const handleSaveNotes = async (donation) => {
+    setNotesSaving(true);
+    setError('');
+    try {
+      await updateDonor(donation.donor_id, { notes: notesDraft }, firebaseUid);
+      setNotesEditId(null);
+      await fetchLedger();
+    } catch (err) {
+      console.error('Error saving notes:', err);
+      setError('Failed to save notes. / 保存备注失败。');
+    } finally {
+      setNotesSaving(false);
     }
   };
 
@@ -373,6 +506,17 @@ export default function DonationLedger({ onLedgerChange }) {
 
         <Button
           size="small"
+          onClick={openTemplates}
+          sx={{
+            textTransform: 'none', fontWeight: 700, borderRadius: '99px', px: 2,
+            border: `1.5px solid ${PURPLE}`, color: PURPLE, boxShadow: 'none',
+            '&:hover': { backgroundColor: PURPLE, color: 'white' },
+          }}
+        >
+          ✉ Templates 模板
+        </Button>
+        <Button
+          size="small"
           startIcon={syncing ? <CircularProgress size={14} sx={{ color: ORANGE }} /> : <SyncIcon />}
           onClick={handleSyncNow}
           disabled={syncing}
@@ -448,10 +592,28 @@ export default function DonationLedger({ onLedgerChange }) {
                       {formatAmount(donation.amount)}
                     </TableCell>
                     <TableCell><SourceChip donation={donation} /></TableCell>
-                    <TableCell>
-                      {donation.receipt_confirmed ? (
-                        <Chip size="small" label="✓" sx={{ fontSize: '0.6875rem', fontWeight: 700, backgroundColor: GREEN_BG, color: GREEN, borderRadius: '99px' }} />
-                      ) : '—'}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {donation.receipt_confirmed ? (
+                          <Chip size="small" label="✓" sx={{ fontSize: '0.6875rem', fontWeight: 700, backgroundColor: GREEN_BG, color: GREEN, borderRadius: '99px' }} />
+                        ) : '—'}
+                        {!pending && (
+                          <Tooltip title="Download official donation receipt PDF / 下载捐款收据">
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDownloadReceipt(donation)}
+                                disabled={receiptingId === donation.donation_id}
+                                aria-label="Receipt 收据"
+                              >
+                                {receiptingId === donation.donation_id
+                                  ? <CircularProgress size={14} sx={{ color: BLUE }} />
+                                  : <FileDownloadOutlinedIcon sx={{ fontSize: 17, color: BLUE }} />}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {pending ? (
@@ -482,7 +644,7 @@ export default function DonationLedger({ onLedgerChange }) {
                       ) : (
                         <Button
                           size="small"
-                          onClick={() => { setThankTarget(donation); setThankEmail(''); }}
+                          onClick={() => openThankDialog(donation)}
                           sx={{ ...pillButtonSx(false), fontSize: '0.6875rem', py: 0.25 }}
                         >
                           Send thank-you 发送感谢
@@ -545,15 +707,49 @@ export default function DonationLedger({ onLedgerChange }) {
                               </Typography>
                             </Box>
                           )}
-                          {donation.notes && (
-                            <Typography sx={{ fontSize: '0.75rem', color: MUTED, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                              Notes 备注: {donation.notes}
-                            </Typography>
-                          )}
-                          {!donation.email_excerpt && !donation.notes && (
-                            <Typography sx={{ fontSize: '0.75rem', color: MUTED }}>
-                              No additional details. / 无更多详情。
-                            </Typography>
+                          {notesEditId === donation.donation_id ? (
+                            <Box onClick={(e) => e.stopPropagation()}>
+                              <TextField
+                                label="Notes 备注"
+                                multiline
+                                minRows={3}
+                                fullWidth
+                                size="small"
+                                value={notesDraft}
+                                onChange={(e) => setNotesDraft(e.target.value)}
+                                sx={{ backgroundColor: 'white' }}
+                              />
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
+                                <Button size="small" onClick={() => setNotesEditId(null)} disabled={notesSaving} sx={{ textTransform: 'none', color: MUTED }}>
+                                  Cancel 取消
+                                </Button>
+                                <Button
+                                  size="small"
+                                  onClick={() => handleSaveNotes(donation)}
+                                  disabled={notesSaving}
+                                  sx={{ ...pillButtonSx(true), fontSize: '0.6875rem', py: 0.25 }}
+                                >
+                                  {notesSaving ? <CircularProgress size={14} sx={{ color: 'white' }} /> : 'Save 保存'}
+                                </Button>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                              <Typography sx={{ fontSize: '0.75rem', color: MUTED, lineHeight: 1.6, whiteSpace: 'pre-line', flexGrow: 1 }}>
+                                Notes 备注: {donation.notes || '—'}
+                              </Typography>
+                              <Button
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNotesEditId(donation.donation_id);
+                                  setNotesDraft(donation.notes || '');
+                                }}
+                                sx={{ textTransform: 'none', fontSize: '0.6875rem', fontWeight: 700, color: ORANGE, whiteSpace: 'nowrap', minWidth: 0 }}
+                              >
+                                ✎ Edit 编辑
+                              </Button>
+                            </Box>
                           )}
                         </Box>
                       </Collapse>
@@ -644,35 +840,172 @@ export default function DonationLedger({ onLedgerChange }) {
       </Paper>
 
       {/* Send thank-you dialog */}
-      <Dialog open={Boolean(thankTarget)} onClose={() => setThankTarget(null)} maxWidth="xs" fullWidth>
+      <Dialog open={Boolean(thankTarget)} onClose={() => setThankTarget(null)} maxWidth="sm" fullWidth>
         <DialogTitle>✉ Send thank-you email 发送感谢邮件</DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: '0.875rem', mb: 1 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 1 }}>
             {thankTarget?.name} · {formatAmount(thankTarget?.amount)} · {formatDate(thankTarget?.donation_date)}
           </Typography>
-          <Typography sx={{ fontSize: '0.78125rem', color: MUTED, mb: 2 }}>
-            Payment emails don't include the donor's address — enter it below. A bilingual thank-you letter will be sent from the club Gmail. / 付款邮件不含捐赠者邮箱，请填写收件地址；系统将从跑团邮箱发送中英双语感谢信。
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, backgroundColor: PURPLE_BG, borderRadius: '9px', px: 1.5, py: 1, mb: 2 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: PURPLE, fontWeight: 600 }}>
+              Matched template 匹配模板:
+            </Typography>
+            <Chip size="small" label={thankTemplateName || 'Built-in default 内置模板'} sx={{ fontSize: '0.65625rem', fontWeight: 700, backgroundColor: PURPLE, color: 'white', borderRadius: '99px', height: 20 }} />
+            <Typography sx={{ fontSize: '0.71875rem', color: PURPLE }}>
+              — edit anything below before sending 发送前可任意修改
+            </Typography>
+          </Box>
+          <TextField
+            label="Subject 邮件标题"
+            size="small"
+            fullWidth
+            value={thankSubject}
+            onChange={(e) => setThankSubject(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Message 正文"
+            multiline
+            minRows={9}
+            fullWidth
+            size="small"
+            value={thankMessage}
+            onChange={(e) => setThankMessage(e.target.value)}
+            sx={{ mb: 2 }}
+          />
           <TextField
             label="Donor email 捐赠者邮箱"
             type="email"
             size="small"
             fullWidth
-            autoFocus
             value={thankEmail}
             onChange={(e) => setThankEmail(e.target.value)}
+            helperText="Payment emails don't include the donor's address — enter it here. / 付款邮件不含捐赠者邮箱，请填写。"
           />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={thankAttach}
+                onChange={(e) => setThankAttach(e.target.checked)}
+                sx={{ color: ORANGE, '&.Mui-checked': { color: ORANGE } }}
+              />
+            }
+            label={
+              <Typography sx={{ fontSize: '0.8125rem' }}>
+                Attach donation receipt PDF 随邮件附上捐款收据
+              </Typography>
+            }
+            sx={{ mt: 1 }}
+          />
+          <Typography sx={{ fontSize: '0.71875rem', color: MUTED, mt: 0.5 }}>
+            The exact subject + message you send is recorded into the donation's notes. / 实际发送的标题和正文将完整记录到该捐款的备注中。
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setThankTarget(null)} disabled={sendingThanks}>Cancel 取消</Button>
           <Button
             variant="contained"
             onClick={handleSendThankYou}
-            disabled={sendingThanks || !thankEmail.includes('@')}
+            disabled={sendingThanks || !thankEmail.includes('@') || !thankMessage.trim()}
             sx={pillButtonSx(true)}
           >
             {sendingThanks ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Send 发送'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Thank-you templates manager */}
+      <Dialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>✉ Thank-you templates 感谢信模板</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '0.78125rem', color: MUTED, mb: 2, lineHeight: 1.6 }}>
+            Each donation uses the template with the highest tier at or below its amount. 每笔捐款自动匹配「不超过其金额的最高档位」模板。Placeholders 可用变量:
+            {' '}<Chip size="small" label="{name}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
+            {' '}<Chip size="small" label="{amount}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
+            {' '}<Chip size="small" label="{date}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
+          </Typography>
+
+          {templates.map((template) => (
+            <Box key={template.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 1.25, borderBottom: `1px solid ${LINE}` }}>
+              <Typography sx={{ fontSize: '0.84375rem', fontWeight: 700 }}>{template.name}</Typography>
+              <Chip size="small" label={`≥ ${formatAmount(template.min_amount)}`} sx={{ fontSize: '0.6875rem', fontWeight: 700, backgroundColor: PURPLE_BG, color: PURPLE, borderRadius: '99px', height: 20 }} />
+              <Box sx={{ flexGrow: 1 }} />
+              <Button size="small" onClick={() => setTplForm({ ...template })} sx={{ textTransform: 'none', fontSize: '0.71875rem', fontWeight: 700, color: ORANGE }}>
+                ✎ Edit 编辑
+              </Button>
+              <Button size="small" onClick={() => handleDeleteTemplate(template.id)} sx={{ textTransform: 'none', fontSize: '0.71875rem', fontWeight: 700, color: '#c62828' }}>
+                Delete 删除
+              </Button>
+            </Box>
+          ))}
+          {templates.length === 0 && !tplForm && (
+            <Typography sx={{ fontSize: '0.78125rem', color: MUTED, py: 1 }}>
+              No templates yet — the built-in bilingual letter is used. / 尚未配置模板，当前使用内置双语感谢信。
+            </Typography>
+          )}
+
+          {tplForm ? (
+            <Box sx={{ backgroundColor: '#FDFBF7', border: `1px solid ${LINE}`, borderRadius: '10px', p: 2, mt: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
+                <TextField
+                  label="Template name 模板名称"
+                  size="small"
+                  fullWidth
+                  value={tplForm.name}
+                  onChange={(e) => setTplForm({ ...tplForm, name: e.target.value })}
+                />
+                <TextField
+                  label="Applies from 适用金额 ≥ $"
+                  size="small"
+                  type="number"
+                  sx={{ width: 180 }}
+                  value={tplForm.min_amount}
+                  onChange={(e) => setTplForm({ ...tplForm, min_amount: e.target.value })}
+                />
+              </Box>
+              <TextField
+                label="Subject 邮件标题"
+                size="small"
+                fullWidth
+                value={tplForm.subject}
+                onChange={(e) => setTplForm({ ...tplForm, subject: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                label="Body 正文"
+                multiline
+                minRows={7}
+                fullWidth
+                size="small"
+                value={tplForm.body}
+                onChange={(e) => setTplForm({ ...tplForm, body: e.target.value })}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1.5 }}>
+                <Button size="small" onClick={() => setTplForm(null)} disabled={tplSaving} sx={{ textTransform: 'none', color: MUTED }}>
+                  Cancel 取消
+                </Button>
+                <Button
+                  size="small"
+                  onClick={handleSaveTemplate}
+                  disabled={tplSaving || !tplForm.name || !tplForm.subject || !tplForm.body}
+                  sx={{ ...pillButtonSx(true), fontSize: '0.71875rem', py: 0.375 }}
+                >
+                  {tplSaving ? <CircularProgress size={14} sx={{ color: 'white' }} /> : 'Save 保存'}
+                </Button>
+              </Box>
+            </Box>
+          ) : (
+            <Button
+              fullWidth
+              onClick={() => setTplForm({ name: '', min_amount: 0, subject: '', body: '' })}
+              sx={{ mt: 2, textTransform: 'none', fontWeight: 700, fontSize: '0.78125rem', border: `1.5px dashed ${ORANGE}`, color: ORANGE, borderRadius: '10px', py: 1 }}
+            >
+              ＋ Add template 添加模板
+            </Button>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setTemplatesOpen(false)}>Close 关闭</Button>
         </DialogActions>
       </Dialog>
 

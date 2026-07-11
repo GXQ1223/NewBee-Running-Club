@@ -323,7 +323,7 @@ def test_send_thank_you_sends_and_stamps(client, db_session, committee_member, m
     import email_service
     sent = {}
 
-    def fake_send(to_email, subject, body_html, body_text=None):
+    def fake_send(to_email, subject, body_html, body_text=None, attachments=None):
         sent.update(to=to_email, subject=subject, html=body_html, text=body_text)
         return True
 
