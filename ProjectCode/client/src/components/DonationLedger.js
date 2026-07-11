@@ -148,7 +148,8 @@ export default function DonationLedger({ onLedgerChange }) {
   const [thankEmail, setThankEmail] = useState('');
   const [thankSubject, setThankSubject] = useState('');
   const [thankMessage, setThankMessage] = useState('');
-  const [thankTemplateName, setThankTemplateName] = useState(null);
+  const [thankTemplateId, setThankTemplateId] = useState(0);
+  const [thankTemplates, setThankTemplates] = useState([]);
   const [thankAttach, setThankAttach] = useState(true);
   const [sendingThanks, setSendingThanks] = useState(false);
   const [ignoredOpen, setIgnoredOpen] = useState(false);
@@ -232,16 +233,34 @@ export default function DonationLedger({ onLedgerChange }) {
     setThankEmail('');
     setThankSubject('');
     setThankMessage('');
-    setThankTemplateName(null);
+    setThankTemplateId(0);
+    setThankTemplates([]);
     setThankAttach(true);
     try {
-      const preview = await getThankYouPreview(donation.donation_id, firebaseUid);
+      const [preview, templateList] = await Promise.all([
+        getThankYouPreview(donation.donation_id, firebaseUid),
+        getThankYouTemplates(firebaseUid),
+      ]);
       setThankSubject(preview.subject || '');
       setThankMessage(preview.body || '');
-      setThankTemplateName(preview.template_name);
+      setThankTemplateId(preview.template_id || 0);
+      setThankTemplates(templateList);
     } catch (err) {
       console.error('Error loading thank-you preview:', err);
       setError('Failed to load the letter preview. / 加载感谢信预览失败。');
+    }
+  };
+
+  const handleSwitchTemplate = async (templateId) => {
+    if (!thankTarget) return;
+    setThankTemplateId(templateId);
+    try {
+      const preview = await getThankYouPreview(thankTarget.donation_id, firebaseUid, templateId);
+      setThankSubject(preview.subject || '');
+      setThankMessage(preview.body || '');
+    } catch (err) {
+      console.error('Error switching template:', err);
+      setError('Failed to load that template. / 切换模板失败。');
     }
   };
 
@@ -846,13 +865,26 @@ export default function DonationLedger({ onLedgerChange }) {
           <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 1 }}>
             {thankTarget?.name} · {formatAmount(thankTarget?.amount)} · {formatDate(thankTarget?.donation_date)}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, backgroundColor: PURPLE_BG, borderRadius: '9px', px: 1.5, py: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', backgroundColor: PURPLE_BG, borderRadius: '9px', px: 1.5, py: 1, mb: 2 }}>
             <Typography sx={{ fontSize: '0.75rem', color: PURPLE, fontWeight: 600 }}>
-              Matched template 匹配模板:
+              Template 模板:
             </Typography>
-            <Chip size="small" label={thankTemplateName || 'Built-in default 内置模板'} sx={{ fontSize: '0.65625rem', fontWeight: 700, backgroundColor: PURPLE, color: 'white', borderRadius: '99px', height: 20 }} />
+            <Select
+              size="small"
+              value={thankTemplateId}
+              onChange={(e) => handleSwitchTemplate(e.target.value)}
+              inputProps={{ 'aria-label': 'Template 模板' }}
+              sx={{ fontSize: '0.78125rem', fontWeight: 700, color: PURPLE, borderRadius: '8px', backgroundColor: 'white', minWidth: 220, '& .MuiSelect-select': { py: 0.5 } }}
+            >
+              {thankTemplates.map((template) => (
+                <MenuItem key={template.id} value={template.id} sx={{ fontSize: '0.8125rem' }}>
+                  {template.name} · ≥ {formatAmount(template.min_amount)}
+                </MenuItem>
+              ))}
+              <MenuItem value={0} sx={{ fontSize: '0.8125rem' }}>Built-in default 内置模板</MenuItem>
+            </Select>
             <Typography sx={{ fontSize: '0.71875rem', color: PURPLE }}>
-              — edit anything below before sending 发送前可任意修改
+              switching refills the letter; edit anything before sending 切换模板会重新填充，可再修改
             </Typography>
           </Box>
           <TextField

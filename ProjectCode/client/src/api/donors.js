@@ -180,14 +180,17 @@ export async function sendThankYou(donationId, { email, subject, message, attach
 }
 
 /**
- * The letter a donation would receive (matched tier template, rendered),
- * for review/editing in the send dialog
+ * The rendered letter for a donation, for review/editing in the send dialog.
+ * Auto-matches a template by amount; pass templateId to render a specific
+ * one (0 = built-in default).
  * @param {number} donationId - Donation ID
  * @param {string} firebaseUid - Committee/admin Firebase UID
- * @returns {Promise<Object>} { subject, body, template_name }
+ * @param {number} [templateId] - Specific template to render
+ * @returns {Promise<Object>} { subject, body, template_name, template_id }
  */
-export async function getThankYouPreview(donationId, firebaseUid) {
-  return api.get(`/api/donors/donations/${donationId}/thank-you-preview`, {},
+export async function getThankYouPreview(donationId, firebaseUid, templateId) {
+  const params = templateId === undefined ? {} : { template_id: templateId };
+  return api.get(`/api/donors/donations/${donationId}/thank-you-preview`, params,
     { 'X-Firebase-UID': firebaseUid }, { skipCache: true });
 }
 

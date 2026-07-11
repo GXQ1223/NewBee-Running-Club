@@ -122,6 +122,7 @@ beforeEach(() => {
     subject: 'Thank you for supporting NewBee Running Club!',
     body: 'Dear donor, thank you for your generous donation.',
     template_name: null,
+    template_id: 0,
   });
   getThankYouTemplates.mockResolvedValue([]);
   createThankYouTemplate.mockResolvedValue({});
@@ -279,6 +280,32 @@ test('send dialog prefills the matched letter and sends the edited version', asy
     expect(screen.queryByText('✉ Send thank-you email 发送感谢邮件')).not.toBeInTheDocument()
   );
   expect(getDonationLedger).toHaveBeenCalledTimes(2);
+});
+
+test('switching templates in the send dialog refills the letter', async () => {
+  getThankYouTemplates.mockResolvedValue([
+    { id: 5, name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' },
+  ]);
+  getThankYouPreview
+    .mockResolvedValueOnce({
+      subject: 'Auto subject', body: 'Auto body', template_name: null, template_id: 0,
+    })
+    .mockResolvedValueOnce({
+      subject: 'Major subject', body: 'Major body for Golden Wheat',
+      template_name: 'Major donor', template_id: 5,
+    });
+
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  await screen.findByDisplayValue('Auto body');
+
+  fireEvent.mouseDown(screen.getByLabelText('Template 模板').closest('[role="combobox"]') || screen.getAllByRole('combobox')[0]);
+  fireEvent.click(await screen.findByText(/Major donor · ≥ \$300\.00/));
+
+  await waitFor(() => expect(getThankYouPreview).toHaveBeenCalledWith(12, 'admin-uid', 5));
+  expect(await screen.findByDisplayValue('Major body for Golden Wheat')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('Major subject')).toBeInTheDocument();
 });
 
 test('attach-receipt checkbox can be unchecked before sending', async () => {
