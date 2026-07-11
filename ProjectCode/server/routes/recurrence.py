@@ -12,7 +12,8 @@ from models import (
     EventRecurrenceRuleCreate, EventRecurrenceRuleUpdate,
     EventRecurrenceRuleResponse, EventWithRecurrence, EventResponse
 )
-from utils.auth import get_current_admin
+from utils.auth import get_current_admin, get_current_committee_or_admin
+from utils.recurrence import create_event_instance
 
 router = APIRouter(tags=["Event Recurrence"])
 
@@ -41,9 +42,9 @@ def create_event_recurrence(
     event_id: int,
     rule_data: EventRecurrenceRuleCreate,
     db: Session = Depends(get_db),
-    current_admin: Member = Depends(get_current_admin)
+    current_user: Member = Depends(get_current_committee_or_admin)
 ):
-    """Create a recurrence rule for an event (admin only)"""
+    """Create a recurrence rule for an event (committee or admin)"""
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
@@ -86,9 +87,9 @@ def update_event_recurrence(
     event_id: int,
     rule_update: EventRecurrenceRuleUpdate,
     db: Session = Depends(get_db),
-    current_admin: Member = Depends(get_current_admin)
+    current_user: Member = Depends(get_current_committee_or_admin)
 ):
-    """Update recurrence rule for an event (admin only)"""
+    """Update recurrence rule for an event (committee or admin)"""
     rule = db.query(EventRecurrenceRule).filter(
         EventRecurrenceRule.event_id == event_id
     ).first()
@@ -114,9 +115,9 @@ def update_event_recurrence(
 def delete_event_recurrence(
     event_id: int,
     db: Session = Depends(get_db),
-    current_admin: Member = Depends(get_current_admin)
+    current_user: Member = Depends(get_current_committee_or_admin)
 ):
-    """Delete recurrence rule for an event (stops future occurrences, admin only)"""
+    """Delete recurrence rule for an event (stops future occurrences, committee or admin)"""
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
@@ -218,29 +219,11 @@ def manually_generate_recurrence(
         if rule.max_occurrences and rule.occurrences_created + len(generated_events) + 1 > rule.max_occurrences:
             break
 
-        # Create new event instance
-        new_event = Event(
-            name=event.name,
-            chinese_name=event.chinese_name,
-            date=current_date,
-            time=event.time,
-            location=event.location,
-            chinese_location=event.chinese_location,
-            description=event.description,
-            chinese_description=event.chinese_description,
-            image=event.image,
-            signup_link=event.signup_link,
-            status='Upcoming',
-            event_type=event.event_type,
-            heylo_embed=event.heylo_embed,
-            is_recurring=False,  # Instance is not itself recurring
-            parent_event_id=event_id
-        )
-
-        db.add(new_event)
+        # Create new event instance (year mentions rewritten to occurrence year)
+        new_event = create_event_instance(db, event, current_date)
         generated_events.append({
             "date": str(current_date),
-            "name": event.name
+            "name": new_event.name
         })
         last_generated = current_date
 

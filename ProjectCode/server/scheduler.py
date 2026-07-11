@@ -17,9 +17,9 @@ from contextlib import contextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy.orm import Session
 
 from database import SessionLocal, Event, EventRecurrenceRule
+from utils.recurrence import create_event_instance
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -194,40 +194,6 @@ def calculate_next_occurrence(rule: EventRecurrenceRule, base_date: date) -> dat
 
     # Default fallback
     return current_date + timedelta(weeks=1)
-
-
-def create_event_instance(db: Session, parent_event: Event, occurrence_date: date) -> Event:
-    """
-    Create a new event instance from a parent recurring event.
-
-    Args:
-        db: Database session
-        parent_event: The parent event to copy from
-        occurrence_date: The date for the new instance
-
-    Returns:
-        Event: The newly created event instance
-    """
-    new_event = Event(
-        name=parent_event.name,
-        chinese_name=parent_event.chinese_name,
-        date=occurrence_date,
-        time=parent_event.time,
-        location=parent_event.location,
-        chinese_location=parent_event.chinese_location,
-        description=parent_event.description,
-        chinese_description=parent_event.chinese_description,
-        image=parent_event.image,
-        signup_link=parent_event.signup_link,
-        status='Upcoming',
-        event_type=parent_event.event_type,
-        heylo_embed=parent_event.heylo_embed,
-        is_recurring=False,  # Instance is not itself recurring
-        parent_event_id=parent_event.id
-    )
-
-    db.add(new_event)
-    return new_event
 
 
 def generate_recurring_events():

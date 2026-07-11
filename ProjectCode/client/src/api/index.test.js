@@ -16,7 +16,8 @@ test('re-exports functions from every domain module', () => {
     'updateMemberPrivacy', 'getMembersForCredits', 'getCommitteeMembers',
     // events
     'getAllEvents', 'getEventsByStatus', 'getEventById', 'createEvent', 'updateEvent',
-    'deleteEvent', 'getEventSeries', 'addEventToSeries', 'toggleSeriesParent',
+    'deleteEvent', 'getEventWithRecurrence', 'createEventRecurrence', 'updateEventRecurrence',
+    'deleteEventRecurrence', 'getEventSeries', 'addEventToSeries', 'toggleSeriesParent',
     'dissolveSeries', 'removeEventFromSeries', 'mergeEventsToGroup', 'removeEventFromGroup',
     'getHighlightsGrouped', 'updateGroupName', 'undoGroupMerge',
     // meeting minutes

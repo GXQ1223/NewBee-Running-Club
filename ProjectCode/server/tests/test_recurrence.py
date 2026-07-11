@@ -36,11 +36,15 @@ def test_get_recurrence_success(client, db_session):
 
 # ---------- POST rule ----------
 
-def test_create_recurrence_requires_admin(client, db_session, committee_member):
+def test_create_recurrence_requires_committee_or_admin(client, db_session, committee_member,
+                                                       regular_member):
     event = make_event(db_session)
     url = f'/api/events/{event.id}/recurrence'
     assert client.post(url, json=RULE_PAYLOAD).status_code == 401
-    assert client.post(url, json=RULE_PAYLOAD, headers=auth(committee_member)).status_code == 403
+    assert client.post(url, json=RULE_PAYLOAD, headers=auth(regular_member)).status_code == 403
+    resp = client.post(url, json=RULE_PAYLOAD, headers=auth(committee_member))
+    assert resp.status_code == 200
+    assert resp.json()['recurrence_type'] == 'weekly'
 
 
 def test_create_recurrence_event_404(client, admin_member):
@@ -109,6 +113,19 @@ def test_update_recurrence_success(client, db_session, admin_member):
     assert body['is_active'] is False
 
 
+def test_update_recurrence_requires_committee_or_admin(client, db_session, committee_member,
+                                                       regular_member):
+    event = make_event(db_session)
+    make_rule(db_session, event, recurrence_type='weekly')
+    url = f'/api/events/{event.id}/recurrence'
+    payload = {'max_occurrences': 7}
+    assert client.put(url, json=payload).status_code == 401
+    assert client.put(url, json=payload, headers=auth(regular_member)).status_code == 403
+    resp = client.put(url, json=payload, headers=auth(committee_member))
+    assert resp.status_code == 200
+    assert resp.json()['max_occurrences'] == 7
+
+
 def test_update_recurrence_partial_fields_only(client, db_session, admin_member):
     event = make_event(db_session)
     make_rule(db_session, event, recurrence_type='weekly')
@@ -139,6 +156,19 @@ def test_delete_recurrence_success(client, db_session, admin_member):
     db_session.refresh(event)
     assert event.is_recurring is False
     assert client.get(f'/api/events/{event.id}/recurrence').status_code == 404
+
+
+def test_delete_recurrence_requires_committee_or_admin(client, db_session, committee_member,
+                                                       regular_member):
+    event = make_event(db_session, is_recurring=True)
+    make_rule(db_session, event)
+    url = f'/api/events/{event.id}/recurrence'
+    assert client.delete(url).status_code == 401
+    assert client.delete(url, headers=auth(regular_member)).status_code == 403
+    resp = client.delete(url, headers=auth(committee_member))
+    assert resp.status_code == 200
+    db_session.refresh(event)
+    assert event.is_recurring is False
 
 
 # ---------- Generate occurrences ----------
@@ -235,6 +265,20 @@ def test_generate_yearly(client, db_session, admin_member):
     resp = client.post(f'/api/events/{event.id}/recurrence/generate',
                        params={'count': 2}, headers=auth(admin_member))
     assert generated_dates(resp) == ['2026-03-05', '2027-03-05']
+
+
+def test_generate_yearly_rewrites_year_in_instance(client, db_session, admin_member):
+    """Yearly '2026 Team Champion' generates a '2027 Team Champion' instance."""
+    event = make_event(db_session, name='2026 Team Champion', event_date=date(2026, 10, 3),
+                       chinese_name='2026年队际赛')
+    make_rule(db_session, event, recurrence_type='yearly')
+    resp = client.post(f'/api/events/{event.id}/recurrence/generate',
+                       headers=auth(admin_member))
+    assert resp.json()['events'] == [{'date': '2027-10-03', 'name': '2027 Team Champion'}]
+    db_session.expire_all()
+    child = db_session.query(Event).filter(Event.parent_event_id == event.id).one()
+    assert child.name == '2027 Team Champion'
+    assert child.chinese_name == '2027年队际赛'
 
 
 def test_generate_yearly_from_leap_day(client, db_session, admin_member):
