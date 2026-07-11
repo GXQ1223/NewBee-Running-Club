@@ -546,7 +546,7 @@ export default function DonationLedger({ onLedgerChange }) {
                             </Box>
                           )}
                           {donation.notes && (
-                            <Typography sx={{ fontSize: '0.75rem', color: MUTED, lineHeight: 1.6 }}>
+                            <Typography sx={{ fontSize: '0.75rem', color: MUTED, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
                               Notes 备注: {donation.notes}
                             </Typography>
                           )}
