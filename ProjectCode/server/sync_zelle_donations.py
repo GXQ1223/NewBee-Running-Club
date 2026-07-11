@@ -267,16 +267,23 @@ def _extract_venmo_memo(text):
     """
     lines = [line.strip() for line in text.split('\n')]
     start = None
+    memo_lines = []
     for i, line in enumerate(lines):
-        if 'paid you' in line.lower():
+        idx = line.lower().find('paid you')
+        if idx != -1:
             start = i + 1
+            # In real Venmo HTML the note often sits on the same line as
+            # "{NAME} paid you" (inline spans) — keep what follows, minus
+            # any leading amount fragment like "$15.00" / "$15 00"
+            remainder = re.sub(r'^[\$\d.,\s]+', '', line[idx + len('paid you'):].strip())
+            if remainder:
+                memo_lines.append(remainder.strip())
             break
     if start is None:
         return None
 
     stop_markers = ('see transaction', 'money credited', 'payment id',
                     'transfer', 'for any issues')
-    memo_lines = []
     for line in lines[start:]:
         lowered = line.lower()
         if any(lowered.startswith(marker) for marker in stop_markers):
