@@ -14,6 +14,7 @@ import {
   getDonationLedger,
   approveDonation,
   dismissDonation,
+  revertDonation,
   runGmailSync,
   downloadTaxReport,
 } from './donors';
@@ -59,7 +60,12 @@ test('updateDonor PUTs donor data', async () => {
 
 test('deleteDonor DELETEs the donor', async () => {
   await expect(deleteDonor('D-1')).resolves.toBe('DELETE');
-  expect(api.delete).toHaveBeenCalledWith('/api/donors/D-1');
+  expect(api.delete).toHaveBeenCalledWith('/api/donors/D-1', {});
+});
+
+test('deleteDonor passes the auth header when a uid is given', async () => {
+  await deleteDonor('D-1', 'uid-1');
+  expect(api.delete).toHaveBeenCalledWith('/api/donors/D-1', { 'X-Firebase-UID': 'uid-1' });
 });
 
 test('getDonationSummary GETs the stats summary', async () => {
@@ -107,6 +113,13 @@ test('approveDonation defaults to empty corrections', async () => {
   await approveDonation(7, undefined, 'uid-1');
   expect(api.post).toHaveBeenCalledWith(
     '/api/donors/donations/7/approve', {}, { 'X-Firebase-UID': 'uid-1' }
+  );
+});
+
+test('revertDonation POSTs with auth header', async () => {
+  await expect(revertDonation(7, 'uid-1')).resolves.toBe('POST');
+  expect(api.post).toHaveBeenCalledWith(
+    '/api/donors/donations/7/revert', {}, { 'X-Firebase-UID': 'uid-1' }
   );
 });
 

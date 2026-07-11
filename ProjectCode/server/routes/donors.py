@@ -237,6 +237,27 @@ def approve_donation(
     return donor
 
 
+@router.post("/donations/{donation_id}/revert", response_model=DonorLedgerEntry)
+def revert_donation(
+    donation_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Send a donation back to pending review (undo an accidental approve
+    or dismiss). It disappears from the public page until re-approved."""
+    donor = db.query(Donor).filter(Donor.donation_id == donation_id).first()
+    if not donor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Donation {donation_id} not found"
+        )
+
+    donor.status = "pending"
+    db.commit()
+    db.refresh(donor)
+    return donor
+
+
 @router.post("/donations/{donation_id}/dismiss", response_model=DonorLedgerEntry)
 def dismiss_donation(
     donation_id: int,

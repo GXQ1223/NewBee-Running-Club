@@ -52,10 +52,14 @@ export async function updateDonor(donorId, donorData) {
 /**
  * Delete a donor
  * @param {string} donorId - Donor ID
+ * @param {string} [firebaseUid] - Committee/admin Firebase UID
  * @returns {Promise<Object>} Deletion result
  */
-export async function deleteDonor(donorId) {
-  return api.delete(`/api/donors/${donorId}`);
+export async function deleteDonor(donorId, firebaseUid) {
+  return api.delete(
+    `/api/donors/${donorId}`,
+    firebaseUid ? { 'X-Firebase-UID': firebaseUid } : {}
+  );
 }
 
 /**
@@ -123,6 +127,18 @@ export async function getDonationLedger(firebaseUid) {
  */
 export async function approveDonation(donationId, corrections = {}, firebaseUid) {
   return api.post(`/api/donors/donations/${donationId}/approve`, corrections, {
+    'X-Firebase-UID': firebaseUid,
+  });
+}
+
+/**
+ * Send a donation back to pending review (undo an accidental approve/dismiss)
+ * @param {number} donationId - Donation ID
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ * @returns {Promise<Object>} Updated ledger entry
+ */
+export async function revertDonation(donationId, firebaseUid) {
+  return api.post(`/api/donors/donations/${donationId}/revert`, {}, {
     'X-Firebase-UID': firebaseUid,
   });
 }
