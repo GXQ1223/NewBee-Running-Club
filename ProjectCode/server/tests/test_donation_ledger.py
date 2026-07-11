@@ -287,6 +287,75 @@ def test_approved_donation_becomes_public(client, db_session, committee_member):
     assert public[0]['donor_id'] == 'P1'
 
 
+# ---------------------------------------------------------------- thank-you email
+
+def test_send_thank_you_requires_auth(client, db_session):
+    donor = seed_donation(db_session, 'C1')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'kevin@example.com'})
+    assert resp.status_code == 401
+
+
+def test_send_thank_you_unknown_donation_404(client, committee_member):
+    resp = client.post('/api/donors/donations/99999/send-thank-you',
+                       json={'email': 'kevin@example.com'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 404
+
+
+def test_send_thank_you_rejects_unconfirmed(client, db_session, committee_member):
+    donor = seed_donation(db_session, 'P1', status='pending')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'kevin@example.com'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 400
+
+
+def test_send_thank_you_validates_email(client, db_session, committee_member):
+    donor = seed_donation(db_session, 'C1')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'not-an-email'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 422
+
+
+def test_send_thank_you_sends_and_stamps(client, db_session, committee_member, monkeypatch):
+    import email_service
+    sent = {}
+
+    def fake_send(to_email, subject, body_html, body_text=None):
+        sent.update(to=to_email, subject=subject, html=body_html, text=body_text)
+        return True
+
+    monkeypatch.setattr(email_service.EmailService, 'send_email', staticmethod(fake_send))
+
+    donor = seed_donation(db_session, 'C1', name='Kevin Gu', amount=15,
+                          donation_date=date(2026, 7, 7))
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'kevin@example.com'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 200
+    assert resp.json()['thank_you_sent_at'] is not None
+    assert sent['to'] == 'kevin@example.com'
+    assert 'Thank you' in sent['subject']
+    assert 'Kevin Gu' in sent['html'] and '$15.00' in sent['html']
+    assert '新蜂跑团' in sent['text']
+
+
+def test_send_thank_you_502_when_email_fails(client, db_session, committee_member, monkeypatch):
+    import email_service
+    monkeypatch.setattr(email_service.EmailService, 'send_email',
+                        staticmethod(lambda *a, **k: False))
+
+    donor = seed_donation(db_session, 'C1')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'kevin@example.com'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 502
+    db_session.refresh(donor)
+    assert donor.thank_you_sent_at is None
+
+
 # ---------------------------------------------------------------- public filtering
 
 def test_pending_and_dismissed_hidden_from_public_endpoints(client, db_session):

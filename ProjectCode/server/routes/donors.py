@@ -15,7 +15,7 @@ from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest, DonorLedgerEntry,
     DonationLedgerStats, DonationSyncStatus, DonationLedgerResponse,
-    ApproveDonationRequest
+    ApproveDonationRequest, SendThankYouRequest
 )
 from utils.auth import get_current_admin, get_current_committee_or_admin
 
@@ -273,6 +273,83 @@ def dismiss_donation(
         )
 
     donor.status = "dismissed"
+    db.commit()
+    db.refresh(donor)
+    return donor
+
+
+def _thank_you_email(donor):
+    """Default bilingual thank-you letter (replace when the club supplies
+    its own template). Returns (subject, body_html, body_text)."""
+    amount = f"${donor.amount:,.2f}"
+    on_date = (
+        f" on {donor.donation_date.strftime('%B %d, %Y')}" if donor.donation_date else ""
+    )
+    cn_date = (
+        f"于 {donor.donation_date.strftime('%Y年%m月%d日')} " if donor.donation_date else ""
+    )
+    subject = "Thank you for supporting NewBee Running Club! 感谢您支持新蜂跑团！"
+    body_text = (
+        f"Dear {donor.name},\n\n"
+        f"Thank you for your generous donation of {amount}{on_date}. "
+        "Your support enables us to organize running programs and better serve our members, "
+        "fostering a stronger, healthier, and more connected community.\n\n"
+        f"亲爱的 {donor.name}：\n\n"
+        f"感谢您{cn_date}向新蜂跑团捐赠 {amount}。您的支持帮助我们组织跑步活动、"
+        "更好地服务会员，共同建设一个更强大、更健康、更紧密的社区。\n\n"
+        "With gratitude,\nNewBee Running Club 新蜂跑团\nnewbeerunningclub.org"
+    )
+    body_html = (
+        '<div style="font-family:Roboto,sans-serif;max-width:560px;margin:0 auto;color:#212121">'
+        '<h2 style="color:#F29400">Thank you! 谢谢您！</h2>'
+        f"<p>Dear {donor.name},</p>"
+        f"<p>Thank you for your generous donation of <b style=\"color:#F29400\">{amount}</b>{on_date}. "
+        "Your support enables us to organize running programs and better serve our members, "
+        "fostering a stronger, healthier, and more connected community.</p>"
+        f"<p>亲爱的 {donor.name}：</p>"
+        f"<p>感谢您{cn_date}向新蜂跑团捐赠 <b style=\"color:#F29400\">{amount}</b>。"
+        "您的支持帮助我们组织跑步活动、更好地服务会员，共同建设一个更强大、更健康、更紧密的社区。</p>"
+        '<p style="margin-top:24px">With gratitude, 满怀感激<br>'
+        '<b>NewBee Running Club 新蜂跑团</b><br>'
+        '<a href="https://newbeerunningclub.org" style="color:#F29400">newbeerunningclub.org</a></p>'
+        "</div>"
+    )
+    return subject, body_html, body_text
+
+
+@router.post("/donations/{donation_id}/send-thank-you", response_model=DonorLedgerEntry)
+def send_thank_you(
+    donation_id: int,
+    request: SendThankYouRequest,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Email the donor a thank-you letter and stamp thank_you_sent_at.
+
+    Payment notification emails don't include the donor's address, so the
+    committee supplies the recipient email.
+    """
+    donor = db.query(Donor).filter(Donor.donation_id == donation_id).first()
+    if not donor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Donation {donation_id} not found"
+        )
+    if donor.status != "confirmed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only confirmed donations can receive a thank-you email"
+        )
+
+    from email_service import EmailService
+    subject, body_html, body_text = _thank_you_email(donor)
+    if not EmailService.send_email(request.email, subject, body_html, body_text):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to send the email — check the server email configuration"
+        )
+
+    donor.thank_you_sent_at = datetime.utcnow()
     db.commit()
     db.refresh(donor)
     return donor

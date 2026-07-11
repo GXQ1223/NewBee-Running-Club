@@ -15,6 +15,7 @@ import {
   approveDonation,
   dismissDonation,
   revertDonation,
+  sendThankYou,
   runGmailSync,
   downloadTaxReport,
 } from './donors';
@@ -127,6 +128,15 @@ test('dismissDonation POSTs with auth header', async () => {
   await expect(dismissDonation(7, 'uid-1')).resolves.toBe('POST');
   expect(api.post).toHaveBeenCalledWith(
     '/api/donors/donations/7/dismiss', {}, { 'X-Firebase-UID': 'uid-1' }
+  );
+});
+
+test('sendThankYou POSTs the recipient email with auth header', async () => {
+  await expect(sendThankYou(7, 'kevin@example.com', 'uid-1')).resolves.toBe('POST');
+  expect(api.post).toHaveBeenCalledWith(
+    '/api/donors/donations/7/send-thank-you',
+    { email: 'kevin@example.com' },
+    { 'X-Firebase-UID': 'uid-1' }
   );
 });
 
