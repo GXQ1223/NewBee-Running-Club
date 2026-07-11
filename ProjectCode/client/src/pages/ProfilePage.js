@@ -53,6 +53,16 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getMemberByFirebaseUid, updateMember } from '../api/members';
 import { getMemberRaceResults } from '../api/results';
 import { getMemberCredits } from '../api/credits';
+import {
+  getMyRaceSubmissions,
+  getMyRacePhotos,
+  deleteRaceSubmission,
+  updateRaceSubmission,
+  upsertRacePhoto,
+} from '../api/raceSubmissions';
+import RecordWall from '../components/RecordWall';
+import SubmissionsTracker from '../components/SubmissionsTracker';
+import AddRaceRecordDialog from '../components/AddRaceRecordDialog';
 
 const ORANGE = '#FFA500';
 const ORANGE_DARK = '#F29400';
@@ -107,6 +117,14 @@ const ProfilePage = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // Race record submissions & race photos (record wall)
+  const [submissions, setSubmissions] = useState([]);
+  const [racePhotos, setRacePhotos] = useState({}); // result_id -> photo_url
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false);
+  const [editSubmission, setEditSubmission] = useState(null);
+  const racePhotoInputRef = useRef(null);
+  const [racePhotoTarget, setRacePhotoTarget] = useState(null); // {type:'result'|'submission', id}
 
   // Default values for Tab auto-fill
   const profileDefaultValues = {
@@ -192,13 +210,30 @@ const ProfilePage = () => {
     }
   }, [currentUser?.uid]);
 
+  // Fetch race record submissions + per-race photos for the record wall
+  const fetchSubmissionsAndPhotos = useCallback(async () => {
+    if (!currentUser?.uid) return;
+    try {
+      const [mySubmissions, myPhotos] = await Promise.all([
+        getMyRaceSubmissions(currentUser.uid),
+        getMyRacePhotos(currentUser.uid),
+      ]);
+      setSubmissions(mySubmissions);
+      setRacePhotos(Object.fromEntries(myPhotos.map((p) => [p.result_id, p.photo_url])));
+    } catch (err) {
+      // Member may not exist in the database yet — the wall just stays empty
+      console.error('Failed to fetch race submissions:', err);
+    }
+  }, [currentUser?.uid]);
+
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
     } else {
       fetchMemberData();
+      fetchSubmissionsAndPhotos();
     }
-  }, [currentUser, navigate, fetchMemberData]);
+  }, [currentUser, navigate, fetchMemberData, fetchSubmissionsAndPhotos]);
 
   const handleLogout = async () => {
     setError('');
@@ -266,6 +301,75 @@ const ProfilePage = () => {
       // Clear the input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // ---- Record wall handlers ----
+
+  const handleOpenAddRecord = () => {
+    setEditSubmission(null);
+    setRecordDialogOpen(true);
+  };
+
+  const handleEditSubmission = (submission) => {
+    setEditSubmission(submission);
+    setRecordDialogOpen(true);
+  };
+
+  const handleRecordSubmitted = () => {
+    setSuccess('Record submitted for committee review! / 成绩已提交委员会审核！');
+    fetchSubmissionsAndPhotos();
+  };
+
+  const handleWithdrawSubmission = async (submission) => {
+    if (!window.confirm(`Withdraw "${submission.race_name}"? / 撤回该提交？`)) return;
+    try {
+      await deleteRaceSubmission(submission.id, currentUser.uid);
+      setSuccess('Submission withdrawn. / 已撤回。');
+      fetchSubmissionsAndPhotos();
+    } catch (err) {
+      setError('Failed to withdraw submission. / 撤回失败。');
+    }
+  };
+
+  const handleChangeRacePhoto = (entry) => {
+    if (entry.photoTarget) {
+      setRacePhotoTarget(entry.photoTarget);
+      racePhotoInputRef.current?.click();
+    }
+  };
+
+  const handleRacePhotoSelected = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !racePhotoTarget) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file. / 请选择图片文件。');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size must be less than 5MB. / 图片大小不能超过5MB。');
+      return;
+    }
+    setError('');
+    try {
+      const storageRef = ref(storage, `race-photos/${currentUser.uid}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      if (racePhotoTarget.type === 'submission') {
+        await updateRaceSubmission(racePhotoTarget.id, { photo_url: url }, currentUser.uid);
+      } else {
+        await upsertRacePhoto(racePhotoTarget.id, url, currentUser.uid);
+      }
+      setSuccess('Race photo updated! / 比赛照片已更新！');
+      fetchSubmissionsAndPhotos();
+    } catch (err) {
+      console.error('Error uploading race photo:', err);
+      setError('Failed to upload photo. Please try again. / 上传失败，请重试。');
+    } finally {
+      setRacePhotoTarget(null);
+      if (racePhotoInputRef.current) {
+        racePhotoInputRef.current.value = '';
       }
     }
   };
@@ -423,6 +527,47 @@ const ProfilePage = () => {
 
   const displayName = memberData?.nickname || memberData?.display_name || currentUser?.displayName || 'User';
 
+  // ---- Record wall entries ----
+  // PRs come from the results table (NYRR-synced + approved submissions);
+  // pending submissions hang on the wall as "challenger" plaques.
+  const approvedSubmissions = submissions.filter((s) => s.status === 'approved' && s.result_id);
+  const approvedResultIds = new Set(approvedSubmissions.map((s) => s.result_id));
+  const prEntries = Object.entries(raceData.stats.prs).map(([distance, pr]) => {
+    const match = (raceData.results || []).find(
+      (r) => r.race === pr.race && r.overall_time === pr.time
+    );
+    const resultId = match?.id;
+    const submissionForResult = approvedSubmissions.find((s) => s.result_id === resultId);
+    return {
+      distance,
+      time: pr.time,
+      race: pr.race,
+      date: pr.date,
+      pace: pr.pace,
+      resultId,
+      photoUrl: (resultId && racePhotos[resultId]) || submissionForResult?.photo_url || null,
+      onLeaderboard: resultId ? approvedResultIds.has(resultId) : false,
+      photoTarget: submissionForResult
+        ? { type: 'submission', id: submissionForResult.id }
+        : resultId
+          ? { type: 'result', id: resultId }
+          : null,
+    };
+  });
+  const pendingEntries = submissions
+    .filter((s) => s.status === 'pending')
+    .map((s) => ({
+      distance: s.race_distance,
+      time: s.finish_time,
+      race: s.race_name,
+      date: s.race_date,
+      pace: s.pace,
+      photoUrl: s.photo_url,
+      pending: true,
+      submissionId: s.id,
+      photoTarget: { type: 'submission', id: s.id },
+    }));
+
   return (
     <Container maxWidth="xl" sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
       {/* Hidden file input for photo upload */}
@@ -432,6 +577,16 @@ const ProfilePage = () => {
         onChange={handlePhotoUpload}
         accept="image/*"
         style={{ display: 'none' }}
+      />
+
+      {/* Hidden file input for race photo upload (record wall) */}
+      <input
+        type="file"
+        ref={racePhotoInputRef}
+        onChange={handleRacePhotoSelected}
+        accept="image/*"
+        style={{ display: 'none' }}
+        data-testid="race-wall-photo-input"
       />
 
       {/* Header Section */}
@@ -722,7 +877,7 @@ const ProfilePage = () => {
                 {loadingRaces ? <CircularProgress size={24} /> : Object.keys(raceData.stats.prs).length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                NYRR Personal Records / 纽约路跑协会个人最佳
+                Personal Records / 个人纪录
               </Typography>
             </CardContent>
           </Card>
@@ -732,60 +887,47 @@ const ProfilePage = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <TimerIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
               <Typography variant="h3" component="div">
-                {loadingRaces ? <CircularProgress size={24} /> : raceData.stats.recent_results.length}
+                {loadingRaces ? <CircularProgress size={24} /> : approvedSubmissions.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Recent Races / 近期比赛
+                On Leaderboard / 榜上纪录
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Personal Records Section */}
-      {Object.keys(raceData.stats.prs).length > 0 && (
+      {/* Record Wall Section */}
+      <Paper elevation={0} sx={{ ...panelSx, p: 3, mb: 3 }}>
+        <SectionHeader
+          icon={<TrophyIcon sx={{ color: ORANGE }} />}
+          en="My Record Wall"
+          cn="我的纪录墙"
+        />
+        <RecordWall
+          memberName={displayName}
+          memberNameCn={memberData?.display_name_cn}
+          totalRaces={raceData.stats.total_races}
+          prEntries={prEntries}
+          pendingEntries={pendingEntries}
+          onAddRecord={handleOpenAddRecord}
+          onChangePhoto={handleChangeRacePhoto}
+        />
+      </Paper>
+
+      {/* My Submissions Section */}
+      {submissions.length > 0 && (
         <Paper elevation={0} sx={{ ...panelSx, p: 3, mb: 3 }}>
           <SectionHeader
-            icon={<TrophyIcon sx={{ color: ORANGE }} />}
-            en="NYRR Personal Records"
-            cn="纽约路跑协会比赛个人最佳"
+            icon={<TimerIcon sx={{ color: ORANGE }} />}
+            en="My Submissions"
+            cn="我的提交"
           />
-          <Grid container spacing={2}>
-            {Object.entries(raceData.stats.prs).map(([distance, pr]) => (
-              <Grid item xs={12} sm={6} md={4} key={distance}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    ...panelSx,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
-                      transform: 'translateY(-3px)',
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Chip
-                      label={distance}
-                      size="small"
-                      sx={{
-                        mb: 0.5,
-                        backgroundColor: ORANGE_BG,
-                        color: ORANGE,
-                        fontWeight: 700,
-                        borderRadius: '99px',
-                      }}
-                    />
-                    <Typography variant="h5" color="primary">{pr.time}</Typography>
-                    <Typography variant="body2">{pr.race}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {pr.date} {pr.pace && `• Pace: ${pr.pace}`}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+          <SubmissionsTracker
+            submissions={submissions}
+            onEdit={handleEditSubmission}
+            onWithdraw={handleWithdrawSubmission}
+          />
         </Paper>
       )}
 
@@ -871,6 +1013,7 @@ const ProfilePage = () => {
                       Place / 名次
                     </TableSortLabel>
                   </TableCell>
+                  <TableCell>Source / 来源</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -887,6 +1030,21 @@ const ProfilePage = () => {
                         <Typography variant="caption" display="block" color="text.secondary">
                           Gender: #{result.gender_place}
                         </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {approvedResultIds.has(result.id) ? (
+                        <Chip
+                          label="已上榜 Leaderboard"
+                          size="small"
+                          sx={{ backgroundColor: '#eaf5ea', color: '#2e7d32', fontWeight: 700, fontSize: '0.65rem', height: 20, borderRadius: '99px' }}
+                        />
+                      ) : (
+                        <Chip
+                          label="NYRR"
+                          size="small"
+                          sx={{ backgroundColor: '#e8f0fe', color: '#1a63d0', fontWeight: 700, fontSize: '0.65rem', height: 20, borderRadius: '99px' }}
+                        />
                       )}
                     </TableCell>
                   </TableRow>
@@ -1150,6 +1308,15 @@ const ProfilePage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Add / Edit Race Record Dialog */}
+      <AddRaceRecordDialog
+        open={recordDialogOpen}
+        onClose={() => setRecordDialogOpen(false)}
+        onSubmitted={handleRecordSubmitted}
+        firebaseUid={currentUser?.uid}
+        editSubmission={editSubmission}
+      />
     </Container>
   );
 };
