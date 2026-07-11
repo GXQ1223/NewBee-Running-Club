@@ -240,6 +240,28 @@ def test_approve_applies_corrections(client, db_session, committee_member):
     assert body['hide_name'] is True
 
 
+def test_revert_confirmed_donation_back_to_pending(client, db_session, committee_member):
+    donor = seed_donation(db_session, 'C1', status='confirmed')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/revert',
+                       headers=auth(committee_member))
+    assert resp.status_code == 200
+    assert resp.json()['status'] == 'pending'
+    # No longer public until re-approved
+    assert client.get('/api/donors/public').json() == []
+
+
+def test_revert_requires_auth(client, db_session):
+    donor = seed_donation(db_session, 'C1')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/revert')
+    assert resp.status_code == 401
+
+
+def test_revert_unknown_donation_404(client, committee_member):
+    resp = client.post('/api/donors/donations/99999/revert',
+                       headers=auth(committee_member))
+    assert resp.status_code == 404
+
+
 def test_dismiss_donation(client, db_session, committee_member):
     donor = seed_donation(db_session, 'P1', status='pending')
     resp = client.post(f'/api/donors/donations/{donor.donation_id}/dismiss',
