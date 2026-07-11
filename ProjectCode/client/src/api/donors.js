@@ -156,6 +156,20 @@ export async function dismissDonation(donationId, firebaseUid) {
 }
 
 /**
+ * Email the donor a thank-you letter and stamp the donation as thanked.
+ * Payment emails carry no donor address, so the committee provides one.
+ * @param {number} donationId - Donation ID
+ * @param {string} email - Recipient email address
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ * @returns {Promise<Object>} Updated ledger entry
+ */
+export async function sendThankYou(donationId, email, firebaseUid) {
+  return api.post(`/api/donors/donations/${donationId}/send-thank-you`, { email }, {
+    'X-Firebase-UID': firebaseUid,
+  });
+}
+
+/**
  * Trigger the Gmail Zelle donation sync now (committee/admin only)
  * @param {string} firebaseUid - Committee/admin Firebase UID
  * @returns {Promise<Object>} Sync statistics

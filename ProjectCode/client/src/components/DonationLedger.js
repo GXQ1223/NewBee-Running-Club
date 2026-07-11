@@ -15,7 +15,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '../context';
 import {
   getDonationLedger, approveDonation, dismissDonation, revertDonation,
-  deleteDonor, runGmailSync, downloadTaxReport
+  deleteDonor, sendThankYou, runGmailSync, downloadTaxReport
 } from '../api/donors';
 
 // Design tokens (match HomePage / NavBar design language)
@@ -130,6 +130,9 @@ export default function DonationLedger({ onLedgerChange }) {
   const [actingId, setActingId] = useState(null);
   const [pendingTypes, setPendingTypes] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [thankTarget, setThankTarget] = useState(null);
+  const [thankEmail, setThankEmail] = useState('');
+  const [sendingThanks, setSendingThanks] = useState(false);
 
   // Tax report dialog
   const [taxDialogOpen, setTaxDialogOpen] = useState(false);
@@ -222,6 +225,23 @@ export default function DonationLedger({ onLedgerChange }) {
       setError('Failed to delete donation. / 删除捐款失败。');
     } finally {
       setActingId(null);
+    }
+  };
+
+  const handleSendThankYou = async () => {
+    if (!thankTarget || !thankEmail) return;
+    setSendingThanks(true);
+    setError('');
+    try {
+      await sendThankYou(thankTarget.donation_id, thankEmail, firebaseUid);
+      setThankTarget(null);
+      setThankEmail('');
+      await fetchLedger();
+    } catch (err) {
+      console.error('Error sending thank-you email:', err);
+      setError('Failed to send the thank-you email. / 发送感谢邮件失败。');
+    } finally {
+      setSendingThanks(false);
     }
   };
 
@@ -480,19 +500,31 @@ export default function DonationLedger({ onLedgerChange }) {
                           </IconButton>
                         </Box>
                       ) : dismissed ? (
-                        '—'
+                        <Tooltip title="Manually confirmed it's a real donation? Approve it. / 人工确认为真实捐款后可直接批准">
+                          <span>
+                            <Button
+                              size="small"
+                              startIcon={acting ? <CircularProgress size={12} sx={{ color: ORANGE }} /> : <CheckIcon sx={{ fontSize: 14 }} />}
+                              onClick={() => handleApprove(donation)}
+                              disabled={acting}
+                              sx={{ ...pillButtonSx(false), fontSize: '0.6875rem', py: 0.25 }}
+                            >
+                              Approve 确认
+                            </Button>
+                          </span>
+                        </Tooltip>
                       ) : donation.thank_you_sent_at ? (
                         <Typography sx={{ fontSize: '0.71875rem', color: GREEN, fontWeight: 700, whiteSpace: 'nowrap' }}>
                           ✓ Sent {formatDate(donation.thank_you_sent_at)}
                         </Typography>
                       ) : (
-                        <Tooltip title="Email template coming soon / 感谢邮件模板即将上线">
-                          <span>
-                            <Button size="small" disabled sx={{ textTransform: 'none', fontSize: '0.6875rem', fontWeight: 700, borderRadius: '99px', border: `1px solid ${LINE}`, color: MUTED, py: 0.25 }}>
-                              Send thank-you 发送感谢
-                            </Button>
-                          </span>
-                        </Tooltip>
+                        <Button
+                          size="small"
+                          onClick={() => { setThankTarget(donation); setThankEmail(''); }}
+                          sx={{ ...pillButtonSx(false), fontSize: '0.6875rem', py: 0.25 }}
+                        >
+                          Send thank-you 发送感谢
+                        </Button>
                       )}
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', width: 110 }}>
@@ -572,6 +604,39 @@ export default function DonationLedger({ onLedgerChange }) {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Send thank-you dialog */}
+      <Dialog open={Boolean(thankTarget)} onClose={() => setThankTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>✉ Send thank-you email 发送感谢邮件</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '0.875rem', mb: 1 }}>
+            {thankTarget?.name} · {formatAmount(thankTarget?.amount)} · {formatDate(thankTarget?.donation_date)}
+          </Typography>
+          <Typography sx={{ fontSize: '0.78125rem', color: MUTED, mb: 2 }}>
+            Payment emails don't include the donor's address — enter it below. A bilingual thank-you letter will be sent from the club Gmail. / 付款邮件不含捐赠者邮箱，请填写收件地址；系统将从跑团邮箱发送中英双语感谢信。
+          </Typography>
+          <TextField
+            label="Donor email 捐赠者邮箱"
+            type="email"
+            size="small"
+            fullWidth
+            autoFocus
+            value={thankEmail}
+            onChange={(e) => setThankEmail(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setThankTarget(null)} disabled={sendingThanks}>Cancel 取消</Button>
+          <Button
+            variant="contained"
+            onClick={handleSendThankYou}
+            disabled={sendingThanks || !thankEmail.includes('@')}
+            sx={pillButtonSx(true)}
+          >
+            {sendingThanks ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Send 发送'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Delete confirmation dialog */}
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>

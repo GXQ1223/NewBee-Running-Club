@@ -7,6 +7,7 @@ import {
   dismissDonation,
   revertDonation,
   deleteDonor,
+  sendThankYou,
   runGmailSync,
   downloadTaxReport,
 } from '../api/donors';
@@ -20,6 +21,7 @@ jest.mock('../api/donors', () => ({
   dismissDonation: jest.fn(),
   revertDonation: jest.fn(),
   deleteDonor: jest.fn(),
+  sendThankYou: jest.fn(),
   runGmailSync: jest.fn(),
   downloadTaxReport: jest.fn(),
 }));
@@ -105,6 +107,7 @@ beforeEach(() => {
   dismissDonation.mockResolvedValue({});
   revertDonation.mockResolvedValue({});
   deleteDonor.mockResolvedValue({});
+  sendThankYou.mockResolvedValue({});
   runGmailSync.mockResolvedValue({ emails_found: 1, inserted: 1 });
   downloadTaxReport.mockResolvedValue({
     blob: new Blob(['pdf']),
@@ -131,7 +134,18 @@ test('renders all donations with status chips and pending actions', async () => 
   expect(screen.getByText('Golden Wheat Bakery')).toBeInTheDocument();
   expect(screen.getByText('PENDING 待审核')).toBeInTheDocument();
   expect(screen.getByText('DISMISSED 已忽略')).toBeInTheDocument();
-  expect(screen.getByText('Approve 确认')).toBeInTheDocument();
+  // One Approve on the pending row, one on the dismissed row
+  expect(screen.getAllByText('Approve 确认')).toHaveLength(2);
+});
+
+test('dismissed rows can be approved directly after manual confirmation', async () => {
+  const onLedgerChange = jest.fn();
+  render(<DonationLedger onLedgerChange={onLedgerChange} />);
+  await screen.findByText('Spam Sender');
+  // Second Approve button belongs to the dismissed Spam Sender row
+  fireEvent.click(screen.getAllByText('Approve 确认')[1]);
+  await waitFor(() => expect(approveDonation).toHaveBeenCalledWith(13, {}, 'admin-uid'));
+  await waitFor(() => expect(onLedgerChange).toHaveBeenCalled());
 });
 
 test('pending donations sort to the top and show source chips', async () => {
@@ -188,12 +202,48 @@ test('manual entries with a payment-app source name still show as Manual', async
   expect(screen.queryByText(/✉ Gmail/)).not.toBeInTheDocument();
 });
 
-test('thank-you column shows sent state and disabled placeholder', async () => {
+test('thank-you column shows sent state or an enabled send button', async () => {
   render(<DonationLedger />);
   await screen.findByText('Li Chen');
   expect(screen.getByText(/✓ Sent/)).toBeInTheDocument();
   const sendButton = screen.getByText('Send thank-you 发送感谢').closest('button');
-  expect(sendButton).toBeDisabled();
+  expect(sendButton).toBeEnabled();
+});
+
+test('send thank-you asks for the donor email then sends', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  expect(await screen.findByText('✉ Send thank-you email 发送感谢邮件')).toBeInTheDocument();
+
+  // Send is disabled until a plausible email is entered
+  const sendBtn = screen.getByText('Send 发送').closest('button');
+  expect(sendBtn).toBeDisabled();
+  fireEvent.change(screen.getByLabelText(/Donor email 捐赠者邮箱/), {
+    target: { value: 'baker@example.com' },
+  });
+  expect(sendBtn).toBeEnabled();
+
+  fireEvent.click(sendBtn);
+  await waitFor(() => expect(sendThankYou).toHaveBeenCalledWith(12, 'baker@example.com', 'admin-uid'));
+  // Dialog closes and the ledger refreshes
+  await waitFor(() =>
+    expect(screen.queryByText('✉ Send thank-you email 发送感谢邮件')).not.toBeInTheDocument()
+  );
+  expect(getDonationLedger).toHaveBeenCalledTimes(2);
+});
+
+test('shows an error when the thank-you email fails to send', async () => {
+  sendThankYou.mockRejectedValue(new Error('smtp down'));
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  fireEvent.change(await screen.findByLabelText(/Donor email 捐赠者邮箱/), {
+    target: { value: 'baker@example.com' },
+  });
+  fireEvent.click(screen.getByText('Send 发送'));
+  expect(await screen.findByText(/Failed to send the thank-you email/)).toBeInTheDocument();
 });
 
 test('filter chips narrow the table', async () => {
@@ -231,7 +281,8 @@ test('approve sends corrections and refreshes the ledger', async () => {
   fireEvent.mouseDown(await screen.findByRole('combobox'));
   fireEvent.click(screen.getByRole('option', { name: /Enterprise 企业/ }));
 
-  fireEvent.click(screen.getByText('Approve 确认'));
+  // First Approve belongs to the pending row (sorted to the top)
+  fireEvent.click(screen.getAllByText('Approve 确认')[0]);
   await waitFor(() => expect(approveDonation).toHaveBeenCalledWith(
     10, { donor_type: 'enterprise' }, 'admin-uid'
   ));
@@ -374,7 +425,7 @@ test('shows an error when approve fails', async () => {
   approveDonation.mockRejectedValue(new Error('nope'));
   render(<DonationLedger />);
   await screen.findByText('Ming Zhao');
-  fireEvent.click(screen.getByText('Approve 确认'));
+  fireEvent.click(screen.getAllByText('Approve 确认')[0]);
   expect(await screen.findByText(/Failed to approve donation/)).toBeInTheDocument();
 });
 

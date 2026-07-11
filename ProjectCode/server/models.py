@@ -124,6 +124,12 @@ class ApproveDonationRequest(BaseModel):
     donor_type: Optional[DonorType] = None
     name: Optional[str] = Field(None, max_length=255)
     hide_name: Optional[bool] = None
+
+
+class SendThankYouRequest(BaseModel):
+    """Recipient for a donation thank-you email (payment emails carry no
+    donor address, so committee provides one)"""
+    email: EmailStr
     
 class DonationSummary(BaseModel):
     donor_type: str
