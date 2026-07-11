@@ -78,7 +78,9 @@ const ledgerData = {
       source: 'Zelle (Spam Sender)',
       receipt_confirmed: false,
       status: 'dismissed',
-      email_excerpt: 'Zelle payment received — Spam Sender sent you $5.00',
+      email_excerpt: 'Zelle payment received — Spam Sender sent you $5.00 · Memo: carpool',
+      message: 'carpool',
+      notes: "Zelle Transaction #1 · Auto-ignored 自动忽略: memo matched 'carpool'",
     },
   ],
   stats: {
@@ -124,23 +126,31 @@ test('renders stat tiles from ledger stats', async () => {
   expect(screen.getByText(/Thank-you not sent 未致谢/)).toBeInTheDocument();
 });
 
-test('renders all donations with status chips and pending actions', async () => {
+test('main table shows pending and approved rows; ignored ones move to the section', async () => {
   render(<DonationLedger />);
   expect(await screen.findByText('Ming Zhao')).toBeInTheDocument();
   expect(screen.getByText('Li Chen')).toBeInTheDocument();
   expect(screen.getByText('Golden Wheat Bakery')).toBeInTheDocument();
   expect(screen.getByText('PENDING 待审核')).toBeInTheDocument();
-  expect(screen.getByText('DISMISSED 已忽略')).toBeInTheDocument();
-  // One Approve on the pending row, one on the dismissed row
-  expect(screen.getAllByText('Approve 确认')).toHaveLength(2);
+  // Ignored row is out of the main table, inside the collapsed section
+  expect(screen.queryByText('Spam Sender')).not.toBeInTheDocument();
+  const sectionHeader = screen.getByText('Ignored 已忽略').closest('div');
+  expect(within(sectionHeader).getByText('1')).toBeInTheDocument(); // count chip
+  // Only the pending row has an Approve button in the main table
+  expect(screen.getAllByText('Approve 确认')).toHaveLength(1);
 });
 
-test('dismissed rows can be approved directly after manual confirmation', async () => {
+test('ignored section expands to show rows with an AUTO badge and Restore', async () => {
   const onLedgerChange = jest.fn();
   render(<DonationLedger onLedgerChange={onLedgerChange} />);
-  await screen.findByText('Spam Sender');
-  // Second Approve button belongs to the dismissed Spam Sender row
-  fireEvent.click(screen.getAllByText('Approve 确认')[1]);
+  await screen.findByText('Ming Zhao');
+
+  fireEvent.click(screen.getByText('Ignored 已忽略'));
+  expect(await screen.findByText('Spam Sender')).toBeInTheDocument();
+  expect(screen.getByText('AUTO')).toBeInTheDocument();
+  expect(screen.getByText(/memo matched 'carpool'/)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByText('Restore 恢复为已确认'));
   await waitFor(() => expect(approveDonation).toHaveBeenCalledWith(13, {}, 'admin-uid'));
   await waitFor(() => expect(onLedgerChange).toHaveBeenCalled());
 });
@@ -151,7 +161,8 @@ test('pending donations sort to the top and show source chips', async () => {
   const rows = screen.getAllByRole('row');
   // Header row, then pending Ming Zhao first
   expect(within(rows[1]).getByText('Ming Zhao')).toBeInTheDocument();
-  expect(screen.getAllByText('✉ Gmail · Zelle').length).toBe(3);
+  // Ming Zhao + Li Chen (ignored Spam Sender is in the collapsed section)
+  expect(screen.getAllByText('✉ Gmail · Zelle').length).toBe(2);
   // Filter chip + one manual source chip
   expect(screen.getAllByText('Manual 手动').length).toBe(2);
 });
@@ -287,40 +298,41 @@ test('approve sends corrections and refreshes the ledger', async () => {
   expect(getDonationLedger).toHaveBeenCalledTimes(2);
 });
 
-test('dismiss calls the API and refreshes', async () => {
+test('ignoring a pending row calls the API and refreshes', async () => {
   render(<DonationLedger />);
   await screen.findByText('Ming Zhao');
-  fireEvent.click(screen.getByLabelText('Dismiss 忽略'));
+  // First Ignore button belongs to the pending row (sorted to the top)
+  fireEvent.click(screen.getAllByText('Ignore 忽略')[0]);
   await waitFor(() => expect(dismissDonation).toHaveBeenCalledWith(10, 'admin-uid'));
   await waitFor(() => expect(getDonationLedger).toHaveBeenCalledTimes(2));
 });
 
-test('reviewed rows show un-approve but never a delete action', async () => {
+test('every row offers Ignore; delete is never offered', async () => {
   render(<DonationLedger />);
   await screen.findByText('Li Chen');
-  // 3 non-pending rows (Li Chen, Golden Wheat, dismissed Spam Sender)
-  expect(screen.getAllByLabelText('Un-approve 撤回')).toHaveLength(3);
-  // Deleting is not offered: the ignored row is what stops the Gmail sync
-  // from re-importing the same transaction
+  // Pending row + 2 approved rows each have an Ignore action
+  expect(screen.getAllByText('Ignore 忽略')).toHaveLength(3);
   expect(screen.queryByLabelText('Delete 删除')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Un-approve 撤回')).not.toBeInTheDocument();
 });
 
-test('un-approve sends the donation back to pending', async () => {
+test('ignoring an approved row moves it to the ignored section', async () => {
   const onLedgerChange = jest.fn();
   render(<DonationLedger onLedgerChange={onLedgerChange} />);
   await screen.findByText('Li Chen');
-  fireEvent.click(screen.getAllByLabelText('Un-approve 撤回')[0]);
-  await waitFor(() => expect(revertDonation).toHaveBeenCalledWith(11, 'admin-uid'));
+  // Rows sort pending-first: index 0 = pending Ming Zhao, 1 = Li Chen
+  fireEvent.click(screen.getAllByText('Ignore 忽略')[1]);
+  await waitFor(() => expect(dismissDonation).toHaveBeenCalledWith(11, 'admin-uid'));
   await waitFor(() => expect(onLedgerChange).toHaveBeenCalled());
   expect(getDonationLedger).toHaveBeenCalledTimes(2);
 });
 
-test('shows an error when un-approve fails', async () => {
-  revertDonation.mockRejectedValue(new Error('nope'));
+test('shows an error when ignore fails', async () => {
+  dismissDonation.mockRejectedValue(new Error('nope'));
   render(<DonationLedger />);
   await screen.findByText('Li Chen');
-  fireEvent.click(screen.getAllByLabelText('Un-approve 撤回')[0]);
-  expect(await screen.findByText(/Failed to un-approve donation/)).toBeInTheDocument();
+  fireEvent.click(screen.getAllByText('Ignore 忽略')[1]);
+  expect(await screen.findByText(/Failed to dismiss donation/)).toBeInTheDocument();
 });
 
 test('sync status line and Sync now button', async () => {
