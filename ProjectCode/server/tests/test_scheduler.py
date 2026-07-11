@@ -517,8 +517,14 @@ def test_sync_nyrr_results_imports_all_races(monkeypatch):
 
     scheduler_mod.sync_nyrr_results()
 
+    # Both previous and current year, all races (matches retired weekly_sync.sh)
     year = date.today().year
-    assert imported == [(f'BKH-{year}', f'Brooklyn Half {year}'), (f'Q10K-{year}', f'Queens 10K {year}')]
+    assert imported == [
+        (f'BKH-{year - 1}', f'Brooklyn Half {year - 1}'),
+        (f'Q10K-{year - 1}', f'Queens 10K {year - 1}'),
+        (f'BKH-{year}', f'Brooklyn Half {year}'),
+        (f'Q10K-{year}', f'Queens 10K {year}'),
+    ]
 
 
 def test_sync_nyrr_results_skips_races_without_data(monkeypatch):
@@ -550,7 +556,8 @@ def test_sync_nyrr_results_continues_after_race_error(monkeypatch):
     scheduler_mod.sync_nyrr_results()
 
     year = date.today().year
-    assert imported == [f'Q10K-{year}']  # BKH errored, Q10K still imported
+    # BKH errored both years, Q10K still imported for both
+    assert imported == [f'Q10K-{year - 1}', f'Q10K-{year}']
 
 
 def test_sync_nyrr_results_counts_import_errors(monkeypatch):

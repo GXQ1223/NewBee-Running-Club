@@ -375,27 +375,31 @@ def sync_nyrr_results():
         logger.error(f"NYRR sync: failed to import fetch_historical_data: {e}")
         return
 
-    year = date.today().year
+    # Current + previous year, matching the retired weekly_sync.sh: prior-year
+    # results get late corrections, and in January the current year is empty.
+    current_year = date.today().year
+    years = [current_year - 1, current_year]
     total_imported = 0
     total_errors = 0
 
-    for code, info in RACE_PATTERNS.items():
-        event_code = generate_event_code(code, year)
-        config = generate_race_config(code, info, year)
-        race_name = config["name"]
-        try:
-            df = fetch_race_data(event_code)
-            if df is not None and len(df) > 0:
-                count = import_race_data(event_code, config, df)
-                total_imported += count
-                logger.info(f"NYRR sync: {race_name} ({event_code}): imported {count} results")
-            else:
-                logger.info(f"NYRR sync: {race_name} ({event_code}): no data")
-        except Exception as e:
-            total_errors += 1
-            logger.error(f"NYRR sync: {race_name} ({event_code}): {e}")
-        # Be polite to the NYRR API between races
-        _time.sleep(0.5)
+    for year in years:
+        for code, info in RACE_PATTERNS.items():
+            event_code = generate_event_code(code, year)
+            config = generate_race_config(code, info, year)
+            race_name = config["name"]
+            try:
+                df = fetch_race_data(event_code)
+                if df is not None and len(df) > 0:
+                    count = import_race_data(event_code, config, df)
+                    total_imported += count
+                    logger.info(f"NYRR sync: {race_name} ({event_code}): imported {count} results")
+                else:
+                    logger.info(f"NYRR sync: {race_name} ({event_code}): no data")
+            except Exception as e:
+                total_errors += 1
+                logger.error(f"NYRR sync: {race_name} ({event_code}): {e}")
+            # Be polite to the NYRR API between races
+            _time.sleep(0.5)
 
     logger.info(
         f"NYRR results sync complete: {total_imported} results imported, "
