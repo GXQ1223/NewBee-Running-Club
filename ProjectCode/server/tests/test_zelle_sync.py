@@ -106,16 +106,27 @@ def test_build_email_excerpt_without_optional_fields():
 def make_venmo_email(sender='Xiao Yang', amount='$15.00',
                      memo='拉什福德贝林莱斯加油 凯恩进球 英格兰过关西瓜',
                      txn_link='https://venmo.com/story/4236712345',
+                     txn_text=None,
                      message_id='<venmo-abc-123@venmo.com>'):
+    """Mirror the real Venmo email text structure: duplicated title/preheader
+    line, card heading, amount split across lines, note, button, details."""
     link_html = f'<a href="{txn_link}">See transaction</a>' if txn_link else ''
+    txn_html = (
+        f'<p>Transaction details</p><p>Date</p><p>Jul 05, 2026</p>'
+        f'<p>Transaction ID</p><p>{txn_text}</p>'
+        if txn_text else ''
+    )
     html = f"""
     <html><body>
+      <p>{sender} paid you {amount} {sender} paid you {amount}</p>
       <p>venmo</p>
       <p>{sender} paid you</p>
-      <p>$15 00</p>
+      <p>$</p><p>15</p><p>. 00</p>
       <p>{memo}</p>
       {link_html}
       <p>Money credited to your Venmo account.</p>
+      {txn_html}
+      <p>For any issues, please contact us at Help Center.</p>
     </body></html>
     """
     msg = MIMEText(html, 'html', 'utf-8')
@@ -134,6 +145,19 @@ def test_parse_venmo_email_extracts_all_fields():
     assert parsed['donation_date'] == date(2026, 7, 5)
     assert parsed['transaction_number'] == '4236712345'
     assert '拉什福德' in parsed['memo']
+
+
+def test_parse_venmo_email_title_line_does_not_leak_into_memo():
+    parsed = zelle.parse_venmo_email(make_venmo_email(memo='red tee'))
+    # The duplicated "X paid you $15.00" preheader and the split amount
+    # fragments must not appear in the note
+    assert parsed['memo'] == 'red tee'
+
+
+def test_parse_venmo_email_prefers_transaction_id_field():
+    parsed = zelle.parse_venmo_email(make_venmo_email(
+        txn_text='4611697894323507636'))
+    assert parsed['transaction_number'] == '4611697894323507636'
 
 
 def test_parse_venmo_email_falls_back_to_message_id_for_dedup():

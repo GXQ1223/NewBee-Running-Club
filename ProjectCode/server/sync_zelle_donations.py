@@ -262,33 +262,45 @@ def parse_zelle_email(raw_email):
 
 def _extract_venmo_memo(text):
     """
-    Pull the payment note from a stripped Venmo email body: the lines between
-    "{NAME} paid you" / the amount and the "See transaction" button.
+    Pull the payment note from a stripped Venmo email body.
+
+    Real Venmo emails render as: a title/preheader line ("X paid you $15.00",
+    sometimes duplicated), then the card heading "X paid you", the amount
+    split across lines ("$" / "15" / ". 00"), the note, and the
+    "See transaction" button. The note is whatever sits between the LAST
+    "paid you" heading and the first stop marker, skipping amount fragments.
     """
     lines = [line.strip() for line in text.split('\n')]
-    start = None
-    memo_lines = []
+
+    stop_markers = ('see transaction', 'money credited', 'payment id',
+                    'transfer', 'for any issues', 'transaction details')
+    stop = len(lines)
     for i, line in enumerate(lines):
-        idx = line.lower().find('paid you')
-        if idx != -1:
-            start = i + 1
-            # In real Venmo HTML the note often sits on the same line as
-            # "{NAME} paid you" (inline spans) — keep what follows, minus
-            # any leading amount fragment like "$15.00" / "$15 00"
-            remainder = re.sub(r'^[\$\d.,\s]+', '', line[idx + len('paid you'):].strip())
-            if remainder:
-                memo_lines.append(remainder.strip())
+        if any(line.lower().startswith(marker) for marker in stop_markers):
+            stop = i
+            break
+
+    start = None
+    heading_idx = -1
+    for i in range(stop - 1, -1, -1):
+        heading_idx = lines[i].lower().find('paid you')
+        if heading_idx != -1:
+            start = i
             break
     if start is None:
         return None
 
-    stop_markers = ('see transaction', 'money credited', 'payment id',
-                    'transfer', 'for any issues')
-    for line in lines[start:]:
-        lowered = line.lower()
-        if any(lowered.startswith(marker) for marker in stop_markers):
-            break
-        # Skip blanks and standalone amount fragments like "$15.00" / "$15 00"
+    memo_lines = []
+    # The note may sit inline after "paid you" on the heading line itself,
+    # minus any leading amount fragment like "$15.00" / "$15 00"
+    remainder = re.sub(
+        r'^[\$\d.,\s]+', '', lines[start][heading_idx + len('paid you'):].strip()
+    )
+    if remainder:
+        memo_lines.append(remainder.strip())
+
+    for line in lines[start + 1:stop]:
+        # Skip blanks and standalone amount fragments ("$", "15", ". 00")
         if not line or re.fullmatch(r'[\$\d.,\s]+', line):
             continue
         memo_lines.append(line)
@@ -321,12 +333,16 @@ def parse_venmo_email(raw_email):
     amount = Decimal(subject_match.group(2).replace(",", ""))
 
     body = _get_email_body(msg)
-    memo = _extract_venmo_memo(strip_html(body)) if body else None
+    text = strip_html(body) if body else ''
+    memo = _extract_venmo_memo(text) if text else None
 
-    # Transaction id from the "See transaction" link, else the Message-ID
-    txn_match = re.search(
-        r'venmo\.com/(?:story|payment)s?/([A-Za-z0-9_\-]+)', body or ''
-    )
+    # Transaction id: the "Transaction ID" field in the body, else the id in
+    # the "See transaction" link, else the email Message-ID
+    txn_match = re.search(r'Transaction\s+ID\s*\n\s*(\d+)', text, re.IGNORECASE)
+    if not txn_match:
+        txn_match = re.search(
+            r'venmo\.com/(?:story|payment)s?/([A-Za-z0-9_\-]+)', body or ''
+        )
     if txn_match:
         transaction_number = txn_match.group(1)
     else:
