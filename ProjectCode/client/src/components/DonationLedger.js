@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions,
-  DialogContent, DialogTitle, Grid, IconButton, MenuItem, Paper, Select, Table,
+  DialogContent, DialogTitle, Grid, MenuItem, Paper, Select, Table,
   TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
   Tooltip, Typography
 } from '@mui/material';
@@ -10,10 +10,9 @@ import SyncIcon from '@mui/icons-material/Sync';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import ReplayIcon from '@mui/icons-material/Replay';
 import { useAuth } from '../context';
 import {
-  getDonationLedger, approveDonation, dismissDonation, revertDonation,
+  getDonationLedger, approveDonation, dismissDonation,
   sendThankYou, runGmailSync, downloadTaxReport
 } from '../api/donors';
 
@@ -131,6 +130,7 @@ export default function DonationLedger({ onLedgerChange }) {
   const [thankTarget, setThankTarget] = useState(null);
   const [thankEmail, setThankEmail] = useState('');
   const [sendingThanks, setSendingThanks] = useState(false);
+  const [ignoredOpen, setIgnoredOpen] = useState(false);
 
   // Tax report dialog
   const [taxDialogOpen, setTaxDialogOpen] = useState(false);
@@ -189,21 +189,6 @@ export default function DonationLedger({ onLedgerChange }) {
     } catch (err) {
       console.error('Error dismissing donation:', err);
       setError('Failed to dismiss donation. / 忽略捐款失败。');
-    } finally {
-      setActingId(null);
-    }
-  };
-
-  const handleRevert = async (donation) => {
-    setActingId(donation.donation_id);
-    setError('');
-    try {
-      await revertDonation(donation.donation_id, firebaseUid);
-      await fetchLedger();
-      if (onLedgerChange) onLedgerChange();
-    } catch (err) {
-      console.error('Error reverting donation:', err);
-      setError('Failed to un-approve donation. / 撤回捐款失败。');
     } finally {
       setActingId(null);
     }
@@ -282,12 +267,21 @@ export default function DonationLedger({ onLedgerChange }) {
   const stats = ledger?.stats;
   const sync = ledger?.sync;
 
+  // Ignored rows live in their own collapsible section below the main table
+  const ignoredDonations = donations.filter((d) => d.status === 'dismissed');
   const filteredDonations = donations.filter((d) => {
+    if (d.status === 'dismissed') return false;
     if (filter === 'pending') return d.status === 'pending';
     if (filter === 'gmail') return isGmailSourced(d);
     if (filter === 'manual') return !isGmailSourced(d);
     return true;
   });
+
+  // Explain machine decisions: pull the auto-ignore note out of the notes
+  const autoIgnoreNote = (donation) => {
+    const match = (donation.notes || '').match(/Auto-ignored[^·]*$/);
+    return match ? match[0].trim() : null;
+  };
 
   // Client-side preview of what the tax report will include
   const taxSelection = donations.filter((d) =>
@@ -422,7 +416,6 @@ export default function DonationLedger({ onLedgerChange }) {
             )}
             {filteredDonations.map((donation) => {
               const pending = donation.status === 'pending';
-              const dismissed = donation.status === 'dismissed';
               const expanded = expandedId === donation.donation_id;
               const acting = actingId === donation.donation_id;
               return (
@@ -434,7 +427,6 @@ export default function DonationLedger({ onLedgerChange }) {
                       cursor: 'pointer',
                       backgroundColor: pending ? '#FFFDF8' : 'inherit',
                       borderLeft: pending ? `3px solid ${ORANGE}` : 'none',
-                      opacity: dismissed ? 0.55 : 1,
                       '&:hover': { backgroundColor: ORANGE_BG },
                     }}
                   >
@@ -446,9 +438,6 @@ export default function DonationLedger({ onLedgerChange }) {
                         </Typography>
                         {pending && (
                           <Chip size="small" label="PENDING 待审核" sx={{ fontSize: '0.625rem', fontWeight: 700, backgroundColor: ORANGE, color: 'white', borderRadius: '99px', height: 18 }} />
-                        )}
-                        {dismissed && (
-                          <Chip size="small" label="DISMISSED 已忽略" sx={{ fontSize: '0.625rem', fontWeight: 700, backgroundColor: '#f1f1f1', color: MUTED, borderRadius: '99px', height: 18 }} />
                         )}
                         {donation.hide_name && (
                           <Chip size="small" label="anonymous 匿名" sx={{ fontSize: '0.625rem', fontWeight: 700, backgroundColor: '#f1f1f1', color: MUTED, borderRadius: '99px', height: 18 }} />
@@ -476,24 +465,16 @@ export default function DonationLedger({ onLedgerChange }) {
                           >
                             Approve 确认
                           </Button>
-                          <IconButton size="small" onClick={() => handleDismiss(donation)} disabled={acting} aria-label="Dismiss 忽略">
-                            <CloseIcon sx={{ fontSize: 16, color: MUTED }} />
-                          </IconButton>
+                          <Button
+                            size="small"
+                            startIcon={<CloseIcon sx={{ fontSize: 14 }} />}
+                            onClick={() => handleDismiss(donation)}
+                            disabled={acting}
+                            sx={{ textTransform: 'none', fontSize: '0.6875rem', fontWeight: 700, borderRadius: '99px', border: `1.5px solid ${LINE}`, color: MUTED, py: 0.25, px: 1.5 }}
+                          >
+                            Ignore 忽略
+                          </Button>
                         </Box>
-                      ) : dismissed ? (
-                        <Tooltip title="Manually confirmed it's a real donation? Approve it. / 人工确认为真实捐款后可直接批准">
-                          <span>
-                            <Button
-                              size="small"
-                              startIcon={acting ? <CircularProgress size={12} sx={{ color: ORANGE }} /> : <CheckIcon sx={{ fontSize: 14 }} />}
-                              onClick={() => handleApprove(donation)}
-                              disabled={acting}
-                              sx={{ ...pillButtonSx(false), fontSize: '0.6875rem', py: 0.25 }}
-                            >
-                              Approve 确认
-                            </Button>
-                          </span>
-                        </Tooltip>
                       ) : donation.thank_you_sent_at ? (
                         <Typography sx={{ fontSize: '0.71875rem', color: GREEN, fontWeight: 700, whiteSpace: 'nowrap' }}>
                           ✓ Sent {formatDate(donation.thank_you_sent_at)}
@@ -508,15 +489,21 @@ export default function DonationLedger({ onLedgerChange }) {
                         </Button>
                       )}
                     </TableCell>
-                    <TableCell sx={{ whiteSpace: 'nowrap', width: 110 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                    <TableCell sx={{ whiteSpace: 'nowrap', width: 130 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
                         {!pending && (
-                          <Box onClick={(e) => e.stopPropagation()} sx={{ display: 'flex', gap: 0.25 }}>
-                            <Tooltip title="Un-approve · back to pending / 撤回待审核">
+                          <Box onClick={(e) => e.stopPropagation()}>
+                            <Tooltip title="Not a donation? Move it to the Ignored section — restorable anytime. / 非捐款？移入下方忽略区，可随时恢复">
                               <span>
-                                <IconButton size="small" onClick={() => handleRevert(donation)} disabled={acting} aria-label="Un-approve 撤回">
-                                  <ReplayIcon sx={{ fontSize: 16, color: MUTED }} />
-                                </IconButton>
+                                <Button
+                                  size="small"
+                                  startIcon={<CloseIcon sx={{ fontSize: 13 }} />}
+                                  onClick={() => handleDismiss(donation)}
+                                  disabled={acting}
+                                  sx={{ textTransform: 'none', fontSize: '0.65625rem', fontWeight: 700, borderRadius: '99px', border: `1.5px solid ${LINE}`, color: MUTED, py: 0.125, px: 1.25, '&:hover': { borderColor: '#c62828', color: '#c62828' } }}
+                                >
+                                  Ignore 忽略
+                                </Button>
                               </span>
                             </Tooltip>
                           </Box>
@@ -578,6 +565,83 @@ export default function DonationLedger({ onLedgerChange }) {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Ignored section — the permanent record of non-donations; also what
+          stops the Gmail sync from re-importing them. Restorable anytime. */}
+      <Paper elevation={0} sx={{ mt: 2, border: `1px solid ${LINE}`, borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <Box
+          onClick={() => setIgnoredOpen(!ignoredOpen)}
+          sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2.25, py: 1.5, backgroundColor: '#FAFAFA', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <Typography sx={{ fontSize: '0.84375rem', fontWeight: 700, color: MUTED }}>
+            Ignored 已忽略
+          </Typography>
+          <Chip size="small" label={ignoredDonations.length} sx={{ fontSize: '0.65625rem', fontWeight: 700, backgroundColor: '#e0e0e0', color: '#777', borderRadius: '99px', height: 20 }} />
+          <Typography sx={{ fontSize: '0.71875rem', color: '#9a9a9a' }}>
+            carpool fees, gear payments, mistakes — restore anytime / 拼车、装备、误操作，可随时恢复
+          </Typography>
+          <Box sx={{ flexGrow: 1 }} />
+          <KeyboardArrowDownIcon sx={{
+            fontSize: 18,
+            color: MUTED,
+            transition: 'transform 0.25s',
+            transform: ignoredOpen ? 'rotate(180deg)' : 'none'
+          }} />
+        </Box>
+        <Collapse in={ignoredOpen} timeout="auto" unmountOnExit>
+          <Table size="small">
+            <TableBody>
+              {ignoredDonations.length === 0 && (
+                <TableRow>
+                  <TableCell sx={{ textAlign: 'center', py: 3, color: '#9a9a9a' }}>
+                    Nothing ignored yet. / 暂无已忽略的记录。
+                  </TableCell>
+                </TableRow>
+              )}
+              {ignoredDonations.map((donation) => (
+                <TableRow key={donation.donation_id} sx={{ '& td': { backgroundColor: '#FAFAFA', color: '#9a9a9a' } }}>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(donation.donation_date)}</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                      <Typography component="span" sx={{ fontSize: '0.84375rem', fontWeight: 500 }}>
+                        {donation.name}
+                      </Typography>
+                      {autoIgnoreNote(donation) && (
+                        <Tooltip title={autoIgnoreNote(donation)}>
+                          <Chip size="small" label="AUTO" sx={{ fontSize: '0.625rem', fontWeight: 700, backgroundColor: '#f3e8ff', color: '#7b3ff2', borderRadius: '99px', height: 18 }} />
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{formatAmount(donation.amount)}</TableCell>
+                  <TableCell><SourceChip donation={donation} /></TableCell>
+                  <TableCell sx={{ maxWidth: 320 }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#9a9a9a' }} noWrap>
+                      {donation.message || donation.email_excerpt || ''}
+                    </Typography>
+                    {autoIgnoreNote(donation) && (
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#b0b0b0' }}>
+                        {autoIgnoreNote(donation)}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <Button
+                      size="small"
+                      startIcon={actingId === donation.donation_id ? <CircularProgress size={12} sx={{ color: GREEN }} /> : <CheckIcon sx={{ fontSize: 14 }} />}
+                      onClick={() => handleApprove(donation)}
+                      disabled={actingId === donation.donation_id}
+                      sx={{ textTransform: 'none', fontSize: '0.6875rem', fontWeight: 700, borderRadius: '99px', border: `1.5px solid ${GREEN}`, color: GREEN, py: 0.25, px: 1.5, '&:hover': { backgroundColor: GREEN, color: 'white' } }}
+                    >
+                      Restore 恢复为已确认
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Collapse>
+      </Paper>
 
       {/* Send thank-you dialog */}
       <Dialog open={Boolean(thankTarget)} onClose={() => setThankTarget(null)} maxWidth="xs" fullWidth>
