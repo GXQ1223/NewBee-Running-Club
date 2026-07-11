@@ -128,6 +128,25 @@ def _run_migrations():
         ))
         conn.commit()
 
+    # Donation ledger columns on donors (same DDL as migrate_donation_ledger.py,
+    # kept here so fresh environments self-migrate on startup). Guarded on table
+    # existence for schemas created outside create_tables().
+    if 'donors' in inspector.get_table_names():
+        donor_columns = [c['name'] for c in inspector.get_columns('donors')]
+        ledger_columns = [
+            ("status", "VARCHAR(20) NOT NULL DEFAULT 'confirmed'"),
+            ("thank_you_sent_at", "DATETIME NULL"),
+            ("email_excerpt", "TEXT NULL"),
+        ]
+        missing = [(name, ddl) for name, ddl in ledger_columns if name not in donor_columns]
+        if missing:
+            with engine.connect() as conn:
+                for name, ddl in missing:
+                    conn.execute(text(f"ALTER TABLE donors ADD COLUMN {name} {ddl}"))
+                # Belt and suspenders: a partial prior run could leave NULLs
+                conn.execute(text("UPDATE donors SET status = 'confirmed' WHERE status IS NULL"))
+                conn.commit()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
