@@ -63,7 +63,16 @@ const formatDate = (dateStr) => {
   }
 };
 
-const isGmailSourced = (donation) => (donation.source || '').toLowerCase().includes('zelle');
+// Auto-imported donations carry the source email excerpt; manual ones don't
+const isGmailSourced = (donation) => Boolean(donation.email_excerpt);
+
+// Provider label for Gmail-imported donations ('Zelle', 'Venmo', ...)
+const gmailProvider = (donation) => {
+  const src = (donation.source || '').toLowerCase();
+  if (src.includes('venmo')) return 'Venmo';
+  if (src.includes('zelle')) return 'Zelle';
+  return null;
+};
 
 function StatTile({ label, value, sub, highlight, alert }) {
   return (
@@ -90,10 +99,11 @@ function StatTile({ label, value, sub, highlight, alert }) {
 
 function SourceChip({ donation }) {
   const gmail = isGmailSourced(donation);
+  const provider = gmailProvider(donation);
   return (
     <Chip
       size="small"
-      label={gmail ? '✉ Gmail · Zelle' : 'Manual 手动'}
+      label={gmail ? `✉ Gmail${provider ? ` · ${provider}` : ''}` : 'Manual 手动'}
       sx={{
         fontSize: '0.6875rem',
         fontWeight: 700,

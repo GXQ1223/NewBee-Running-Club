@@ -104,6 +104,16 @@ python main.py                                    # Run on localhost:8000
 - `GET /api/results/women-records` - Top 10 women's times
 - `GET /api/results/all-races` - All race names
 
+### Race Record Submissions (X-Firebase-UID header)
+- `POST /api/race-submissions` - Member submits a PR from a non-NYRR race (creates the race: name/date/distance + time + proof URL + photo)
+- `GET /api/race-submissions/mine` - Member's own submissions (any status)
+- `PUT /api/race-submissions/{id}` - Edit own submission (record fields while pending/rejected; photo anytime; editing a rejected one resubmits)
+- `DELETE /api/race-submissions/{id}` - Withdraw own pending/rejected submission
+- `GET /api/race-submissions/pending` - Pending list w/ member info (committee/admin)
+- `PUT /api/race-submissions/{id}/review` - Approve/reject (committee/admin). Approval inserts a `results` row (name + gender_age from member) so the record appears on the member profile and the Records leaderboard
+- `PUT /api/race-photos` - Attach/replace member's photo on own synced race result
+- `GET /api/race-photos/mine` - Member's race photos keyed by result_id
+
 ### Donation Ledger (committee/admin, X-Firebase-UID header)
 - `GET /api/donors/ledger` - All donations (any status) + stats + Gmail sync health
 - `POST /api/donors/donations/{id}/approve` - Publish a pending Gmail-imported donation
@@ -112,9 +122,11 @@ python main.py                                    # Run on localhost:8000
 - `GET /api/donors/tax-report?start_date&end_date&format=csv|pdf` - Tax file export
 
 Weekly Gmail sync: APScheduler job `sync_zelle_donations` (Mon 4:30 AM UTC) reads
-Chase Zelle emails via IMAP (`sync_zelle_donations.py`, Gmail label
-"NewBee Finance/Chase") and inserts donations as `status='pending'` for review
-in the Sponsors page admin ledger tab. Public donor endpoints only return
+Chase Zelle emails (Gmail label "NewBee Finance/Chase") and Venmo payment
+emails (label "NewBee Finance/Venmo") via IMAP (`sync_zelle_donations.py`) and
+inserts donations as `status='pending'` for review in the Sponsors page admin
+ledger tab. Venmo dedup uses the transaction id from the "See transaction"
+link (falls back to the email Message-ID). Public donor endpoints only return
 `status='confirmed'` rows.
 
 ## Coding Conventions
