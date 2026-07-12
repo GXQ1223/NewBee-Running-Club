@@ -22,6 +22,7 @@ from scheduler import start_scheduler, shutdown_scheduler
 from routes import (
     results,
     donors,
+    finance,
     members,
     activities,
     events,
@@ -193,6 +194,7 @@ def read_root():
 # Register all route modules
 app.include_router(results.router)
 app.include_router(donors.router)
+app.include_router(finance.router)
 app.include_router(members.router)
 app.include_router(activities.router)
 app.include_router(events.router)

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance B+C Hybrid — Treasury Console with Books Grid · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe;--purple:#7b3ff2;--purple-bg:#f3e8ff;--red:#c62828;--teal:#00796b;--teal-bg:#e0f2f1}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#F2EFE9;color:var(--ink);max-width:1360px;margin:0 auto;padding:26px 22px 70px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:16px}
+  .optlabel b{color:var(--orange-dark)}
+  .console{display:flex;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08);min-height:660px}
+  .side{width:212px;background:#FDFBF7;border-right:1px solid var(--line);padding:18px 0;flex-shrink:0}
+  .side h4{font-size:12.5px;font-weight:700;padding:0 18px 12px}
+  .side h4 small{display:block;color:var(--muted);font-weight:400;font-size:10.5px;margin-top:2px}
+  .nav{list-style:none}
+  .nav li{display:flex;align-items:center;gap:9px;padding:10px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none}
+  .nav li:hover{color:var(--orange-dark)}
+  .nav li.on{background:var(--orange-bg);color:var(--orange-dark);border-right:3px solid var(--orange)}
+  .nav li .n{margin-left:auto;background:var(--orange);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px}
+  .main{flex:1;padding:20px 24px;min-width:0}
+  .main h3{font-size:16px;margin-bottom:3px}
+  .main .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+  .view{display:none}
+  .view.on{display:block}
+
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .tile{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:#fff}
+  .tile.alert{border-color:var(--orange);background:var(--orange-bg)}
+  .tile .k{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .tile .v{font-size:20px;font-weight:700;margin-top:3px}
+  .tile .v.in{color:var(--green)} .tile .v.out{color:var(--red)} .tile .v.orange{color:var(--orange)}
+  .tile .s{font-size:10.5px;color:var(--muted);margin-top:2px}
+
+  .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .btn{border:none;background:var(--orange);color:#fff;font-family:inherit;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer}
+  .btn.green{background:var(--green)}
+  .btn.ghost{background:#fff;border:1.5px solid var(--orange);color:var(--orange)}
+  .fchip{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:99px;cursor:pointer}
+  .fchip.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .sp{flex:1}
+
+  .grid{border:1px solid var(--line);border-radius:10px;overflow:auto;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+  table{width:100%;border-collapse:collapse;min-width:980px}
+  th{background:#FDFBF7;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;text-align:left;padding:8px 10px;border:1px solid var(--line)}
+  td{font-size:12.5px;padding:7px 10px;border:1px solid #F1EDE4;vertical-align:middle;background:#fff}
+  tr.new td{background:#FFFDF8}
+  td.rowno{background:#FDFBF7;color:#b5b5b5;font-size:10px;text-align:center;width:32px}
+  .amt{font-weight:700;color:var(--orange);white-space:nowrap;text-align:right}
+  .amt.out{color:var(--red)}
+  .cellchip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px;cursor:pointer;border:1px dashed transparent;white-space:nowrap}
+  .cellchip:hover{border-color:var(--orange)}
+  .c-don{background:var(--green-bg);color:var(--green)}
+  .c-rev{background:var(--teal-bg);color:var(--teal)}
+  .c-pass{background:var(--blue-bg);color:var(--blue)}
+  .c-event{background:var(--purple-bg);color:var(--purple)}
+  .c-empty{background:#fff;border:1.5px dashed var(--orange);color:var(--orange)}
+  .ack-sent{color:var(--green);font-weight:700;font-size:11px;white-space:nowrap}
+  .bulkbar{display:flex;align-items:center;gap:10px;background:var(--ink);color:#fff;border-radius:10px;padding:9px 14px;margin-top:10px;font-size:12px;flex-wrap:wrap}
+  .bulkbar select{font-family:inherit;font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px;border:none}
+  .note{font-size:11px;color:#9a9a9a;margin-top:8px;line-height:1.6}
+
+  .queue{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+  .qhead{display:flex;align-items:center;gap:10px;background:#FDFBF7;border-bottom:1px solid var(--line);padding:10px 14px;font-size:13px;font-weight:700}
+  .qrow{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap}
+  .qrow:last-child{border-bottom:none}
+  .report td.head{font-weight:700;background:#FDFBF7}
+  .report td.tot{font-weight:700;background:var(--orange-bg);color:var(--orange-dark)}
+  .drop{border:2px dashed var(--orange);background:var(--orange-bg);border-radius:12px;padding:16px;text-align:center;color:var(--orange-dark);font-size:12.5px;font-weight:600;margin-bottom:12px}
+  .setrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .switch{width:38px;height:20px;border-radius:99px;background:#ddd;position:relative;cursor:pointer;flex-shrink:0}
+  .switch.on{background:var(--green)}
+  .switch::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px}
+  .switch.on::after{left:20px}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>B+C Hybrid — Treasury Console 工作台 × Books Grid 电子账本：</b>独立 admin 页面 <b>/finance</b>，左侧 B 的导航；<b>Income / Expenses 用 C 的表格账本</b>（彩色 chip 单元格点开即改、多选批量分类、✉ 群发勾选）。左侧导航是<b>可点击的</b> —— 点每一项查看对应界面。</div>
+
+<div class="console">
+  <div class="side">
+    <h4>💰 NewBee Finance<small>财务工作台 · cash basis · FY2026</small></h4>
+    <ul class="nav" id="nav">
+      <li class="on" data-v="dash">📊 Dashboard 总览</li>
+      <li data-v="income">💵 Income 收入 <span class="n">3</span></li>
+      <li data-v="exp">💸 Expenses 支出</li>
+      <li data-v="ack">📮 Acknowledgments 致谢 <span class="n">12</span></li>
+      <li data-v="rpt">🧾 Reports 报表</li>
+      <li data-v="ye">📆 Year-end 年度汇总</li>
+      <li data-v="set">⚙️ Settings 设置</li>
+    </ul>
+  </div>
+
+  <div class="main">
+    <!-- DASHBOARD -->
+    <div class="view on" id="v-dash">
+      <h3>Dashboard 总览</h3>
+      <div class="sub">Gmail (Zelle/Venmo) 自动同步 + Chase CSV 导入 · 数字实时来自账本</div>
+      <div class="tiles">
+        <div class="tile"><div class="k">YTD Income 收入</div><div class="v in">$12,436</div><div class="s">Donation $8,120 · Revenue $3,236 · Pass-thru $1,080</div></div>
+        <div class="tile"><div class="k">YTD Expenses 支出</div><div class="v out">$7,912</div><div class="s">across 6 events</div></div>
+        <div class="tile"><div class="k">Net 结余</div><div class="v">$4,524</div><div class="s">excl. pass-through 不含代收</div></div>
+        <div class="tile alert"><div class="k">Needs attention 待处理</div><div class="v orange">3 + 12</div><div class="s">待分类 · 待致谢 → 点击直达</div></div>
+      </div>
+      <div class="queue">
+        <div class="qhead">本周概况 This week</div>
+        <div class="qrow">🔄 Gmail sync: <b style="color:var(--green)">● Healthy</b> · last run Jul 11 · 2 new rows → Income</div>
+        <div class="qrow">📮 12 confirmed donations waiting for acknowledgment → Acknowledgments</div>
+        <div class="qrow">⬆ Last bank import: Jun 30 (43 rows, 0 duplicates) → Expenses</div>
+      </div>
+    </div>
+
+    <!-- INCOME (C-style grid) -->
+    <div class="view" id="v-income">
+      <h3>Income 收入</h3>
+      <div class="sub">C 式账本：Type/Event 是可点的彩色单元格；新行来自 Gmail 同步与银行导入 · 分类为 Donation 后自动上公开墙 + 进致谢队列</div>
+      <div class="toolbar">
+        <button class="fchip active">All 全部</button><button class="fchip">Unclassified 待分类 (3)</button><button class="fchip">Donation</button><button class="fchip">Event Revenue</button><button class="fchip">Pass-through</button>
+        <span class="sp"></span>
+        <button class="btn ghost">↻ Scan Gmail 扫描邮件</button><button class="btn ghost">＋ Manual row 手动记一笔</button>
+      </div>
+      <div class="grid"><table>
+        <thead><tr><th>☑</th><th>Date</th><th>From 来自</th><th style="text-align:right">Amount</th><th>Method</th><th>Memo</th><th>Type 属性 ▾</th><th>Event 活动 ▾</th><th>Ack 致谢</th></tr></thead>
+        <tbody>
+          <tr class="new"><td class="rowno"><input type="checkbox" checked></td><td>Jul 8</td><td><b>connie zhou</b></td><td class="amt">$20.00</td><td>Venmo</td><td>carpool bear mountain - 岑岑</td>
+            <td><span class="cellchip c-empty">＋ classify 分类</span></td><td><span class="cellchip c-empty">＋ event</span></td><td>—</td></tr>
+          <tr class="new"><td class="rowno"><input type="checkbox" checked></td><td>Jul 8</td><td><b>Ryan Young</b></td><td class="amt">$20.00</td><td>Venmo</td><td>拼车费用</td>
+            <td><span class="cellchip c-empty">＋ classify 分类</span></td><td><span class="cellchip c-empty">＋ event</span></td><td>—</td></tr>
+          <tr class="new"><td class="rowno"><input type="checkbox"></td><td>Jul 7</td><td><b>Haotian Fu</b></td><td class="amt">$23.00</td><td>Zelle</td><td>tee</td>
+            <td><span class="cellchip c-rev">Event Revenue ▾</span></td><td><span class="cellchip c-event">Anniversary ▾</span></td><td>—</td></tr>
+          <tr><td class="rowno"></td><td>Jul 6</td><td>Kevin Gu</td><td class="amt">$15.00</td><td>Venmo</td><td>🍉 梅老板加油 🇦🇷</td>
+            <td><span class="cellchip c-don">Donation ▾</span></td><td><span class="cellchip c-event">General ▾</span></td><td class="ack-sent">✓ Jul 11</td></tr>
+          <tr><td class="rowno"></td><td>Jun 4</td><td>Yue Ma</td><td class="amt">$500.00</td><td>Venmo</td><td>Happy 10th anniversary!</td>
+            <td><span class="cellchip c-don">Donation ▾</span></td><td><span class="cellchip c-event">Anniversary ▾</span></td><td><input type="checkbox" checked> ✉</td></tr>
+          <tr><td class="rowno"></td><td>Jun 3</td><td>Tracy Chen</td><td class="amt">$23.00</td><td>Venmo</td><td>1 red + 1 white 队服</td>
+            <td><span class="cellchip c-rev">Event Revenue ▾</span></td><td><span class="cellchip c-event">Anniversary ▾</span></td><td>—</td></tr>
+        </tbody>
+      </table></div>
+      <div class="bulkbar">☑ 2 rows selected 已选 2 行 → Type: <select><option>Pass-through 代收</option><option>Donation</option><option>Event Revenue</option><option>Mistake</option></select> Event: <select><option>Bear Mt. Run 熊山</option><option>General</option></select> <button class="btn">Apply 应用</button></div>
+      <div class="note">迁移规则：现有 confirmed → Donation；已忽略的拼车/队服 → 批量设为 Pass-through / Event Revenue（dedup 保留，永不重复导入）。关键词自动分类：拼车/车费→Pass-through，队服/tee→Event Revenue（不再只是"忽略"）。</div>
+    </div>
+
+    <!-- EXPENSES (C-style grid) -->
+    <div class="view" id="v-exp">
+      <h3>Expenses 支出</h3>
+      <div class="sub">同样的账本 grid：Event × 费用类别 两层分类（5001-5006 与老克 Sheet 同码）</div>
+      <div class="drop">⬆ Drop Chase CSV here 拖入银行对账单 — 自动解析 outflow、按 Import ID 去重、进入下方待分类</div>
+      <div class="grid"><table>
+        <thead><tr><th>☑</th><th>Date</th><th>Vendor 商家</th><th style="text-align:right">Amount</th><th>Method</th><th>Bank description</th><th>Event 活动 ▾</th><th>Category 费用类别 ▾</th></tr></thead>
+        <tbody>
+          <tr class="new"><td class="rowno"><input type="checkbox"></td><td>Jun 30</td><td><b>SHERWIN THE PARTY</b></td><td class="amt out">-$220.00</td><td>Debit</td><td>POS PURCHASE SHERWIN…</td>
+            <td><span class="cellchip c-empty">＋ event</span></td><td><span class="cellchip c-empty">＋ category</span></td></tr>
+          <tr><td class="rowno"></td><td>Jun 2</td><td>COSTCO WHOLESALE</td><td class="amt out">-$412.88</td><td>Debit</td><td>COSTCO WHSE #0334</td>
+            <td><span class="cellchip c-event">Anniversary ▾</span></td><td><span class="cellchip c-rev">Event Food & Drink ▾</span></td></tr>
+          <tr><td class="rowno"></td><td>May 28</td><td>PARTY CITY</td><td class="amt out">-$86.20</td><td>Debit</td><td>PARTY CITY 1099</td>
+            <td><span class="cellchip c-event">Anniversary ▾</span></td><td><span class="cellchip c-rev">Event Supplies ▾</span></td></tr>
+          <tr><td class="rowno"></td><td>May 12</td><td>NYRR</td><td class="amt out">-$300.00</td><td>ACH</td><td>NYRR TEAM CHAMPS</td>
+            <td><span class="cellchip c-event">Team Championship ▾</span></td><td><span class="cellchip c-rev">Others (General) ▾</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <!-- ACKNOWLEDGMENTS -->
+    <div class="view" id="v-ack">
+      <h3>Acknowledgments 致谢</h3>
+      <div class="sub">Brandon 的每周批量流程：统一分档模板 + 收据附件；Tiffany 可对任意行单独定制</div>
+      <div class="queue">
+        <div class="qhead">📮 12 donations un-acknowledged 待致谢 <span class="sp"></span><button class="btn ghost">Preview all 预览</button><button class="btn green">✉ Send all 12 群发</button></div>
+        <div class="qrow"><b>Yue Ma</b> · $500 · Anniversary <span class="cellchip c-don">tier ≥$300</span> <span style="color:var(--muted)">yue.ma@gmail.com (directory)</span><span class="sp"></span><button class="btn ghost">Custom 定制</button></div>
+        <div class="qrow"><b>Jian Shen</b> · $666 · General <span class="cellchip c-don">tier ≥$300</span> <span style="color:var(--red)">✗ no email 缺邮箱 → 填入右侧即记住</span><span class="sp"></span><input placeholder="email…" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:11px"></div>
+        <div class="qrow"><b>Siyi Chen</b> · $15 · General <span class="cellchip c-don">tier ≥$0</span> <span style="color:var(--muted)">siyi.c@…（directory）</span><span class="sp"></span><button class="btn ghost">Custom 定制</button></div>
+      </div>
+      <div class="note">DonorDirectory 姓名↔邮箱在 Settings 里可整表维护（从老克 Sheet 一次性导入）。发送后：行变 ✓ Sent、致谢信全文进 notes、收据 PDF 附上 —— 与现有单发一致。Settings 里可开「每周自动发送」实现全自动。</div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="view" id="v-rpt">
+      <h3>Reports 报表</h3>
+      <div class="sub">cash basis · 一键生成 · 导出 CSV / PDF · 口径与老克 Sheet 一致</div>
+      <div class="toolbar"><button class="fchip active">Income & Expense by Event</button><button class="fchip">Event YoY 对比</button><button class="fchip">509(a)(1)/(a)(2) test</button><span class="sp"></span><button class="btn ghost">⬇ Export CSV</button><button class="btn ghost">⬇ Export PDF</button></div>
+      <div class="grid report"><table>
+        <thead><tr><th>FY2026</th><th>Donation</th><th>Gala Tickets</th><th>Merch 商品</th><th>Pass-through</th><th>Income TOTAL</th><th>Expenses</th><th>NET 净额</th></tr></thead>
+        <tbody>
+          <tr><td class="head">General</td><td>$5,320</td><td>—</td><td>—</td><td>—</td><td>$5,320</td><td style="color:var(--red);font-weight:700">-$1,214</td><td>$4,106</td></tr>
+          <tr><td class="head">Anniversary 十周年</td><td>$1,800</td><td>—</td><td>$2,156</td><td>—</td><td>$3,956</td><td style="color:var(--red);font-weight:700">-$3,890</td><td>$66</td></tr>
+          <tr><td class="head">Bear Mt. Run 熊山</td><td>$500</td><td>—</td><td>—</td><td>$1,080</td><td>$1,580</td><td style="color:var(--red);font-weight:700">-$1,466</td><td>$114</td></tr>
+          <tr><td class="head">BK Half Preview</td><td>$500</td><td>—</td><td>—</td><td>—</td><td>$500</td><td style="color:var(--red);font-weight:700">-$342</td><td>$158</td></tr>
+          <tr><td class="tot">TOTAL</td><td class="tot">$8,120</td><td class="tot">—</td><td class="tot">$2,156</td><td class="tot">$1,080</td><td class="tot">$11,356</td><td class="tot">-$6,912</td><td class="tot">$4,444</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <!-- YEAR-END -->
+    <div class="view" id="v-ye">
+      <h3>Year-end 年度捐赠汇总</h3>
+      <div class="sub">每位捐赠人一封含 IRS 语言的年度明细信（收据信里已承诺）— preview → 批量发送</div>
+      <div class="queue">
+        <div class="qhead">Tax year 2026 · 51 donors · $8,120 total <span class="sp"></span><button class="btn ghost">Build preview 生成预览</button><button class="btn green">Send 51 statements 发送</button></div>
+        <div class="qrow"><b>Yue Ma</b> · 3 donations · $530 total <span class="sp"></span><span class="ack-sent">preview ready</span></div>
+        <div class="qrow"><b>Kevin Gu</b> · 2 donations · $30 total <span class="sp"></span><span class="ack-sent">preview ready</span></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="v-set">
+      <h3>Settings 设置</h3>
+      <div class="sub">与老克 Sheet 同一套编码；在这里加活动/类别，全站下拉即时生效</div>
+      <div class="setrow"><b style="width:210px">Events 活动 (1xxx)</b><span style="color:var(--muted);font-size:12px">1001 General · 1002 Gala · 1003 Anniversary · 1004 Bear Mt. · …</span><span class="sp"></span><button class="btn ghost">Manage 管理</button></div>
+      <div class="setrow"><b style="width:210px">Income types 收入属性 (2xxx)</b><span style="color:var(--muted);font-size:12px">Donation · Gala Tickets · Merchandise · Pass-through</span><span class="sp"></span><button class="btn ghost">Manage 管理</button></div>
+      <div class="setrow"><b style="width:210px">Expense categories (5xxx)</b><span style="color:var(--muted);font-size:12px">Food & Drink · Supplies · Transportation · Rental · Office · Others</span><span class="sp"></span><button class="btn ghost">Manage 管理</button></div>
+      <div class="setrow"><b style="width:210px">Thank-you templates 模板</b><span style="color:var(--muted);font-size:12px">tiered ≥$0 / ≥$300 / … (existing 现有功能)</span><span class="sp"></span><button class="btn ghost">Manage 管理</button></div>
+      <div class="setrow"><b style="width:210px">DonorDirectory 通讯录</b><span style="color:var(--muted);font-size:12px">name ↔ email · import from 老克 Sheet 一次性导入</span><span class="sp"></span><button class="btn ghost">Manage 管理</button></div>
+      <div class="setrow"><b style="width:210px">Auto-send acks 每周自动致谢</b><span style="color:var(--muted);font-size:12px">weekly, uniform templates — flip when trusted 模板稳定后打开即全自动</span><span class="sp"></span><div class="switch"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('nav').addEventListener('click', function(e){
+  const li = e.target.closest('li'); if(!li) return;
+  document.querySelectorAll('#nav li').forEach(x=>x.classList.remove('on'));
+  li.classList.add('on');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+li.dataset.v).classList.add('on');
+});
+</script>
+
+</body>
+</html>

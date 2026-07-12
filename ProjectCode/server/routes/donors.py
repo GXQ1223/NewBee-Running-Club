@@ -232,6 +232,10 @@ def approve_donation(
     if request.hide_name is not None:
         donor.hide_name = request.hide_name
     donor.status = "confirmed"
+    # Keep the finance books in sync: approved = a real donation
+    donor.income_type = "donation"
+    if donor.event_code is None:
+        donor.event_code = 1001  # General
 
     db.commit()
     db.refresh(donor)
@@ -254,6 +258,7 @@ def revert_donation(
         )
 
     donor.status = "pending"
+    donor.income_type = None  # back to unclassified in the finance books
     db.commit()
     db.refresh(donor)
     return donor
@@ -274,6 +279,9 @@ def dismiss_donation(
         )
 
     donor.status = "dismissed"
+    # Keep the finance books in sync; committee can refine the type later
+    if donor.income_type in (None, "donation"):
+        donor.income_type = "mistake"
     db.commit()
     db.refresh(donor)
     return donor
@@ -483,22 +491,39 @@ def send_thank_you(
             detail="Only confirmed donations can receive a thank-you email"
         )
 
+    send_acknowledgment(db, donor, request.email,
+                        subject=request.subject, message=request.message,
+                        attach_receipt=request.attach_receipt)
+    db.commit()
+    db.refresh(donor)
+    return donor
+
+
+def send_acknowledgment(db: Session, donor, email: str, subject=None,
+                        message=None, attach_receipt: bool = True):
+    """Compose (matched tier template), send with optional receipt PDF,
+    stamp thank_you_sent_at, and append the full acknowledgment to the
+    notes audit trail. Caller commits. Raises HTTPException on failure.
+
+    Shared by the single-send dialog, the finance batch queue, and the
+    weekly auto-send job.
+    """
     from email_service import EmailService
-    subject, body_html, body_text = _compose_thank_you(db, donor)[:3]
+    final_subject, body_html, body_text = _compose_thank_you(db, donor)[:3]
     # Committee reviewed/edited the letter in the dialog — send their text
-    if request.subject and request.subject.strip():
-        subject = request.subject.strip()
-    if request.message and request.message.strip():
-        body_text = request.message
-        body_html = _text_to_html(request.message)
+    if subject and subject.strip():
+        final_subject = subject.strip()
+    if message and message.strip():
+        body_text = message
+        body_html = _text_to_html(message)
 
     attachments = None
     receipt_filename = None
-    if request.attach_receipt:
+    if attach_receipt:
         receipt_filename = _receipt_filename(donor)
         attachments = [(receipt_filename, _build_receipt_pdf(donor), "pdf")]
 
-    if not EmailService.send_email(request.email, subject, body_html, body_text,
+    if not EmailService.send_email(email, final_subject, body_html, body_text,
                                    attachments=attachments):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -511,15 +536,12 @@ def send_thank_you(
     # shows exactly what was sent, to whom, and when
     ack_record = (
         f"—— Thank-you email 感谢邮件 ——\n"
-        f"Sent to {request.email} on {sent_at.strftime('%b %d, %Y %H:%M')} UTC\n"
-        f"Subject: {subject}\n"
+        f"Sent to {email} on {sent_at.strftime('%b %d, %Y %H:%M')} UTC\n"
+        f"Subject: {final_subject}\n"
         + (f"Attachment 附件: {receipt_filename}\n" if receipt_filename else "")
         + f"\n{body_text}"
     )
     donor.notes = f"{donor.notes}\n\n{ack_record}" if donor.notes else ack_record
-    db.commit()
-    db.refresh(donor)
-    return donor
 
 
 # ---------------------------------------------------------------------------

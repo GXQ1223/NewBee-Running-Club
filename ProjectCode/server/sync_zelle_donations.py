@@ -535,6 +535,14 @@ def _process_provider_emails(mail, email_ids, parser, provider, session, stats,
             matched = auto_ignore_keyword(parsed["memo"])
             if matched:
                 record["status"] = "dismissed"
+                # Two-layer books: carpool money is pass-through, gear
+                # payments are event revenue
+                lowered = matched.lower()
+                if lowered in ('拼车', 'carpool', '车费', '🚗'):
+                    record["income_type"] = "pass_through"
+                else:
+                    record["income_type"] = "event_revenue"
+                record["event_code"] = 1001
                 record["notes"] += f" · Auto-ignored 自动忽略: memo matched '{matched}'"
 
             if dry_run:

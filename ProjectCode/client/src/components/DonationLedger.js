@@ -11,6 +11,7 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context';
 import {
   getDonationLedger, approveDonation, dismissDonation, sendThankYou,
@@ -134,6 +135,7 @@ function SourceChip({ donation }) {
 
 export default function DonationLedger({ onLedgerChange }) {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const firebaseUid = currentUser?.uid;
 
   const [ledger, setLedger] = useState(null);
@@ -523,6 +525,17 @@ export default function DonationLedger({ onLedgerChange }) {
 
         <Box sx={{ flexGrow: 1 }} />
 
+        <Button
+          size="small"
+          onClick={() => navigate('/finance')}
+          sx={{
+            textTransform: 'none', fontWeight: 700, borderRadius: '99px', px: 2,
+            border: `1.5px solid ${LINE}`, color: MUTED, boxShadow: 'none',
+            '&:hover': { borderColor: ORANGE, color: ORANGE },
+          }}
+        >
+          📚 Finance 财务工作台 →
+        </Button>
         <Button
           size="small"
           onClick={openTemplates}

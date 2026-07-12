@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Option B — Treasury Console · NewBee</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#FFA500;--orange-dark:#F29400;--orange-bg:#FFF6E8;--ink:#212121;--muted:#757575;--line:#EEE7DC;--green:#2e7d32;--green-bg:#eaf5ea;--blue:#1a63d0;--blue-bg:#e8f0fe;--purple:#7b3ff2;--purple-bg:#f3e8ff;--red:#c62828;--teal:#00796b;--teal-bg:#e0f2f1}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#F2EFE9;color:var(--ink);max-width:1320px;margin:0 auto;padding:30px 24px 80px}
+  .optlabel{background:var(--orange-bg);border:1px dashed var(--orange);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .optlabel b{color:var(--orange-dark)}
+  .console{display:flex;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08);min-height:640px}
+  .side{width:210px;background:#FDFBF7;border-right:1px solid var(--line);padding:18px 0}
+  .side h4{font-size:12px;font-weight:700;padding:0 18px 12px;color:var(--ink)}
+  .side h4 small{display:block;color:var(--muted);font-weight:400;font-size:10.5px;margin-top:2px}
+  .nav{list-style:none}
+  .nav li{display:flex;align-items:center;gap:9px;padding:10px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+  .nav li.on{background:var(--orange-bg);color:var(--orange-dark);border-right:3px solid var(--orange)}
+  .nav li .n{margin-left:auto;background:var(--orange);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px}
+  .main{flex:1;padding:22px 26px}
+  .main h3{font-size:16px;margin-bottom:4px}
+  .main .sub{font-size:11.5px;color:var(--muted);margin-bottom:16px}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .tile{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:#fff}
+  .tile .k{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .tile .v{font-size:20px;font-weight:700;margin-top:3px}
+  .tile .v.in{color:var(--green)}
+  .tile .v.out{color:var(--red)}
+  .tile .v.orange{color:var(--orange)}
+  .tile .s{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .queue{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px}
+  .qhead{display:flex;align-items:center;gap:10px;background:#FDFBF7;border-bottom:1px solid var(--line);padding:10px 16px;font-size:13px;font-weight:700}
+  .qhead .btn{margin-left:auto}
+  .qrow{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12.5px}
+  .qrow:last-child{border-bottom:none}
+  .amt{font-weight:700;color:var(--orange);white-space:nowrap;min-width:70px}
+  .chip{font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap}
+  .c-don{background:var(--green-bg);color:var(--green)}
+  .c-rev{background:var(--teal-bg);color:var(--teal)}
+  .c-pass{background:var(--blue-bg);color:var(--blue)}
+  .c-event{background:var(--purple-bg);color:var(--purple)}
+  select{font-family:inherit;font-size:11px;font-weight:700;padding:4px 8px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
+  .btn{border:none;background:var(--orange);color:#fff;font-family:inherit;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer}
+  .btn.green{background:var(--green)}
+  .btn.ghost{background:#fff;border:1.5px solid var(--orange);color:var(--orange)}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  .drop b{color:var(--orange-dark)}
+  .note{font-size:11px;color:#9a9a9a;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="optlabel"><b>Option B — Treasury Console 财务工作台（独立页面）：</b>新建 admin-only 页面 <b>/finance</b>（NavBar 管理入口），左侧固定导航把 Brandon/Tiffany 的所有工作集中在一个专属工作台：<b>Dashboard 总览 → Review 待分类 → Income / Expenses → Acknowledgments → Reports → Year-end → Settings</b>。Sponsors 页只保留公开捐款墙 + 轻量审核入口。空间最大、成长性最好（以后加预算、审批流都放得下），是「把老克整个 Sheet 搬上网站」的完整形态。</div>
+
+<div class="console">
+  <div class="side">
+    <h4>💰 NewBee Finance<small>财务工作台 · cash basis</small></h4>
+    <ul class="nav">
+      <li class="on">📊 Dashboard 总览</li>
+      <li>📥 Review 待分类 <span class="n">3</span></li>
+      <li>💵 Income 收入</li>
+      <li>💸 Expenses 支出</li>
+      <li>📮 Acknowledgments 致谢 <span class="n">12</span></li>
+      <li>🧾 Reports 报表</li>
+      <li>📆 Year-end 年度汇总</li>
+      <li>⚙️ Settings 设置</li>
+    </ul>
+  </div>
+  <div class="main">
+    <h3>Dashboard 总览</h3>
+    <div class="sub">FY2026 · cash basis · synced from Gmail (Zelle/Venmo) + Chase CSV imports</div>
+    <div class="tiles">
+      <div class="tile"><div class="k">YTD Income 收入</div><div class="v in">$12,436</div><div class="s">Donation $8,120 · Revenue $3,236 · Pass-thru $1,080</div></div>
+      <div class="tile"><div class="k">YTD Expenses 支出</div><div class="v out">$7,912</div><div class="s">across 6 events</div></div>
+      <div class="tile"><div class="k">Net 结余</div><div class="v">$4,524</div><div class="s">excl. pass-through 不含代收</div></div>
+      <div class="tile"><div class="k">Needs attention 待处理</div><div class="v orange">3 + 12</div><div class="s">to classify 待分类 · to acknowledge 待致谢</div></div>
+    </div>
+
+    <div class="queue">
+      <div class="qhead">📥 Review queue 待分类 — 每行选属性 × Event，选完自动归档 <button class="btn">Classify all 批量分类</button></div>
+      <div class="qrow"><span>Jul 8 · <b>connie zhou</b> · ✉ Venmo</span><span class="amt">$20.00</span>
+        <select><option>Pass-through 代收</option><option>Donation 捐款</option><option>Event Revenue</option><option>Mistake</option></select>
+        <select><option>Bear Mt. Run</option><option>General</option></select><button class="btn" style="margin-left:auto">✓</button></div>
+      <div class="qrow"><span>Jul 7 · <b>Haotian Fu</b> · ✉ Zelle</span><span class="amt">$23.00</span>
+        <select><option>Event Revenue 活动收入</option></select><select><option>Anniversary 十周年</option></select><button class="btn" style="margin-left:auto">✓</button></div>
+    </div>
+
+    <div class="queue">
+      <div class="qhead">📮 Acknowledgment queue 待致谢 <span style="color:var(--muted);font-weight:400;font-size:11px">tiered templates · receipt attached · weekly batch (Brandon 流程)</span><button class="btn green">✉ Send all 12 群发</button></div>
+      <div class="qrow"><span>Yue Ma · $500 · Anniversary</span><span class="chip c-don">tier ≥$300 template</span><span style="color:var(--muted)">yue.ma@… (directory)</span><button class="btn ghost" style="margin-left:auto">Custom 定制</button></div>
+      <div class="qrow"><span>Jian Shen · $666 · General</span><span class="chip c-don">tier ≥$300 template</span><span style="color:var(--red);font-size:11px">✗ no email — fill in directory 缺邮箱</span></div>
+    </div>
+
+    <div class="drop">⬆ <b>Drop Chase CSV here 拖入银行对账单</b> — expenses & non-Gmail income import with dedupe, then classify above 导入后进入待分类队列</div>
+
+    <div class="note">Settings 设置：Events(1xxx) / Income types(2xxx) / Expense categories(5xxx) 与老克 Sheet 同码 · 感谢信分档模板 · DonorDirectory 姓名↔邮箱 · 「Auto-send acknowledgments weekly 每周自动致谢」总开关（后期打开即全自动）。Reports 报表：Income & Expense by Event 矩阵、Event YoY、509(a)(1)/(a)(2)，均可导出。</div>
+  </div>
+</div>
+
+</body>
+</html>

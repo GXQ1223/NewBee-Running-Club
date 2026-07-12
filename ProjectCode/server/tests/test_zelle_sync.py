@@ -348,8 +348,10 @@ def test_sync_auto_ignores_carpool_payments(db_session, monkeypatch):
 
     donors = {d.name: d for d in db_session.query(Donor).all()}
     assert donors['Ryan Young'].status == 'dismissed'
+    assert donors['Ryan Young'].income_type == 'pass_through'
     assert "Auto-ignored 自动忽略: memo matched '拼车'" in donors['Ryan Young'].notes
     assert donors['Yue Ma'].status == 'confirmed'
+    assert donors['Yue Ma'].income_type is None
     assert 'Auto-ignored' not in donors['Yue Ma'].notes
 
 
