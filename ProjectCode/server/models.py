@@ -85,7 +85,7 @@ class DonorLedgerEntry(DonorResponse):
     thank_you_sent_at: Optional[datetime] = None
     email_excerpt: Optional[str] = None
     # Two-layer bookkeeping (finance module)
-    income_type: Optional[str] = None  # donation | event_revenue | pass_through | mistake
+    income_type: Optional[str] = None  # donation | event_revenue | pass_through | NULL=unclassified
     event_code: Optional[int] = None
     # The ledger shows every row, including legacy/imported ones where these
     # can be NULL (rows inserted outside SQLAlchemy get no column defaults)
@@ -168,7 +168,7 @@ class ThankYouTemplateResponse(ThankYouTemplateBase):
 # Finance module (Books Grid)
 # ---------------------------------------------------------------------------
 
-INCOME_TYPES = ("donation", "event_revenue", "pass_through", "mistake")
+INCOME_TYPES = ("donation", "event_revenue", "pass_through")
 
 
 class FinanceCategoryCreate(BaseModel):
@@ -195,7 +195,7 @@ class FinanceCategoryOut(BaseModel):
 
 class ClassifyIncomeRequest(BaseModel):
     donation_ids: List[int]
-    income_type: str = Field(..., pattern="^(donation|event_revenue|pass_through|mistake)$")
+    income_type: str = Field(..., pattern="^(donation|event_revenue|pass_through)$")
     event_code: Optional[int] = None
 
 
@@ -205,7 +205,7 @@ class ManualIncomeRequest(BaseModel):
     donation_date: Optional[dt.date] = None
     method: Optional[str] = Field(None, max_length=50)
     memo: Optional[str] = None
-    income_type: str = Field(..., pattern="^(donation|event_revenue|pass_through|mistake)$")
+    income_type: str = Field(..., pattern="^(donation|event_revenue|pass_through)$")
     event_code: Optional[int] = None
 
 

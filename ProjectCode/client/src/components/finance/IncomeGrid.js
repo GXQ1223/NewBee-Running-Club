@@ -29,7 +29,6 @@ export const INCOME_TYPES = [
   { key: 'donation', label: 'Donation 捐款', color: GREEN, bg: GREEN_BG },
   { key: 'event_revenue', label: 'Event Revenue 活动收入', color: TEAL, bg: TEAL_BG },
   { key: 'pass_through', label: 'Pass-through 代收', color: BLUE, bg: BLUE_BG },
-  { key: 'mistake', label: 'Mistake 误操作', color: MUTED, bg: '#f1f1f1' },
 ];
 
 const FILTERS = [
