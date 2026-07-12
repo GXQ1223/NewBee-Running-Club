@@ -137,7 +137,7 @@ def test_classify_income_donation_publishes(client, db_session, committee_member
 
 def test_classify_income_unknown_id_404(client, committee_member):
     resp = client.post("/api/finance/income/classify", json={
-        "donation_ids": [999], "income_type": "mistake",
+        "donation_ids": [999], "income_type": "pass_through",
     }, headers=auth(committee_member))
     assert resp.status_code == 404
 
@@ -167,7 +167,7 @@ def test_legacy_ledger_actions_sync_income_type(client, db_session, committee_me
     client.post(f"/api/donors/donations/{row.donation_id}/dismiss",
                 headers=auth(committee_member))
     db_session.refresh(row)
-    assert row.income_type == "mistake"
+    assert row.income_type is None  # ignored donation returns to unclassified
 
     client.post(f"/api/donors/donations/{row.donation_id}/revert",
                 headers=auth(committee_member))
@@ -365,8 +365,8 @@ def test_report_by_event_matrix(client, db_session, committee_member):
                 status="dismissed", event_code=1003)
     seed_income(db_session, "P1", amount=50, income_type="pass_through",
                 status="dismissed", event_code=1004)
-    seed_income(db_session, "M1", amount=999, income_type="mistake",
-                status="dismissed", event_code=1004)  # excluded entirely
+    seed_income(db_session, "M1", amount=999, income_type=None,
+                status="dismissed", event_code=1004)  # unclassified: excluded
     seed_expense(db_session, amount=120, event_code=1003)
 
     report = client.get("/api/finance/reports/by-event",

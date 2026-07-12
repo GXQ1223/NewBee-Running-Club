@@ -279,9 +279,10 @@ def dismiss_donation(
         )
 
     donor.status = "dismissed"
-    # Keep the finance books in sync; committee can refine the type later
-    if donor.income_type in (None, "donation"):
-        donor.income_type = "mistake"
+    # Keep the finance books in sync: an ignored donation goes back to
+    # unclassified; real classifications (pass-through etc.) are preserved
+    if donor.income_type == "donation":
+        donor.income_type = None
     db.commit()
     db.refresh(donor)
     return donor

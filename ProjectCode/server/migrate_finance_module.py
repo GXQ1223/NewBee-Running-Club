@@ -3,13 +3,13 @@
 One-time migration for the finance module (Books Grid).
 
 1. Adds two-layer bookkeeping columns to donors:
-       income_type VARCHAR(20) NULL   (donation | event_revenue | pass_through | mistake)
+       income_type VARCHAR(20) NULL   (donation | event_revenue | pass_through; NULL=unclassified)
        event_code  INTEGER NULL       (finance_categories 1xxx)
 2. Creates the new tables (finance_categories, expenses, donor_directory)
    and seeds the category codes used in the club's Google Sheet.
 3. Backfills income_type from the old two-state model:
        confirmed -> donation
-       dismissed -> pass_through / event_revenue by memo keywords, else mistake
+       dismissed -> pass_through / event_revenue by memo keywords, else left unclassified
        pending   -> NULL (unclassified)
 
 Safe to re-run. Works on SQLite (dev) and MySQL (prod):
@@ -83,7 +83,7 @@ def migrate():
             "SELECT donation_id, status, message, notes FROM donors "
             "WHERE income_type IS NULL"
         )).fetchall()
-        counts = {"donation": 0, "pass_through": 0, "event_revenue": 0, "mistake": 0}
+        counts = {"donation": 0, "pass_through": 0, "event_revenue": 0, "unclassified": 0}
         for donation_id, status, message, notes in rows:
             memo = f"{message or ''} {notes or ''}".lower()
             income_type = None
@@ -95,7 +95,7 @@ def migrate():
                 elif any(k in memo for k in EVENT_REVENUE_KEYWORDS):
                     income_type = "event_revenue"
                 else:
-                    income_type = "mistake"
+                    counts["unclassified"] += 1  # left NULL for committee review
             if income_type:
                 counts[income_type] += 1
                 db.execute(text(
@@ -103,6 +103,14 @@ def migrate():
                     "event_code = COALESCE(event_code, 1001) "
                     "WHERE donation_id = :id"
                 ), {"t": income_type, "id": donation_id})
+        # Earlier runs used a 'mistake' type — those rows belong in the
+        # unclassified queue instead
+        fixed = db.execute(text(
+            "UPDATE donors SET income_type = NULL WHERE income_type = 'mistake'"
+        ))
+        if fixed.rowcount:
+            counts["unclassified"] += fixed.rowcount
+            print(f"Converted {fixed.rowcount} 'mistake' row(s) to unclassified.")
         db.commit()
         print(f"Backfilled income_type: {counts}")
     finally:

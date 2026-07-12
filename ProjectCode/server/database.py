@@ -79,7 +79,7 @@ class Donor(Base):
 
     # Two-layer bookkeeping (mirrors the club's Google Sheet):
     # income_type: NULL = unclassified, else 'donation' | 'event_revenue'
-    #   | 'pass_through' | 'mistake'. Only 'donation' rows appear publicly.
+    #   | 'pass_through'. Only 'donation' rows appear publicly.
     # event_code: finance_categories code (1xxx), e.g. 1001 General.
     income_type = Column(String(20), nullable=True)
     event_code = Column(Integer, nullable=True)
