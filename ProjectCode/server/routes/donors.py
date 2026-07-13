@@ -115,7 +115,7 @@ def get_public_donors(db: Session = Depends(get_db)):
             amount=donor.amount if show_amount else None,
             quantity=donor.quantity,
             donation_date=donor.donation_date,
-            message=donor.message if not donor.hide_name else None
+            message=donor.message if not (donor.hide_name or donor.hide_message) else None
         ))
 
     return public_donors

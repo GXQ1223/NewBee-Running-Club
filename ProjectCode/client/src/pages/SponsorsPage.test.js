@@ -39,6 +39,14 @@ jest.mock('../components/DonationLedger', () => ({
     return React.createElement('div', { 'data-testid': 'donation-ledger' });
   },
 }));
+// The hero donation card has its own test suite (DonationHeroCard.test.js); stub it here
+jest.mock('../components/DonationHeroCard', () => ({
+  __esModule: true,
+  default: () => {
+    const React = require('react');
+    return React.createElement('div', { 'data-testid': 'donation-hero-card' });
+  },
+}));
 
 const publicDonors = [
   { donation_id: 1, donor_id: 'IND_1', name: 'Jane Zhang', donor_type: 'individual', donation_date: '2026-01-15', message: 'Go NewBee!', amount: null },
@@ -92,8 +100,8 @@ describe('public view', () => {
     // Date chip formatted (new Date('YYYY-MM-DD') is UTC midnight, so the
     // rendered day depends on the local timezone — accept either side)
     expect(screen.getByText(/Jan 1[45], 2026/)).toBeInTheDocument();
-    // Intro copy
-    expect(screen.getByText(/Any contribution—large or small/)).toBeInTheDocument();
+    // Hero donation card at the top of the page
+    expect(screen.getByTestId('donation-hero-card')).toBeInTheDocument();
   });
 
   test('tabs switch between individual and enterprise donors', async () => {
@@ -172,9 +180,9 @@ describe('admin view', () => {
   test('add-donor dialog saves a new individual donor and refreshes the list', async () => {
     renderPage();
     await screen.findByText('Jane Zhang');
-    fireEvent.click(screen.getByText('Add Donor / 添加赞助者'));
+    fireEvent.click(screen.getByText('Add Donor / 添加捐赠者'));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Add Donor / 添加赞助者')).toBeInTheDocument();
+    expect(within(dialog).getByText('Add Donor / 添加捐赠者')).toBeInTheDocument();
 
     const saveButton = within(dialog).getByText('Save / 保存').closest('button');
     expect(saveButton).toBeDisabled(); // name + amount required
@@ -184,8 +192,9 @@ describe('admin view', () => {
     fireEvent.change(within(dialog).getByLabelText(/Amount/), { target: { value: '300' } });
     fireEvent.change(within(dialog).getByLabelText(/Message/), { target: { value: 'Keep running!' } });
     fireEvent.change(within(dialog).getByLabelText(/Donation Date/), { target: { value: '2026-07-01' } });
-    // Anonymous switch
+    // Anonymous + hide-message switches
     fireEvent.click(within(dialog).getByLabelText(/Anonymous Donor/));
+    fireEvent.click(within(dialog).getByLabelText(/Hide message/));
     expect(saveButton).not.toBeDisabled();
 
     fireEvent.click(saveButton);
@@ -199,6 +208,7 @@ describe('admin view', () => {
           donation_event: 'General Support',
           message: 'Keep running!',
           hide_name: true,
+          hide_message: true,
           quantity: 1,
         })
       )
@@ -212,7 +222,7 @@ describe('admin view', () => {
     renderPage();
     await screen.findByText('Jane Zhang');
     fireEvent.click(screen.getByRole('tab', { name: /Enterprise Donors/ }));
-    fireEvent.click(screen.getByText('Add Donor / 添加赞助者'));
+    fireEvent.click(screen.getByText('Add Donor / 添加捐赠者'));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText(/Name \/ 名称/), { target: { value: 'Big Co' } });
     fireEvent.change(within(dialog).getByLabelText(/Amount/), { target: { value: '1000' } });
@@ -227,7 +237,7 @@ describe('admin view', () => {
   test('auto-fill hook is wired to the donor form fields', async () => {
     renderPage();
     await screen.findByText('Jane Zhang');
-    fireEvent.click(screen.getByText('Add Donor / 添加赞助者'));
+    fireEvent.click(screen.getByText('Add Donor / 添加捐赠者'));
     const dialog = await screen.findByRole('dialog');
     act(() => mockAutoFillOptions.setValue('name', 'Anonymous Donor'));
     expect(within(dialog).getByLabelText(/Name \/ 名称/)).toHaveValue('Anonymous Donor');
@@ -236,7 +246,7 @@ describe('admin view', () => {
   test('cancel closes the dialog without saving', async () => {
     renderPage();
     await screen.findByText('Jane Zhang');
-    fireEvent.click(screen.getByText('Add Donor / 添加赞助者'));
+    fireEvent.click(screen.getByText('Add Donor / 添加捐赠者'));
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByText('Cancel / 取消'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -248,7 +258,7 @@ describe('admin view', () => {
     await screen.findByText('Jane Zhang');
     fireEvent.click(screen.getAllByTestId('EditIcon')[0].closest('button'));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Edit Donor / 编辑赞助者')).toBeInTheDocument();
+    expect(within(dialog).getByText('Edit Donor / 编辑捐赠者')).toBeInTheDocument();
     expect(within(dialog).getByLabelText(/Name \/ 名称/)).toHaveValue('Jane Zhang');
     expect(within(dialog).getByLabelText(/Notes/)).toHaveValue('via zelle');
 
@@ -263,11 +273,23 @@ describe('admin view', () => {
     );
   });
 
+  test('hidden message shows struck through in admin mode', async () => {
+    getAllDonors.mockResolvedValue({
+      individual_donors: [
+        { donation_id: 9, donor_id: 'IND_9', name: 'Boiler Plate', donor_type: 'individual', amount: '10', message: 'ugly Zelle boilerplate', hide_message: true },
+      ],
+      enterprise_donors: [],
+    });
+    renderPage();
+    const msg = await screen.findByText('"ugly Zelle boilerplate"');
+    expect(msg).toHaveStyle('text-decoration: line-through');
+  });
+
   test('save failure shows an error alert and keeps saving state consistent', async () => {
     createDonor.mockRejectedValue(new Error('boom'));
     renderPage();
     await screen.findByText('Jane Zhang');
-    fireEvent.click(screen.getByText('Add Donor / 添加赞助者'));
+    fireEvent.click(screen.getByText('Add Donor / 添加捐赠者'));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText(/Name \/ 名称/), { target: { value: 'X' } });
     fireEvent.change(within(dialog).getByLabelText(/Amount/), { target: { value: '5' } });

@@ -69,6 +69,7 @@ class Donor(Base):
     member_id = Column(Integer, ForeignKey('members.id', ondelete='SET NULL'), nullable=True)
     hide_amount = Column(Boolean, default=False)  # User can choose to hide their donation amount
     hide_name = Column(Boolean, default=False)  # Admin can mark donor as anonymous
+    hide_message = Column(Boolean, default=False)  # Committee can hide an ugly payment message
 
     # Donation ledger / Gmail sync fields
     # 'pending' = auto-fetched from Gmail, awaiting committee review;

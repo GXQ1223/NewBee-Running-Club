@@ -575,7 +575,7 @@ export default function DonationLedger({ onLedgerChange }) {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ backgroundColor: '#FDFBF7' }}>
-              {['Date 日期', 'Donor 赞助者', 'Amount 金额', 'Source 来源', 'Receipt 收据', 'Thank-you 感谢邮件', ''].map((h) => (
+              {['Date 日期', 'Donor 捐赠者', 'Amount 金额', 'Source 来源', 'Receipt 收据', 'Thank-you 感谢邮件', ''].map((h) => (
                 <TableCell key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.4px', borderBottom: `1px solid ${LINE}` }}>
                   {h}
                 </TableCell>
@@ -718,7 +718,7 @@ export default function DonationLedger({ onLedgerChange }) {
                           {pending && (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }} onClick={(e) => e.stopPropagation()}>
                               <Typography sx={{ fontSize: '0.78125rem', color: MUTED }}>
-                                Donor type 赞助者类型:
+                                Donor type 捐赠者类型:
                               </Typography>
                               <Select
                                 size="small"
