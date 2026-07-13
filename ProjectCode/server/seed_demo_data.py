@@ -93,6 +93,8 @@ SECTIONS = [
          image_url='/AboutUs.png', display_order=5),
     dict(title_en='Training With Us', title_cn='与我们训练', link_path='/training',
          image_url=f'{IMG}/20250503_bk_half_preview_run.jpg', display_order=6),
+    dict(title_en='Donors', title_cn='捐赠者', link_path='/sponsors',
+         image_url=f'{IMG}/20250620_queens_10k.jpg', display_order=7),
 ]
 
 DONORS = [
