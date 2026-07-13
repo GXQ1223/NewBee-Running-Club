@@ -134,6 +134,16 @@ def test_update_donor(client, db_session, admin_member):
     assert body['donor_type'] == 'individual'  # untouched
 
 
+def test_update_donor_hide_message(client, db_session, committee_member):
+    seed_donor(db_session, 'D1', message='ugly boilerplate')
+    resp = client.put('/api/donors/D1', json={'hide_message': True},
+                      headers=auth(committee_member))
+    assert resp.status_code == 200
+    assert resp.json()['hide_message'] is True
+    # message is preserved, just hidden publicly
+    assert resp.json()['message'] == 'ugly boilerplate'
+
+
 def test_update_donor_404(client, admin_member):
     resp = client.put('/api/donors/missing', json={'name': 'x'}, headers=auth(admin_member))
     assert resp.status_code == 404
@@ -192,6 +202,7 @@ def test_public_donors_privacy_rules(client, db_session):
     seed_donor(db_session, 'A1', notes='Anonymous Donor')  # excluded
     seed_donor(db_session, 'N1', notes=None)  # no notes still shown
     seed_donor(db_session, 'H1', hide_name=True, message='secret')
+    seed_donor(db_session, 'M1', message='ugly Zelle boilerplate', hide_message=True)
 
     donors = {d['donor_id']: d for d in client.get('/api/donors/public').json()}
     assert 'A1' not in donors
@@ -202,6 +213,9 @@ def test_public_donors_privacy_rules(client, db_session):
     assert donors['E2']['amount'] is None  # enterprise opted out of amount display
     assert donors['H1']['name'] == 'Anonymous Donor'
     assert donors['H1']['message'] is None
+    # hide_message hides only the message; the donor still shows
+    assert donors['M1']['message'] is None
+    assert donors['M1']['name'] == 'Donor M1'
 
 
 def test_public_donors_respects_member_opt_out(client, db_session):

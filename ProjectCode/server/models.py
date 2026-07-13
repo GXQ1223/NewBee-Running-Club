@@ -24,6 +24,7 @@ class DonorBase(BaseModel):
     member_id: Optional[int] = None  # Link to member account for privacy control
     hide_amount: bool = Field(default=False)  # User can hide their donation amount
     hide_name: bool = Field(default=False)  # Admin can mark donor as anonymous
+    hide_message: bool = Field(default=False)  # Committee can hide an ugly payment message
 
 class DonorCreate(DonorBase):
     pass
@@ -41,12 +42,14 @@ class DonorUpdate(BaseModel):
     member_id: Optional[int] = None
     hide_amount: Optional[bool] = None
     hide_name: Optional[bool] = None
+    hide_message: Optional[bool] = None
 
 class DonorResponse(DonorBase):
     donation_id: int
     member_id: Optional[int] = None
     hide_amount: bool = False
     hide_name: bool = False
+    hide_message: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -94,6 +97,7 @@ class DonorLedgerEntry(DonorResponse):
     receipt_confirmed: Optional[bool] = False
     hide_amount: Optional[bool] = False
     hide_name: Optional[bool] = False
+    hide_message: Optional[bool] = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

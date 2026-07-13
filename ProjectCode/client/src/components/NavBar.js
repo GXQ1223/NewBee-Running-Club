@@ -35,7 +35,7 @@ export const navLinks = [
   { en: 'Upcoming', cn: '即将到来', path: '/calendar' },
   { en: 'Memories', cn: '活动回忆', path: '/highlights' },
   { en: 'Credits/Records', cn: '俱乐部积分', path: '/records' },
-  { en: 'Sponsors', cn: '赞助者', path: '/sponsors' },
+  { en: 'Donors', cn: '捐赠者', path: '/sponsors' },
 ];
 
 const ORANGE = '#FFA500';

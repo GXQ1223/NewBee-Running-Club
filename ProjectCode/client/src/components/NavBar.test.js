@@ -77,7 +77,7 @@ describe('desktop nav pills', () => {
   test('marks the pill matching the current route as active', () => {
     renderNavBar('/about');
     expect(screen.getByRole('link', { name: /^About Us/ })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: /^Sponsors/ })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: /^Donors/ })).not.toHaveAttribute('aria-current');
   });
 
   test('shows the short Join label below the xl breakpoint', () => {

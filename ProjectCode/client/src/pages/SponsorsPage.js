@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { useAdmin } from '../context';
 import { useAutoFillOnTab } from '../hooks';
 import DonationLedger from '../components/DonationLedger';
+import DonationHeroCard from '../components/DonationHeroCard';
 import { getAllDonors, getPublicDonors, createDonor, updateDonor, deleteDonor, getHideAmounts, toggleHideAmounts } from '../api/donors';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
@@ -41,7 +42,8 @@ export default function SponsorsPage() {
     donation_date: '',
     message: '',
     notes: '',
-    hide_name: false
+    hide_name: false,
+    hide_message: false
   });
 
   // Default values for Tab auto-fill
@@ -78,7 +80,7 @@ export default function SponsorsPage() {
       }
     } catch (err) {
       console.error('Error fetching donors:', err);
-      setError('Failed to load donors. Please try again. / 加载赞助者失败，请重试。');
+      setError('Failed to load donors. Please try again. / 加载捐赠者失败，请重试。');
     } finally {
       setLoading(false);
     }
@@ -117,7 +119,8 @@ export default function SponsorsPage() {
       donation_date: donor.donation_date || '',
       message: donor.message || '',
       notes: donor.notes || '',
-      hide_name: donor.hide_name || false
+      hide_name: donor.hide_name || false,
+      hide_message: donor.hide_message || false
     });
     setEditDialogOpen(true);
   };
@@ -130,7 +133,8 @@ export default function SponsorsPage() {
       donation_date: new Date().toISOString().split('T')[0],
       message: '',
       notes: '',
-      hide_name: false
+      hide_name: false,
+      hide_message: false
     });
     setEditDialogOpen(true);
   };
@@ -138,7 +142,7 @@ export default function SponsorsPage() {
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setEditingDonor(null);
-    setDonorFormData({ name: '', amount: '', donation_date: '', message: '', notes: '', hide_name: false });
+    setDonorFormData({ name: '', amount: '', donation_date: '', message: '', notes: '', hide_name: false, hide_message: false });
   };
 
   const handleSaveDonor = async () => {
@@ -152,7 +156,8 @@ export default function SponsorsPage() {
           donation_date: donorFormData.donation_date || null,
           message: donorFormData.message || null,
           notes: donorFormData.notes || null,
-          hide_name: donorFormData.hide_name
+          hide_name: donorFormData.hide_name,
+          hide_message: donorFormData.hide_message
         });
       } else {
         // Create new donor
@@ -168,14 +173,15 @@ export default function SponsorsPage() {
           donation_event: 'General Support',
           message: donorFormData.message || null,
           notes: donorFormData.notes || null,
-          hide_name: donorFormData.hide_name
+          hide_name: donorFormData.hide_name,
+          hide_message: donorFormData.hide_message
         });
       }
       handleCloseEditDialog();
       fetchDonors(); // Refresh the list
     } catch (err) {
       console.error('Error saving donor:', err);
-      setError('Failed to save donor. Please try again. / 保存赞助者失败，请重试。');
+      setError('Failed to save donor. Please try again. / 保存捐赠者失败，请重试。');
     } finally {
       setSaving(false);
     }
@@ -195,7 +201,7 @@ export default function SponsorsPage() {
       fetchDonors(); // Refresh the list
     } catch (err) {
       console.error('Error deleting donor:', err);
-      setError('Failed to delete donor. Please try again. / 删除赞助者失败，请重试。');
+      setError('Failed to delete donor. Please try again. / 删除捐赠者失败，请重试。');
     } finally {
       setSaving(false);
     }
@@ -233,7 +239,7 @@ export default function SponsorsPage() {
       return (
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography color="text.secondary">
-            No donors yet. / 暂无赞助者。
+            No donors yet. / 暂无捐赠者。
           </Typography>
         </Box>
       );
@@ -261,12 +267,12 @@ export default function SponsorsPage() {
               }}
             >
               <CardContent sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: INK, fontSize: '1.05rem' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Typography variant="h6" component="div" noWrap sx={{ fontWeight: 600, color: INK, fontSize: '1.05rem', flex: 1, minWidth: 0 }}>
                     {donor.hide_name ? 'Anonymous Donor / 匿名捐赠者' : donor.name}
                   </Typography>
                   {adminModeEnabled && (
-                    <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
                       <Tooltip title="Edit / 编辑">
                         <IconButton size="small" onClick={() => handleEditDonor(donor)}>
                           <EditIcon fontSize="small" color="primary" />
@@ -279,6 +285,13 @@ export default function SponsorsPage() {
                       </Tooltip>
                     </Box>
                   )}
+                  {donor.donation_date && (
+                    <Chip
+                      label={formatDate(donor.donation_date)}
+                      size="small"
+                      sx={{ flexShrink: 0, backgroundColor: ORANGE_BG, color: ORANGE, fontWeight: 700, borderRadius: '99px' }}
+                    />
+                  )}
                 </Box>
 
                 {/* Show amount only in admin mode */}
@@ -288,15 +301,6 @@ export default function SponsorsPage() {
                   </Typography>
                 )}
 
-                {/* Always show date chip when available */}
-                {donor.donation_date && (
-                  <Chip
-                    label={formatDate(donor.donation_date)}
-                    size="small"
-                    sx={{ mb: 1, backgroundColor: ORANGE_BG, color: ORANGE, fontWeight: 700, borderRadius: '99px' }}
-                  />
-                )}
-
                 {/* Show "Thank you!" message for individual donors when amount is hidden */}
                 {!donor.amount && !adminModeEnabled && donor.donor_type === 'individual' && (
                   <Typography variant="body2" sx={{ color: ORANGE, fontWeight: 500, mb: 1 }}>
@@ -304,8 +308,15 @@ export default function SponsorsPage() {
                   </Typography>
                 )}
 
-                {donor.message && !donor.hide_name && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                {/* One-line donation message; committee can hide it per donation */}
+                {donor.message && !donor.hide_name && !donor.hide_message && (
+                  <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 1, fontStyle: 'italic' }}>
+                    "{donor.message}"
+                  </Typography>
+                )}
+                {/* Admin still sees a hidden message, struck through */}
+                {adminModeEnabled && donor.message && !donor.hide_name && donor.hide_message && (
+                  <Typography variant="body2" noWrap sx={{ mt: 1, fontStyle: 'italic', color: '#bbb', textDecoration: 'line-through' }}>
                     "{donor.message}"
                   </Typography>
                 )}
@@ -334,19 +345,24 @@ export default function SponsorsPage() {
       {adminModeEnabled && (
         <Container maxWidth="xl" sx={{ px: 2, mt: 2 }}>
           <Alert severity="info" icon={<InfoIcon />}>
-            Admin mode enabled. You can add, edit, and delete donors. / 管理员模式已开启，您可以添加、编辑和删除赞助者。
+            Admin mode enabled. You can add, edit, and delete donors. / 管理员模式已开启，您可以添加、编辑和删除捐赠者。
           </Alert>
         </Container>
       )}
 
-      {/* Sponsors Header */}
+      {/* Hero Donation Card — the page banner */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 3 }}>
+        <DonationHeroCard />
+      </Container>
+
+      {/* Donors Header */}
       <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
           <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
-            Our Sponsors/Donors
+            Our Donors
           </Typography>
           <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
-            我们的赞助者/赞助商
+            我们的捐赠者
           </Typography>
         </Box>
 
@@ -393,7 +409,7 @@ export default function SponsorsPage() {
                 }
               }}
             >
-              Add Donor / 添加赞助者
+              Add Donor / 添加捐赠者
             </Button>
           </Box>
         )}
@@ -401,44 +417,8 @@ export default function SponsorsPage() {
         {!adminModeEnabled && <Box sx={{ mb: 1 }} />}
       </Container>
 
-      {/* Sponsors Content */}
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0, mb: 0 }}>
-        <Box sx={{
-          backgroundColor: 'white',
-          border: `1px solid ${LINE}`,
-          borderRadius: '12px',
-          p: { xs: 3, md: 6 },
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)'
-        }}>
-          <Typography
-            variant="body1"
-            sx={{
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '16px',
-              lineHeight: 1.6,
-              color: '#333',
-              mb: 3,
-            }}
-          >
-            每一份捐赠，无论多少，都意义非凡。感谢您考虑为新蜂跑团捐赠。您的支持帮助我们组织跑步活动、更好地服务会员，共同建设一个更强大、更健康、更紧密的社区。欢迎通过 Zelle：newbeerunningclub@gmail.com 支持跑团运作。
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '16px',
-              lineHeight: 1.6,
-              color: '#333',
-              mb: 3,
-            }}
-          >
-            Any contribution—large or small—makes a meaningful difference. Thank you for considering a gift to the NewBee Running Club. Your support enables us to organize running programs and better serve our members, fostering a stronger, healthier, and more connected community. Donate via Zelle: newbeerunningclub@gmail.com.
-          </Typography>
-        </Box>
-      </Container>
-
       {/* Donors Tabs Section */}
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 4 }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 0 }}>
         <Box sx={{
           borderBottom: `1px solid ${LINE}`,
           '& .MuiTabs-root': {
@@ -471,7 +451,7 @@ export default function SponsorsPage() {
                     Individual Donors
                   </Typography>
                   <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, color: MUTED }}>
-                    个人赞助者
+                    个人捐赠者
                   </Typography>
                 </Box>
               }
@@ -483,7 +463,7 @@ export default function SponsorsPage() {
                     Enterprise Donors
                   </Typography>
                   <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, color: MUTED }}>
-                    企业赞助者
+                    企业捐赠者
                   </Typography>
                 </Box>
               }
@@ -531,7 +511,7 @@ export default function SponsorsPage() {
       {/* Edit/Add Donor Dialog */}
       <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingDonor ? 'Edit Donor / 编辑赞助者' : 'Add Donor / 添加赞助者'}
+          {editingDonor ? 'Edit Donor / 编辑捐赠者' : 'Add Donor / 添加捐赠者'}
         </DialogTitle>
         <DialogContent>
           <TextField
@@ -578,7 +558,7 @@ export default function SponsorsPage() {
             margin="normal"
             multiline
             rows={2}
-            helperText="This message will be displayed publicly on the sponsors page. / 此留言将公开显示在赞助页面。"
+            helperText="This message will be displayed publicly on the donors page. / 此留言将公开显示在捐赠页面。"
           />
           <TextField
             name="notes"
@@ -602,6 +582,17 @@ export default function SponsorsPage() {
             }
             label="Anonymous Donor / 匿名捐赠者"
             sx={{ mt: 1 }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={donorFormData.hide_message}
+                onChange={(e) => setDonorFormData({ ...donorFormData, hide_message: e.target.checked })}
+                color="warning"
+              />
+            }
+            label="Hide message / 隐藏留言"
+            sx={{ mt: 1, display: 'flex' }}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
@@ -635,7 +626,7 @@ export default function SponsorsPage() {
             Are you sure you want to delete donor "{editingDonor?.name}"?
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            确定要删除赞助者 "{editingDonor?.name}" 吗？
+            确定要删除捐赠者 "{editingDonor?.name}" 吗？
           </Typography>
         </DialogContent>
         <DialogActions>
