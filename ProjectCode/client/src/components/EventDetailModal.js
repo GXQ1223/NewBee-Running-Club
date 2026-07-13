@@ -10,30 +10,26 @@ import {
   Typography,
   Divider,
   CircularProgress,
-  TextField,
   IconButton,
   Snackbar,
   Alert,
-  Tooltip,
-  MenuItem,
-  FormControlLabel,
-  Switch
+  Tooltip
 } from '@mui/material';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
-import CloseIcon from '@mui/icons-material/Close';
 import ShareIcon from '@mui/icons-material/Share';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import ImagePositionEditor from './ImagePositionEditor';
-import { getEventEngagement, updateEvent, getEventById } from '../api';
+import EventComposer from './EventComposer';
+import { getEventEngagement, getEventById } from '../api';
 import LikeButton from './LikeButton';
 import ReactionPicker from './ReactionPicker';
 import CommentSection from './CommentSection';
 import AdminModerationPanel from './AdminModerationPanel';
 import EventGalleryPreview from './EventGalleryPreview';
+import { FALLBACK_EVENT_IMAGE } from '../theme/tokens';
 
 export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const navigate = useNavigate();
@@ -43,9 +39,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const [loading, setLoading] = useState(true);
   const [shareSnackbar, setShareSnackbar] = useState(false);
   const [errorSnackbar, setErrorSnackbar] = useState({ open: false, message: '' });
-  const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
 
   useEffect(() => {
     if (event?.id) {
@@ -75,7 +69,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
 
   const handleImageError = (e) => {
     console.error('Image failed to load:', e.target.src);
-    e.target.src = '/images/2025/20250517_bk_half.jpg';
+    e.target.src = FALLBACK_EVENT_IMAGE;
   };
 
   const handleLikeUpdate = (result) => {
@@ -96,99 +90,27 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
     }
   };
 
-  const handleEditOpen = async () => {
-    // Fetch authoritative server state. The `event` prop from
-    // CalendarPage/HighlightsPage is a transformed projection that drops
-    // fields like is_highlight, so pre-filling from the prop could silently
-    // flip flags off when admin saves a no-op edit.
-    setEditing(true);
-    let fresh = event;
+  const handleComposerSaved = async (saved) => {
+    if (!onEventUpdate) return;
+    // Re-fetch authoritative server state — the composer's save response may
+    // not include every field the parent page caches.
+    let updated = saved;
     try {
-      if (event?.id) fresh = await getEventById(event.id);
+      if (event?.id) updated = await getEventById(event.id);
     } catch (err) {
-      console.error('Failed to load event for edit, falling back to prop:', err);
+      console.error('Failed to refresh event after save, using save response:', err);
     }
-    setEditForm({
-      name: fresh.name || fresh.title || '',
-      chinese_name: fresh.chinese_name ?? fresh.chineseName ?? fresh.chineseTitle ?? '',
-      date: fresh.date || '',
-      time: fresh.time || '',
-      location: fresh.location || '',
-      chinese_location: fresh.chinese_location ?? fresh.chineseLocation ?? '',
-      description: fresh.description || '',
-      chinese_description: fresh.chinese_description ?? fresh.chineseDescription ?? '',
-      image: fresh.image || '',
-      signup_link: fresh.signup_link ?? fresh.signupLink ?? '',
-      wechat_qr_code: fresh.wechat_qr_code ?? fresh.wechatQrCode ?? '',
-      status: fresh.status === 'Highlight' ? 'Past' : (fresh.status || 'Upcoming'),
-      is_highlight: fresh.is_highlight === true || fresh.status === 'Highlight',
-      event_type: fresh.event_type || fresh.eventType || 'standard',
+    // Mirror to camelCase so pages that cache that shape (CalendarPage,
+    // HighlightsPage) re-render with the new values immediately.
+    onEventUpdate({
+      ...event,
+      ...updated,
+      chineseName: updated.chinese_name,
+      chineseLocation: updated.chinese_location,
+      chineseDescription: updated.chinese_description,
+      signupLink: updated.signup_link,
+      wechatQrCode: updated.wechat_qr_code,
     });
-  };
-
-  const handleEditCancel = () => {
-    setEditing(false);
-    setEditForm(null);
-  };
-
-  const handleEditFieldChange = (field) => (e) => {
-    const value = e?.target?.type === 'checkbox' ? e.target.checked : e?.target?.value;
-    setEditForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleEditSave = async () => {
-    if (!editForm) return;
-    const trimmedName = (editForm.name || '').trim();
-    if (!trimmedName) {
-      setErrorSnackbar({ open: true, message: 'Name cannot be empty / 名称不能为空' });
-      return;
-    }
-    if (!editForm.date) {
-      setErrorSnackbar({ open: true, message: 'Date is required / 日期为必填项' });
-      return;
-    }
-    setSaving(true);
-    try {
-      // Send every field so admins can clear values too. Empty strings → null
-      // so the server stores NULL instead of "".
-      const payload = {
-        name: trimmedName,
-        chinese_name: editForm.chinese_name?.trim() || null,
-        date: editForm.date,
-        time: editForm.time?.trim() || null,
-        location: editForm.location?.trim() || null,
-        chinese_location: editForm.chinese_location?.trim() || null,
-        description: editForm.description ?? null,
-        chinese_description: editForm.chinese_description ?? null,
-        image: editForm.image?.trim() || null,
-        signup_link: editForm.signup_link?.trim() || null,
-        wechat_qr_code: editForm.wechat_qr_code?.trim() || null,
-        status: editForm.status,
-        is_highlight: !!editForm.is_highlight,
-        event_type: editForm.event_type || 'standard',
-      };
-      const updated = await updateEvent(event.id, payload, currentUser.uid);
-      setEditing(false);
-      setEditForm(null);
-      if (onEventUpdate) {
-        // Mirror to camelCase so pages that cache that shape (CalendarPage,
-        // HighlightsPage) re-render with the new values immediately.
-        onEventUpdate({
-          ...event,
-          ...updated,
-          chineseName: updated.chinese_name,
-          chineseLocation: updated.chinese_location,
-          chineseDescription: updated.chinese_description,
-          signupLink: updated.signup_link,
-          wechatQrCode: updated.wechat_qr_code,
-        });
-      }
-    } catch (error) {
-      console.error('Error updating event:', error);
-      setErrorSnackbar({ open: true, message: 'Failed to save event / 保存活动失败' });
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleSettingsUpdate = (settings) => {
@@ -255,7 +177,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
             <CardMedia
               component="img"
               height="300"
-              image={event.image}
+              image={event.image || FALLBACK_EVENT_IMAGE}
               alt={eventTitle}
               onError={handleImageError}
               sx={{
@@ -288,165 +210,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
           )}
         </Box>
         <CardContent>
-          {editing && editForm ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <TextField
-                  label="Event Name / 活动名称"
-                  value={editForm.name}
-                  onChange={handleEditFieldChange('name')}
-                  fullWidth
-                  size="small"
-                  required
-                />
-                <TextField
-                  label="Chinese Name / 中文名称"
-                  value={editForm.chinese_name}
-                  onChange={handleEditFieldChange('chinese_name')}
-                  fullWidth
-                  size="small"
-                />
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <TextField
-                  label="Date / 日期"
-                  type="date"
-                  value={editForm.date}
-                  onChange={handleEditFieldChange('date')}
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                  required
-                  sx={{ flex: 1 }}
-                />
-                <TextField
-                  label="Time / 时间"
-                  value={editForm.time}
-                  onChange={handleEditFieldChange('time')}
-                  size="small"
-                  placeholder="e.g. 8:00 AM"
-                  sx={{ flex: 1 }}
-                />
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <TextField
-                  label="Location / 地点"
-                  value={editForm.location}
-                  onChange={handleEditFieldChange('location')}
-                  size="small"
-                  fullWidth
-                />
-                <TextField
-                  label="Chinese Location / 中文地点"
-                  value={editForm.chinese_location}
-                  onChange={handleEditFieldChange('chinese_location')}
-                  size="small"
-                  fullWidth
-                />
-              </Box>
-              <TextField
-                label="Image URL / 图片链接"
-                value={editForm.image}
-                onChange={handleEditFieldChange('image')}
-                size="small"
-                fullWidth
-                placeholder="https://… or /path/to/image.jpg"
-              />
-              <TextField
-                label="Signup Link / 报名链接"
-                value={editForm.signup_link}
-                onChange={handleEditFieldChange('signup_link')}
-                size="small"
-                fullWidth
-              />
-              <TextField
-                label="WeChat QR Code URL / 微信二维码"
-                value={editForm.wechat_qr_code}
-                onChange={handleEditFieldChange('wechat_qr_code')}
-                size="small"
-                fullWidth
-              />
-              <TextField
-                label="Description / 描述"
-                value={editForm.description}
-                onChange={handleEditFieldChange('description')}
-                multiline
-                minRows={2}
-                size="small"
-                fullWidth
-              />
-              <TextField
-                label="Chinese Description / 中文描述"
-                value={editForm.chinese_description}
-                onChange={handleEditFieldChange('chinese_description')}
-                multiline
-                minRows={2}
-                size="small"
-                fullWidth
-              />
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
-                  select
-                  label="Status / 状态"
-                  value={editForm.status}
-                  onChange={handleEditFieldChange('status')}
-                  size="small"
-                  sx={{ flex: 1 }}
-                  // Menu must portal above this modal's zIndex: 9999 overlay
-                  SelectProps={{ MenuProps: { sx: { zIndex: 10000 } } }}
-                >
-                  <MenuItem value="Upcoming">Upcoming / 即将举行</MenuItem>
-                  <MenuItem value="Past">Past / 已结束</MenuItem>
-                  <MenuItem value="Cancelled">Cancelled / 已取消</MenuItem>
-                </TextField>
-                <TextField
-                  select
-                  label="Type / 类型"
-                  value={editForm.event_type}
-                  onChange={handleEditFieldChange('event_type')}
-                  size="small"
-                  sx={{ flex: 1 }}
-                  SelectProps={{ MenuProps: { sx: { zIndex: 10000 } } }}
-                >
-                  <MenuItem value="standard">Standard</MenuItem>
-                  <MenuItem value="heylo">Heylo</MenuItem>
-                  <MenuItem value="race">Race</MenuItem>
-                </TextField>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={!!editForm.is_highlight}
-                      onChange={(e) =>
-                        setEditForm(prev => ({ ...prev, is_highlight: e.target.checked }))
-                      }
-                      color="warning"
-                    />
-                  }
-                  label="★ Highlight"
-                />
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                <Button
-                  variant="outlined"
-                  onClick={handleEditCancel}
-                  disabled={saving}
-                  startIcon={<CloseIcon />}
-                  sx={{ borderColor: '#f44336', color: '#f44336' }}
-                >
-                  Cancel / 取消
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleEditSave}
-                  disabled={saving}
-                  startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-                  sx={{ backgroundColor: '#4caf50', '&:hover': { backgroundColor: '#43a047' } }}
-                >
-                  Save / 保存
-                </Button>
-              </Box>
-            </Box>
-          ) : (
-            <>
+          <>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography variant="h5" gutterBottom sx={{ mb: 0, flex: 1, minWidth: 0 }}>
                   {eventTitle}
@@ -454,7 +218,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   {adminModeEnabled && event.id && (
                     <Tooltip title="Edit event / 编辑活动">
-                      <IconButton onClick={handleEditOpen} sx={{ color: '#FFB84D' }}>
+                      <IconButton onClick={() => setComposerOpen(true)} sx={{ color: '#FFB84D' }}>
                         <EditIcon />
                       </IconButton>
                     </Tooltip>
@@ -548,8 +312,7 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                   {event.chineseDescription || event.chinese_description}
                 </Typography>
               )}
-            </>
-          )}
+          </>
 
           <Divider sx={{ my: 2 }} />
 
@@ -657,6 +420,16 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
             </Button>
           </Box>
         </CardContent>
+        {/* Rendered inside the Card so click events bubbling through the
+            portal are stopped before the overlay's onClick={onClose}. The
+            composer must stack above this modal's zIndex: 9999 overlay. */}
+        <EventComposer
+          open={composerOpen}
+          onClose={() => setComposerOpen(false)}
+          event={event}
+          onSaved={handleComposerSaved}
+          sx={{ zIndex: 10000 }}
+        />
       </Card>
       <Snackbar
         open={shareSnackbar}

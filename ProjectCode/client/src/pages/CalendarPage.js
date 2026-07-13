@@ -1,42 +1,21 @@
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import StarIcon from '@mui/icons-material/Star';
-import QrCode2Icon from '@mui/icons-material/QrCode2';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, IconButton, MenuItem, Snackbar, Switch, TextField, Tooltip, Typography } from '@mui/material';
-import RepeatIcon from '@mui/icons-material/Repeat';
-import ShareIcon from '@mui/icons-material/Share';
-import { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import EventDetailModal from '../components/EventDetailModal';
-import EventCardImage from '../components/EventCardImage';
-import { useAdmin, useAuth } from '../context';
-import { useAutoFillOnTab, useTranslationAutoFill } from '../hooks';
 import {
-  getEventsByStatus, createEvent, updateEvent, deleteEvent,
-  getEventWithRecurrence, createEventRecurrence, updateEventRecurrence, deleteEventRecurrence
-} from '../api';
-import { uploadImage } from '../api/homepageSections';
-
-// Design tokens — match the redesigned HomePage / NavBar
-const ORANGE = '#FFA500';
-const ORANGE_DARK = '#F29400';
-const ORANGE_BG = '#FFF6E8';
-const LINE = '#EEE7DC';
-const INK = '#212121';
-const MUTED = '#757575';
-
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-// Parse an event date (YYYY-MM-DD) into { day, month } for the date bubble
-function parseBubbleDate(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (isNaN(d.getTime())) return null;
-  return { day: d.getDate(), month: MONTHS[d.getMonth()] };
-}
+  Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions,
+  DialogContent, DialogTitle, Grid, IconButton, MenuItem, Snackbar, TextField,
+  Tooltip, Typography,
+} from '@mui/material';
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import EventCard from '../components/EventCard';
+import EventComposer from '../components/EventComposer';
+import EventDetailModal from '../components/EventDetailModal';
+import { useAdmin, useAuth } from '../context';
+import { getEventsByStatus, updateEvent, deleteEvent } from '../api';
+import { ORANGE, ORANGE_DARK, LINE, INK, MUTED } from '../theme/tokens';
 
 // Pill styling for the filter selects
 const filterPillSx = {
@@ -50,31 +29,6 @@ const filterPillSx = {
   '& .MuiInputLabel-root.Mui-focused': { color: ORANGE },
 };
 
-const initialFormData = {
-  name: '',
-  chinese_name: '',
-  date: '',
-  time: '',
-  location: '',
-  chinese_location: '',
-  description: '',
-  chinese_description: '',
-  image: '',
-  signup_link: '',
-  status: 'Upcoming',
-  is_highlight: false,
-  event_type: 'standard',
-  heylo_embed: '',
-  // Recurrence fields
-  is_recurring: false,
-  recurrence_type: 'weekly',
-  days_of_week: '',
-  day_of_month: '',
-  week_of_month: '',
-  month_of_year: '',
-  recurrence_end_date: ''
-};
-
 export default function CalendarPage() {
   const { adminModeEnabled } = useAdmin();
   const { currentUser } = useAuth();
@@ -82,162 +36,73 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [featuredEvents, setFeaturedEvents] = useState([]);
-  const [filters, setFilters] = useState({
-    showAvailable: true,
-    date: '',
-    location: '',
-    distance: '',
-    status: ''
-  });
+  const [filters, setFilters] = useState({ date: '' });
 
   // Admin event management state
-  const [eventFormOpen, setEventFormOpen] = useState(false);
-  const [formData, setFormData] = useState(initialFormData);
-  const [editingEventId, setEditingEventId] = useState(null);
-  const [hadRecurrenceRule, setHadRecurrenceRule] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerEvent, setComposerEvent] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Image upload state
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef(null);
+  // Single fetch/transform used by the initial load, EventComposer's onSaved
+  // and the post-delete refresh. Keeps the camelCase projection that
+  // EventDetailModal (and the deep-link lookup) rely on.
+  const fetchEvents = useCallback(async () => {
+    try {
+      const events = await getEventsByStatus('Upcoming');
+      const currentYear = new Date().getFullYear();
 
-  // Quick QR upload state
-  const [quickQrEventId, setQuickQrEventId] = useState(null);
-  const [quickQrFile, setQuickQrFile] = useState(null);
-  const [quickQrPreview, setQuickQrPreview] = useState('');
-  const [quickQrDialogOpen, setQuickQrDialogOpen] = useState(false);
-  const [quickQrUploading, setQuickQrUploading] = useState(false);
-  const quickQrFileInputRef = useRef(null);
+      const transformedEvents = events
+        .filter(event => {
+          // Only include events from the current year
+          const eventYear = parseInt((event.date || '').split('-')[0], 10);
+          return eventYear === currentYear;
+        })
+        .map(event => {
+          // Parse the event date and time for the date filter
+          const [year, month, day] = (event.date || '').split('-').map(Number);
+          const timeStr = event.time || '';
+          const timeParts = timeStr ? timeStr.split(':').map(Number) : [0, 0];
+          const isPM = timeStr ? timeStr.toLowerCase().includes('pm') : false;
+          const hours = Math.min(Math.max(timeParts[0] || 0, 0), 23);
+          const minutes = Math.min(Math.max(timeParts[1] || 0, 0), 59);
+          const parsedDate = new Date(year, month - 1, day, isPM ? hours + 12 : hours, minutes);
 
-  // Default values for Tab auto-fill
-  const eventDefaultValues = {
-    name: 'New Event',
-    chinese_name: '新活动',
-    time: '8:00 AM',
-    location: 'Central Park',
-    chinese_location: '中央公园',
-    description: 'Event description goes here.',
-    chinese_description: '活动描述在此。',
-    signup_link: 'https://newbeerunningclub.org/signup'
-  };
+          return {
+            id: event.id,
+            name: event.name,
+            chineseName: event.chinese_name,
+            date: event.date,
+            time: event.time,
+            location: event.location,
+            chineseLocation: event.chinese_location,
+            description: event.description,
+            chineseDescription: event.chinese_description,
+            image: event.image,
+            image_position: event.image_position,
+            signupLink: event.signup_link,
+            status: event.status,
+            eventType: event.event_type || 'standard',
+            heyloEmbed: event.heylo_embed || '',
+            wechatQrCode: event.wechat_qr_code || '',
+            parsedDate,
+          };
+        })
+        .sort((a, b) => a.date.localeCompare(b.date)); // Chronological order
 
-  const handleAutoFill = useAutoFillOnTab({
-    setValue: (field, value) => setFormData(prev => ({ ...prev, [field]: value })),
-    defaultValues: eventDefaultValues
-  });
-
-  // Translation auto-fill for bilingual fields
-  const {
-    handleKeyDown: handleTranslationKeyDown,
-    handleBlur: handleTranslationBlur,
-    translations,
-    isTranslating
-  } = useTranslationAutoFill({
-    setValue: (field, value) => setFormData(prev => ({ ...prev, [field]: value })),
-    getValue: (field) => formData[field],
-    fieldPairs: [
-      ['name', 'chinese_name'],
-      ['location', 'chinese_location'],
-      ['description', 'chinese_description']
-    ]
-  });
-
-  // Combined key down handler for both auto-fill and translation
-  const handleFieldKeyDown = (event) => {
-    handleAutoFill(event);
-    handleTranslationKeyDown(event);
-  };
-
-  const handleImageError = (e) => {
-    console.error('Image failed to load:', e.target.src);
-    e.target.src = '/images/placeholder-event.jpg';
-  };
+      setUpcomingEvents(transformedEvents);
+      setFeaturedEvents(transformedEvents.slice(0, 3));
+    } catch (error) {
+      console.error('Error loading events:', error);
+      setSnackbar({ open: true, message: 'Failed to load events / 加载活动失败', severity: 'error' });
+    }
+  }, []);
 
   useEffect(() => {
-    // Fetch events from API
-    const fetchEvents = async () => {
-      try {
-        const events = await getEventsByStatus('Upcoming');
-        console.log('Fetched events from API:', events);
-
-        // Get current year
-        const currentYear = new Date().getFullYear();
-
-        // Transform API response to match expected format and filter for current year
-        const transformedEvents = events
-          .filter(event => {
-            // Only include events from the current year
-            const eventYear = parseInt((event.date || '').split('-')[0], 10);
-            return eventYear === currentYear;
-          })
-          .map(event => {
-            // Parse the event date and time for filtering
-            const [year, month, day] = (event.date || '').split('-').map(Number);
-            const timeStr = event.time || '';
-            const timeParts = timeStr ? timeStr.split(':').map(Number) : [0, 0];
-            const isPM = timeStr ? timeStr.toLowerCase().includes('pm') : false;
-            const hours = Math.min(Math.max(timeParts[0] || 0, 0), 23);
-            const minutes = Math.min(Math.max(timeParts[1] || 0, 0), 59);
-            const eventDate = new Date(year, month - 1, day, isPM ? hours + 12 : hours, minutes);
-
-            return {
-              id: event.id,
-              name: event.name,
-              chineseName: event.chinese_name,
-              date: event.date,
-              time: event.time,
-              location: event.location,
-              chineseLocation: event.chinese_location,
-              description: event.description,
-              chineseDescription: event.chinese_description,
-              image: event.image,
-              image_position: event.image_position,
-              signupLink: event.signup_link,
-              status: event.status,
-              eventType: event.event_type || 'standard',
-              heyloEmbed: event.heylo_embed || '',
-              wechatQrCode: event.wechat_qr_code || '',
-              parsedDate: eventDate
-            };
-          }).sort((a, b) => a.date.localeCompare(b.date)); // Sort in chronological order
-
-        console.log('Transformed upcoming events:', transformedEvents);
-
-        // Set upcoming events
-        setUpcomingEvents(transformedEvents);
-
-        // Set featured events (first 3 events)
-        setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
-          id: event.id,
-          title: event.name,
-          chineseTitle: event.chineseName,
-          image: event.image,
-          image_position: event.image_position,
-          description: event.description,
-          date: event.date,
-          time: event.time,
-          location: event.location,
-          chineseLocation: event.chineseLocation,
-          chineseDescription: event.chineseDescription,
-          signupLink: event.signupLink,
-          status: event.status,
-          eventType: event.eventType,
-          heyloEmbed: event.heyloEmbed,
-          wechatQrCode: event.wechatQrCode
-        })));
-      } catch (error) {
-        console.error('Error loading events:', error);
-        setSnackbar({ open: true, message: 'Failed to load events / 加载活动失败', severity: 'error' });
-      }
-    };
-
     fetchEvents();
-  }, []);
+  }, [fetchEvents]);
 
   // Deep-link: auto-open event modal from ?event=ID
   useEffect(() => {
@@ -260,8 +125,7 @@ export default function CalendarPage() {
     setSearchParams({});
   };
 
-  const handleShareEvent = (e, event) => {
-    e.stopPropagation();
+  const handleShareEvent = (event) => {
     const url = `${window.location.origin}/calendar?event=${event.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setSnackbar({ open: true, message: 'Link copied / 链接已复制', severity: 'success' });
@@ -277,226 +141,35 @@ export default function CalendarPage() {
     });
   };
 
-  const handleEditEvent = (e, event) => {
-    e.stopPropagation();
-    // Pre-fill form with event data — legacy 'Highlight' status maps to Past + is_highlight
-    const rawStatus = event.status || 'Upcoming';
-    const normalizedStatus = rawStatus === 'Highlight' ? 'Past' : rawStatus;
-    const isHighlight = event.is_highlight === true || rawStatus === 'Highlight';
-    setFormData({
-      ...initialFormData,
-      name: event.name || event.title || '',
-      chinese_name: event.chineseName || event.chineseTitle || '',
-      date: event.date || '',
-      time: event.time || '',
-      location: event.location || '',
-      chinese_location: event.chineseLocation || '',
-      description: event.description || '',
-      chinese_description: event.chineseDescription || '',
-      image: event.image || '',
-      signup_link: event.signupLink || '',
-      status: normalizedStatus,
-      is_highlight: isHighlight,
-      event_type: event.eventType || event.event_type || 'standard',
-      heylo_embed: event.heyloEmbed || event.heylo_embed || ''
-    });
-    setEditingEventId(event.id);
-    setHadRecurrenceRule(false);
-    setImageFile(null);
-    setImagePreview(event.image || '');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    setEventFormOpen(true);
-    // Load the recurrence rule (if any) to populate the recurrence section
-    getEventWithRecurrence(event.id)
-      .then((full) => {
-        const rule = full?.recurrence;
-        if (!rule) return;
-        setHadRecurrenceRule(true);
-        setFormData(prev => ({
-          ...prev,
-          is_recurring: true,
-          recurrence_type: rule.recurrence_type || 'weekly',
-          days_of_week: rule.days_of_week || '',
-          day_of_month: rule.day_of_month != null ? String(rule.day_of_month) : '',
-          week_of_month: rule.week_of_month != null ? String(rule.week_of_month) : '',
-          month_of_year: rule.month_of_year != null ? String(rule.month_of_year) : '',
-          recurrence_end_date: rule.end_date || ''
-        }));
-      })
-      .catch((error) => {
-        console.error('Error loading recurrence rule:', error);
-      });
+  const handleAddEvent = () => {
+    setComposerEvent(null);
+    setComposerOpen(true);
   };
 
-  const handleDeleteEvent = (e, event) => {
-    e.stopPropagation();
+  const handleEditEvent = (event) => {
+    setComposerEvent(event);
+    setComposerOpen(true);
+  };
+
+  const handleDeleteEvent = (event) => {
     setEventToDelete(event);
     setDeleteDialogOpen(true);
   };
 
-  const handleMoveToHighlights = async (e, event) => {
-    e.stopPropagation();
+  const handleMoveToMemories = async (event) => {
     if (!currentUser?.uid) {
       setSnackbar({ open: true, message: 'You must be logged in / 您必须登录', severity: 'error' });
       return;
     }
     try {
       // Move from Upcoming -> Past (Memories). Highlight curation is a
-      // separate toggle in the event edit dialog and is preserved here.
+      // separate toggle in the event composer and is preserved here.
       await updateEvent(event.id, { status: 'Past' }, currentUser.uid);
       setUpcomingEvents(prev => prev.filter(ev => ev.id !== event.id));
       setSnackbar({ open: true, message: 'Event moved to Memories / 活动已移至回忆', severity: 'success' });
     } catch (error) {
       console.error('Error moving event to memories:', error);
       setSnackbar({ open: true, message: 'Failed to move event / 移动活动失败', severity: 'error' });
-    }
-  };
-
-  const handleAddEvent = () => {
-    setFormData(initialFormData);
-    setEditingEventId(null);
-    setHadRecurrenceRule(false);
-    setImageFile(null);
-    setImagePreview('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    setEventFormOpen(true);
-  };
-
-  const handleFormChange = (field) => (e) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: e.target.value
-    }));
-  };
-
-  const syncRecurrenceRule = async (eventId) => {
-    if (formData.is_recurring) {
-      const rulePayload = {
-        recurrence_type: formData.recurrence_type,
-        days_of_week: formData.days_of_week || null,
-        day_of_month: formData.day_of_month ? Number(formData.day_of_month) : null,
-        week_of_month: formData.week_of_month ? Number(formData.week_of_month) : null,
-        month_of_year: formData.month_of_year ? Number(formData.month_of_year) : null,
-        end_date: formData.recurrence_end_date || null
-      };
-      if (hadRecurrenceRule) {
-        await updateEventRecurrence(eventId, rulePayload, currentUser.uid);
-      } else {
-        try {
-          await createEventRecurrence(eventId, rulePayload, currentUser.uid);
-        } catch (error) {
-          // A rule already exists (stale local state) — update it instead
-          if (error.status === 400) {
-            await updateEventRecurrence(eventId, rulePayload, currentUser.uid);
-          } else {
-            throw error;
-          }
-        }
-      }
-    } else if (hadRecurrenceRule) {
-      await deleteEventRecurrence(eventId, currentUser.uid);
-    }
-  };
-
-  const handleFormSubmit = async () => {
-    // Validate required fields
-    if (!formData.name || !formData.date) {
-      setSnackbar({ open: true, message: 'Name and date are required / 名称和日期为必填项', severity: 'error' });
-      return;
-    }
-
-    if (!currentUser?.uid) {
-      setSnackbar({ open: true, message: 'You must be logged in to manage events / 您必须登录才能管理活动', severity: 'error' });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Upload image if a new file was selected
-      let imageUrl = formData.image;
-      if (imageFile) {
-        imageUrl = await handleImageUpload();
-      }
-
-      // Recurrence is managed via the dedicated rule endpoints below,
-      // not the event payload
-      const {
-        is_recurring, recurrence_type, days_of_week, day_of_month,
-        week_of_month, month_of_year, recurrence_end_date,
-        ...eventFields
-      } = { ...formData, image: imageUrl };
-
-      // Convert empty strings to null for backend validation
-      const cleanedEventData = Object.fromEntries(
-        Object.entries(eventFields).map(([key, value]) => [key, value === '' ? null : value])
-      );
-
-      let eventId = editingEventId;
-      if (editingEventId) {
-        // Update existing event
-        await updateEvent(editingEventId, cleanedEventData, currentUser.uid);
-        setSnackbar({ open: true, message: 'Event updated successfully / 活动已更新', severity: 'success' });
-      } else {
-        // Create new event
-        const createdEvent = await createEvent(cleanedEventData, currentUser.uid);
-        eventId = createdEvent.id;
-        setSnackbar({ open: true, message: 'Event created successfully / 活动已创建', severity: 'success' });
-      }
-
-      await syncRecurrenceRule(eventId);
-      setEventFormOpen(false);
-      setFormData(initialFormData);
-      setEditingEventId(null);
-      setImageFile(null);
-      setImagePreview('');
-      // Refresh events
-      const events = await getEventsByStatus('Upcoming');
-      const transformedEvents = events.map(event => ({
-        id: event.id,
-        name: event.name,
-        chineseName: event.chinese_name,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chinese_location,
-        description: event.description,
-        chineseDescription: event.chinese_description,
-        image: event.image,
-        image_position: event.image_position,
-        signupLink: event.signup_link,
-        status: event.status,
-        eventType: event.event_type || 'standard',
-        heyloEmbed: event.heylo_embed || '',
-        wechatQrCode: event.wechat_qr_code || ''
-      })).sort((a, b) => a.date.localeCompare(b.date));
-      setUpcomingEvents(transformedEvents);
-      setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
-        id: event.id,
-        title: event.name,
-        chineseTitle: event.chineseName,
-        image: event.image,
-        image_position: event.image_position,
-        description: event.description,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chineseLocation,
-        chineseDescription: event.chineseDescription,
-        signupLink: event.signupLink,
-        status: event.status,
-        eventType: event.eventType,
-        heyloEmbed: event.heyloEmbed,
-        wechatQrCode: event.wechatQrCode
-      })));
-    } catch (error) {
-      console.error('Error saving event:', error);
-      setSnackbar({ open: true, message: `Error: ${error.message || 'Failed to save event'}`, severity: 'error' });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -512,45 +185,7 @@ export default function CalendarPage() {
       setSnackbar({ open: true, message: 'Event deleted successfully / 活动已删除', severity: 'success' });
       setDeleteDialogOpen(false);
       setEventToDelete(null);
-      // Refresh events
-      const events = await getEventsByStatus('Upcoming');
-      const transformedEvents = events.map(event => ({
-        id: event.id,
-        name: event.name,
-        chineseName: event.chinese_name,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chinese_location,
-        description: event.description,
-        chineseDescription: event.chinese_description,
-        image: event.image,
-        image_position: event.image_position,
-        signupLink: event.signup_link,
-        status: event.status,
-        eventType: event.event_type || 'standard',
-        heyloEmbed: event.heylo_embed || '',
-        wechatQrCode: event.wechat_qr_code || ''
-      })).sort((a, b) => a.date.localeCompare(b.date));
-      setUpcomingEvents(transformedEvents);
-      setFeaturedEvents(transformedEvents.slice(0, 3).map(event => ({
-        id: event.id,
-        title: event.name,
-        chineseTitle: event.chineseName,
-        image: event.image,
-        image_position: event.image_position,
-        description: event.description,
-        date: event.date,
-        time: event.time,
-        location: event.location,
-        chineseLocation: event.chineseLocation,
-        chineseDescription: event.chineseDescription,
-        signupLink: event.signupLink,
-        status: event.status,
-        eventType: event.eventType,
-        heyloEmbed: event.heyloEmbed,
-        wechatQrCode: event.wechatQrCode
-      })));
+      await fetchEvents();
     } catch (error) {
       console.error('Error deleting event:', error);
       setSnackbar({ open: true, message: `Error: ${error.message || 'Failed to delete event'}`, severity: 'error' });
@@ -563,117 +198,29 @@ export default function CalendarPage() {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setSnackbar({ open: true, message: 'Please select an image file / 请选择图片文件', severity: 'error' });
-        return;
-      }
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setSnackbar({ open: true, message: 'Image must be less than 5MB / 图片必须小于5MB', severity: 'error' });
-        return;
-      }
-      setImageFile(file);
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
-    }
-  };
+  // Small icon cluster passed into EventCard's top-right slot (the card
+  // wrapper already stopPropagation's clicks, so plain handlers suffice)
+  const renderAdminActions = (event) => (
+    <>
+      <Tooltip title="Edit event / 编辑活动">
+        <IconButton size="small" aria-label="edit event" onClick={() => handleEditEvent(event)}>
+          <EditIcon sx={{ fontSize: 16 }} color="primary" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Delete event / 删除活动">
+        <IconButton size="small" aria-label="delete event" onClick={() => handleDeleteEvent(event)}>
+          <DeleteIcon sx={{ fontSize: 16 }} color="error" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Move to Memories / 移至回忆">
+        <IconButton size="small" aria-label="move to memories" onClick={() => handleMoveToMemories(event)}>
+          <StarIcon sx={{ fontSize: 16, color: '#FFB84D' }} />
+        </IconButton>
+      </Tooltip>
+    </>
+  );
 
-  const handleImageUpload = async () => {
-    if (!imageFile) return formData.image;
-
-    setUploadingImage(true);
-    try {
-      // Upload to S3 via the backend (Firebase Storage quota is exceeded)
-      const { url } = await uploadImage(imageFile, currentUser.uid);
-      return url;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw new Error('Failed to upload image / 图片上传失败');
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview('');
-    setFormData(prev => ({ ...prev, image: '' }));
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  // Quick QR upload handlers
-  const getEventQrCode = (eventId) => {
-    const event = [...featuredEvents, ...upcomingEvents].find(ev => ev.id === eventId);
-    return event?.wechatQrCode || '';
-  };
-
-  const handleQuickQrOpen = (e, event) => {
-    e.stopPropagation();
-    setQuickQrEventId(event.id);
-    setQuickQrFile(null);
-    setQuickQrPreview('');
-    if (quickQrFileInputRef.current) quickQrFileInputRef.current.value = '';
-    setQuickQrDialogOpen(true);
-  };
-
-  const handleQuickQrSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setSnackbar({ open: true, message: 'Please select an image file / 请选择图片文件', severity: 'error' });
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setSnackbar({ open: true, message: 'Image must be less than 5MB / 图片必须小于5MB', severity: 'error' });
-        return;
-      }
-      setQuickQrFile(file);
-      setQuickQrPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleQuickQrSubmit = async () => {
-    if (!quickQrFile || !quickQrEventId) return;
-    setQuickQrUploading(true);
-    try {
-      const { url } = await uploadImage(quickQrFile, currentUser.uid);
-      await updateEvent(quickQrEventId, { wechat_qr_code: url }, currentUser.uid);
-      const updateList = (list) => list.map(ev => ev.id === quickQrEventId ? { ...ev, wechatQrCode: url } : ev);
-      setFeaturedEvents(updateList);
-      setUpcomingEvents(updateList);
-      setQuickQrDialogOpen(false);
-      setSnackbar({ open: true, message: 'QR code uploaded / 二维码已上传', severity: 'success' });
-    } catch (error) {
-      console.error('Error uploading QR code:', error);
-      setSnackbar({ open: true, message: 'Failed to upload QR code / 二维码上传失败', severity: 'error' });
-    } finally {
-      setQuickQrUploading(false);
-    }
-  };
-
-  const handleQuickQrRemove = async () => {
-    if (!quickQrEventId) return;
-    try {
-      await updateEvent(quickQrEventId, { wechat_qr_code: '' }, currentUser.uid);
-      const updateList = (list) => list.map(ev => ev.id === quickQrEventId ? { ...ev, wechatQrCode: '' } : ev);
-      setFeaturedEvents(updateList);
-      setUpcomingEvents(updateList);
-      setQuickQrDialogOpen(false);
-      setSnackbar({ open: true, message: 'QR code removed / 二维码已移除', severity: 'success' });
-    } catch (error) {
-      console.error('Error removing QR code:', error);
-      setSnackbar({ open: true, message: 'Failed to remove QR code / 移除二维码失败', severity: 'error' });
-    }
-  };
-
-  // Filter events based on selected filters
+  // Filter events based on the selected date range
   const filteredEvents = upcomingEvents.filter(event => {
     if (filters.date) {
       const referenceDate = new Date();
@@ -697,14 +244,6 @@ export default function CalendarPage() {
       }
     }
 
-    if (filters.location && event.location.toLowerCase() !== filters.location.toLowerCase()) {
-      return false;
-    }
-
-    if (filters.status && event.status.toLowerCase() !== filters.status.toLowerCase()) {
-      return false;
-    }
-
     return true;
   });
 
@@ -722,14 +261,14 @@ export default function CalendarPage() {
         </Container>
       )}
 
-      {/* Upcoming Events Section */}
+      {/* Featured Upcoming Events */}
       <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
           <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: INK }}>
             Upcoming Events
           </Typography>
           <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
-            即将举行的活动
+            近期活动
           </Typography>
         </Box>
 
@@ -760,482 +299,63 @@ export default function CalendarPage() {
         <Grid container spacing={3}>
           {featuredEvents.map((event) => (
             <Grid item xs={12} md={4} key={event.id}>
-              <Card
-                elevation={0}
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  backgroundColor: 'white',
-                  border: `1px solid ${LINE}`,
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-3px)',
-                    boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
-                  }
-                }}
-                onClick={() => handleEventClick(event)}
-              >
-                {/* Admin Edit/Delete Buttons */}
-                {adminModeEnabled && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      zIndex: 10,
-                      display: 'flex',
-                      gap: 0.5
-                    }}
-                  >
-                    <Tooltip title="Edit event / 编辑活动">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleEditEvent(e, event)}
-                        sx={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          '&:hover': { backgroundColor: 'white' }
-                        }}
-                      >
-                        <EditIcon fontSize="small" color="primary" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete event / 删除活动">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleDeleteEvent(e, event)}
-                        sx={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          '&:hover': { backgroundColor: 'white' }
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" color="error" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Move to Memories / 移至回忆">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleMoveToHighlights(e, event)}
-                        sx={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          '&:hover': { backgroundColor: 'white' }
-                        }}
-                      >
-                        <StarIcon fontSize="small" sx={{ color: '#FFB84D' }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Upload WeChat QR / 上传微信二维码">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleQuickQrOpen(e, event)}
-                        sx={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          '&:hover': { backgroundColor: 'white' }
-                        }}
-                      >
-                        <QrCode2Icon fontSize="small" sx={{ color: event.wechatQrCode ? '#07C160' : 'action.active' }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                )}
-                <Box sx={{ position: 'relative' }}>
-                  <EventCardImage event={event} height="200" onError={handleImageError} />
-                  {!adminModeEnabled && (
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleShareEvent(e, event)}
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
-                      }}
-                    >
-                      <ShareIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </Box>
-                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Typography gutterBottom variant="h6" component="div" sx={{
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 1,
-                    WebkitBoxOrient: 'vertical',
-                  }}>
-                    {event.title}
-                  </Typography>
-                  <Typography gutterBottom variant="subtitle1" color="text.secondary" sx={{
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 1,
-                    WebkitBoxOrient: 'vertical',
-                    minHeight: '1.75em',
-                  }}>
-                    {event.chineseTitle || '\u00A0'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{
-                    mb: 2,
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    minHeight: '3.6em',
-                  }}>
-                    {event.description}
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    disableElevation
-                    sx={{
-                      backgroundColor: ORANGE,
-                      color: 'white',
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.9375rem',
-                      px: 2.5,
-                      py: 1.1,
-                      borderRadius: '99px',
-                      mt: 'auto',
-                      '&:hover': {
-                        backgroundColor: ORANGE_DARK,
-                      },
-                      '&:active': {
-                        transform: 'scale(0.98)',
-                      }
-                    }}
-                  >
-                    Learn More & Sign Up 了解更多并报名
-                  </Button>
-                </CardContent>
-              </Card>
+              <EventCard
+                event={event}
+                density="grid"
+                showDescription
+                onClick={handleEventClick}
+                onShare={handleShareEvent}
+                adminActions={adminModeEnabled ? renderAdminActions(event) : null}
+              />
             </Grid>
           ))}
         </Grid>
       </Container>
 
-      {/* Event Calendar Section */}
+      {/* All Upcoming Events */}
       <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 }, mt: 5 }}>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, mb: 1.75 }}>
           <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK }}>
-            Upcoming
+            All Upcoming
           </Typography>
           <Typography sx={{ fontSize: '0.875rem', color: MUTED }}>
-            即将到来
+            全部活动
           </Typography>
         </Box>
 
         {/* Filters */}
         <Box sx={{ display: 'flex', mb: 3 }}>
           <Grid container spacing={2} sx={{ maxWidth: 1000 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              sx={filterPillSx}
-              label="Date"
-              value={filters.date}
-              onChange={handleFilterChange('date')}
-            >
-              <MenuItem value="">All Dates</MenuItem>
-              <MenuItem value="this-week">This Week</MenuItem>
-              <MenuItem value="this-month">This Month</MenuItem>
-              <MenuItem value="next-month">Next Month</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              sx={filterPillSx}
-              label="Location"
-              value={filters.location}
-              onChange={handleFilterChange('location')}
-            >
-              <MenuItem value="">All Locations</MenuItem>
-              <MenuItem value="central-park">Central Park</MenuItem>
-              <MenuItem value="track-field">Track Field</MenuItem>
-              <MenuItem value="brooklyn">Brooklyn</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              sx={filterPillSx}
-              label="Distance"
-              value={filters.distance}
-              onChange={handleFilterChange('distance')}
-            >
-              <MenuItem value="">All Distances</MenuItem>
-              <MenuItem value="5k">5K</MenuItem>
-              <MenuItem value="10k">10K</MenuItem>
-              <MenuItem value="half-marathon">Half Marathon</MenuItem>
-              <MenuItem value="marathon">Marathon</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              sx={filterPillSx}
-              label="Status"
-              value={filters.status}
-              onChange={handleFilterChange('status')}
-            >
-              <MenuItem value="">All Status</MenuItem>
-              <MenuItem value="open">Open</MenuItem>
-              <MenuItem value="closed">Closed</MenuItem>
-              <MenuItem value="upcoming">Upcoming</MenuItem>
-            </TextField>
-          </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                sx={filterPillSx}
+                label="Date"
+                value={filters.date}
+                onChange={handleFilterChange('date')}
+              >
+                <MenuItem value="">All Dates</MenuItem>
+                <MenuItem value="this-week">This Week</MenuItem>
+                <MenuItem value="this-month">This Month</MenuItem>
+                <MenuItem value="next-month">Next Month</MenuItem>
+              </TextField>
+            </Grid>
           </Grid>
         </Box>
 
         {/* Events List */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {filteredEvents.map((event) => (
-            <Card
+            <EventCard
               key={event.id}
-              elevation={0}
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                height: { xs: 'auto', sm: '200px' },
-                overflow: 'hidden',
-                cursor: 'pointer',
-                position: 'relative',
-                backgroundColor: 'white',
-                border: `1px solid ${LINE}`,
-                borderRadius: '12px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  transform: 'translateY(-3px)',
-                  boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
-                }
-              }}
-              onClick={() => handleEventClick(event)}
-            >
-              {/* Admin Edit/Delete Buttons for list view */}
-              {adminModeEnabled && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    zIndex: 10,
-                    display: 'flex',
-                    gap: 0.5
-                  }}
-                >
-                  <Tooltip title="Edit event / 编辑活动">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleEditEvent(e, event)}
-                      sx={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '&:hover': { backgroundColor: 'white' }
-                      }}
-                    >
-                      <EditIcon fontSize="small" color="primary" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Delete event / 删除活动">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleDeleteEvent(e, event)}
-                      sx={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '&:hover': { backgroundColor: 'white' }
-                      }}
-                    >
-                      <DeleteIcon fontSize="small" color="error" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Move to Memories / 移至回忆">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleMoveToHighlights(e, event)}
-                      sx={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '&:hover': { backgroundColor: 'white' }
-                      }}
-                    >
-                      <StarIcon fontSize="small" sx={{ color: '#FFB84D' }} />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Upload WeChat QR / 上传微信二维码">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleQuickQrOpen(e, event)}
-                      sx={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '&:hover': { backgroundColor: 'white' }
-                      }}
-                    >
-                      <QrCode2Icon fontSize="small" sx={{ color: event.wechatQrCode ? '#07C160' : 'action.active' }} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              )}
-
-              {/* Mobile: Image at top */}
-              <Box
-                sx={{
-                  display: { xs: 'block', sm: 'none' },
-                  width: '100%',
-                  height: '150px'
-                }}
-              >
-                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
-              </Box>
-
-              {/* Date/Time Column - hidden on mobile, shown on sm+ */}
-              <Box
-                sx={{
-                  display: { xs: 'none', sm: 'flex' },
-                  width: '120px',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  backgroundColor: 'white',
-                  p: 2,
-                  borderRight: `1px solid ${LINE}`,
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {(() => {
-                  const bubbleDate = parseBubbleDate(event.date);
-                  return bubbleDate ? (
-                    <Box
-                      sx={{
-                        width: 46,
-                        height: 46,
-                        borderRadius: '12px',
-                        backgroundColor: ORANGE_BG,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: ORANGE, lineHeight: 1.1 }}>
-                        {bubbleDate.day}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.59rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, textTransform: 'uppercase' }}>
-                        {bubbleDate.month}
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" sx={{ color: MUTED, whiteSpace: 'nowrap' }}>
-                      {event.date}
-                    </Typography>
-                  );
-                })()}
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: ORANGE, whiteSpace: 'nowrap' }}>
-                  {event.time}
-                </Typography>
-              </Box>
-
-              {/* Image Column - hidden on mobile, shown on sm+ */}
-              <Box
-                sx={{
-                  display: { xs: 'none', sm: 'block' },
-                  width: '200px',
-                  flexShrink: 0
-                }}
-              >
-                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
-              </Box>
-
-              {/* Content Column */}
-              <Box
-                sx={{
-                  flex: 1,
-                  p: 2,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative'
-                }}
-              >
-                {/* Share button */}
-                <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleShareEvent(e, event)}
-                    sx={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
-                    }}
-                  >
-                    <ShareIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-                {/* Mobile: Show date/time at top of content */}
-                <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: ORANGE }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {event.time}
-                  </Typography>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    {event.date}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-start' }, mb: 1, gap: 1 }}>
-                  <Box>
-                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                      {event.name}
-                    </Typography>
-                    <Typography variant="subtitle1" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                      {event.chineseName}
-                    </Typography>
-                  </Box>
-                  <Button
-                    variant="contained"
-                    disableElevation
-                    sx={{
-                      backgroundColor: ORANGE,
-                      color: 'white',
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
-                      px: { xs: 2, sm: 2.5 },
-                      py: { xs: 0.75, sm: 1 },
-                      borderRadius: '99px',
-                      flexShrink: 0,
-                      '&:hover': {
-                        backgroundColor: ORANGE_DARK,
-                      },
-                      '&:active': {
-                        transform: 'scale(0.98)',
-                      }
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEventClick(event);
-                    }}
-                  >
-                    Learn More & Sign Up 了解更多并报名
-                  </Button>
-                </Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {event.location}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {event.chineseLocation}
-                </Typography>
-              </Box>
-            </Card>
+              event={event}
+              density="row"
+              onClick={handleEventClick}
+              onShare={handleShareEvent}
+              adminActions={adminModeEnabled ? renderAdminActions(event) : null}
+            />
           ))}
         </Box>
       </Container>
@@ -1251,427 +371,18 @@ export default function CalendarPage() {
               ev.id === updatedEvent.id ? { ...ev, ...updatedEvent } : ev
             );
             setUpcomingEvents(updateList);
-            setFeaturedEvents(prev => prev.map(ev =>
-              ev.id === updatedEvent.id ? { ...ev, ...updatedEvent } : ev
-            ));
+            setFeaturedEvents(updateList);
           }}
         />
       )}
 
-      {/* Event Form Dialog */}
-      <Dialog open={eventFormOpen} onClose={() => setEventFormOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingEventId ? 'Edit Event / 编辑活动' : 'Add Event / 添加活动'}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <TextField
-              name="name"
-              label="Event Name / 活动名称 *"
-              value={formData.name}
-              onChange={handleFormChange('name')}
-              onKeyDown={handleFieldKeyDown}
-              onBlur={handleTranslationBlur}
-              placeholder={eventDefaultValues.name}
-              fullWidth
-              required
-            />
-            <TextField
-              name="chinese_name"
-              label="Chinese Name / 中文名称"
-              value={formData.chinese_name}
-              onChange={handleFormChange('chinese_name')}
-              onKeyDown={handleFieldKeyDown}
-              onBlur={handleTranslationBlur}
-              placeholder={translations.chinese_name || eventDefaultValues.chinese_name}
-              fullWidth
-              InputProps={{
-                endAdornment: isTranslating && !formData.chinese_name && (
-                  <CircularProgress size={16} sx={{ mr: 1 }} />
-                )
-              }}
-              helperText={translations.chinese_name && !formData.chinese_name ? 'Press Tab to auto-fill translation' : ''}
-            />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Date / 日期 *"
-                type="date"
-                value={formData.date}
-                onChange={handleFormChange('date')}
-                fullWidth
-                required
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                name="time"
-                label="Time / 时间"
-                value={formData.time}
-                onChange={handleFormChange('time')}
-                onKeyDown={handleFieldKeyDown}
-                fullWidth
-                placeholder={eventDefaultValues.time}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                name="location"
-                label="Location / 地点"
-                value={formData.location}
-                onChange={handleFormChange('location')}
-                onKeyDown={handleFieldKeyDown}
-                onBlur={handleTranslationBlur}
-                placeholder={eventDefaultValues.location}
-                fullWidth
-              />
-              <TextField
-                name="chinese_location"
-                label="Chinese Location / 中文地点"
-                value={formData.chinese_location}
-                onChange={handleFormChange('chinese_location')}
-                onKeyDown={handleFieldKeyDown}
-                onBlur={handleTranslationBlur}
-                placeholder={translations.chinese_location || eventDefaultValues.chinese_location}
-                fullWidth
-                InputProps={{
-                  endAdornment: isTranslating && !formData.chinese_location && (
-                    <CircularProgress size={16} sx={{ mr: 1 }} />
-                  )
-                }}
-                helperText={translations.chinese_location && !formData.chinese_location ? 'Press Tab to auto-fill translation' : ''}
-              />
-            </Box>
-            <TextField
-              name="description"
-              label="Description / 描述"
-              value={formData.description}
-              onChange={handleFormChange('description')}
-              onKeyDown={handleFieldKeyDown}
-              onBlur={handleTranslationBlur}
-              placeholder={eventDefaultValues.description}
-              fullWidth
-              multiline
-              rows={3}
-            />
-            <TextField
-              name="chinese_description"
-              label="Chinese Description / 中文描述"
-              value={formData.chinese_description}
-              onChange={handleFormChange('chinese_description')}
-              onKeyDown={handleFieldKeyDown}
-              onBlur={handleTranslationBlur}
-              placeholder={translations.chinese_description || eventDefaultValues.chinese_description}
-              fullWidth
-              multiline
-              rows={3}
-              InputProps={{
-                endAdornment: isTranslating && !formData.chinese_description && (
-                  <CircularProgress size={16} sx={{ mr: 1 }} />
-                )
-              }}
-              helperText={translations.chinese_description && !formData.chinese_description ? 'Press Tab to auto-fill translation' : ''}
-            />
-            {/* Image Upload */}
-            <Box sx={{ border: '1px dashed #ccc', borderRadius: 1, p: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Event Image / 活动图片
-              </Typography>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                id="event-image-upload"
-              />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <label htmlFor="event-image-upload">
-                  <Button
-                    variant="outlined"
-                    component="span"
-                    startIcon={uploadingImage ? <CircularProgress size={20} /> : <CloudUploadIcon />}
-                    disabled={uploadingImage}
-                    sx={{
-                      borderColor: '#FFB84D',
-                      color: '#FFB84D',
-                      '&:hover': { borderColor: '#FFA833', backgroundColor: 'rgba(255, 184, 77, 0.04)' }
-                    }}
-                  >
-                    {uploadingImage ? 'Uploading...' : 'Choose Image / 选择图片'}
-                  </Button>
-                </label>
-                {(imagePreview || formData.image) && (
-                  <Button
-                    variant="text"
-                    color="error"
-                    size="small"
-                    onClick={handleRemoveImage}
-                  >
-                    Remove / 移除
-                  </Button>
-                )}
-              </Box>
-              {(imagePreview || formData.image) && (
-                <Box sx={{ mt: 2 }}>
-                  <img
-                    src={imagePreview || formData.image}
-                    alt="Preview"
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: 200,
-                      borderRadius: 4,
-                      objectFit: 'cover'
-                    }}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                </Box>
-              )}
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Max size: 5MB. Supported: JPG, PNG, GIF / 最大5MB，支持JPG、PNG、GIF格式
-              </Typography>
-            </Box>
-            <TextField
-              name="signup_link"
-              label="Signup Link / 报名链接"
-              value={formData.signup_link}
-              onChange={handleFormChange('signup_link')}
-              onKeyDown={handleFieldKeyDown}
-              fullWidth
-              placeholder={eventDefaultValues.signup_link}
-            />
-            <TextField
-              select
-              label="Status / 状态 *"
-              value={formData.status}
-              onChange={handleFormChange('status')}
-              fullWidth
-              required
-            >
-              <MenuItem value="Upcoming">Upcoming / 即将举行</MenuItem>
-              <MenuItem value="Past">Past (Memories) / 已结束（回忆）</MenuItem>
-              <MenuItem value="Cancelled">Cancelled / 已取消</MenuItem>
-            </TextField>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={!!formData.is_highlight}
-                  onChange={(e) =>
-                    setFormData(prev => ({ ...prev, is_highlight: e.target.checked }))
-                  }
-                  color="warning"
-                />
-              }
-              label="Highlight (featured) / 精选"
-            />
-
-            <TextField
-              select
-              label="Event Type / 活动类型"
-              value={formData.event_type}
-              onChange={handleFormChange('event_type')}
-              fullWidth
-            >
-              <MenuItem value="standard">Standard / 标准</MenuItem>
-              <MenuItem value="heylo">Heylo (Weekly Run) / Heylo周跑</MenuItem>
-              <MenuItem value="race">Race / 比赛</MenuItem>
-            </TextField>
-            {formData.event_type === 'heylo' && (
-              <TextField
-                label="Heylo Embed Code / Heylo嵌入代码"
-                value={formData.heylo_embed}
-                onChange={handleFormChange('heylo_embed')}
-                fullWidth
-                multiline
-                rows={4}
-                placeholder="Paste Heylo embed code here... / 在此粘贴Heylo嵌入代码..."
-                helperText="Paste the embed code from Heylo Pro admin panel. The event details will auto-display. / 从Heylo Pro管理面板粘贴嵌入代码，活动详情将自动显示。"
-              />
-            )}
-
-            {/* Recurrence Section */}
-            <Box sx={{ mt: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <RepeatIcon color="action" />
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Recurring Event / 重复活动
-                </Typography>
-              </Box>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.is_recurring}
-                    onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
-                  />
-                }
-                label="Enable recurrence / 启用重复"
-              />
-
-              {formData.is_recurring && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                  <TextField
-                    select
-                    label="Recurrence Type / 重复类型"
-                    value={formData.recurrence_type}
-                    onChange={handleFormChange('recurrence_type')}
-                    fullWidth
-                  >
-                    <MenuItem value="weekly">Weekly / 每周</MenuItem>
-                    <MenuItem value="biweekly">Biweekly / 每两周</MenuItem>
-                    <MenuItem value="monthly">Monthly / 每月</MenuItem>
-                    <MenuItem value="yearly">Yearly / 每年</MenuItem>
-                    <MenuItem value="custom">Custom / 自定义</MenuItem>
-                  </TextField>
-
-                  {/* Days of Week selector for weekly/biweekly */}
-                  {(formData.recurrence_type === 'weekly' || formData.recurrence_type === 'biweekly') && (
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Days of Week / 每周哪几天
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
-                          const days = formData.days_of_week ? formData.days_of_week.split(',').map(Number) : [];
-                          const isSelected = days.includes(index);
-                          return (
-                            <Chip
-                              key={day}
-                              label={day}
-                              size="small"
-                              color={isSelected ? 'primary' : 'default'}
-                              onClick={() => {
-                                let newDays;
-                                if (isSelected) {
-                                  newDays = days.filter(d => d !== index);
-                                } else {
-                                  newDays = [...days, index].sort();
-                                }
-                                setFormData({ ...formData, days_of_week: newDays.join(',') });
-                              }}
-                              sx={{ cursor: 'pointer' }}
-                            />
-                          );
-                        })}
-                      </Box>
-                    </Box>
-                  )}
-
-                  {/* Day of Month selector for monthly */}
-                  {formData.recurrence_type === 'monthly' && (
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <TextField
-                        type="number"
-                        label="Day of Month / 每月几号"
-                        value={formData.day_of_month}
-                        onChange={handleFormChange('day_of_month')}
-                        inputProps={{ min: 1, max: 31 }}
-                        sx={{ flex: 1 }}
-                        helperText="1-31 (or leave empty for week-based)"
-                      />
-                      <TextField
-                        select
-                        label="Week of Month / 每月第几周"
-                        value={formData.week_of_month}
-                        onChange={handleFormChange('week_of_month')}
-                        sx={{ flex: 1 }}
-                      >
-                        <MenuItem value="">None</MenuItem>
-                        <MenuItem value="1">1st / 第一周</MenuItem>
-                        <MenuItem value="2">2nd / 第二周</MenuItem>
-                        <MenuItem value="3">3rd / 第三周</MenuItem>
-                        <MenuItem value="4">4th / 第四周</MenuItem>
-                        <MenuItem value="5">Last / 最后一周</MenuItem>
-                      </TextField>
-                    </Box>
-                  )}
-
-                  {/* Yearly recurrence: Month, Week, Day selectors */}
-                  {formData.recurrence_type === 'yearly' && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <TextField
-                        select
-                        label="Month / 月份"
-                        value={formData.month_of_year}
-                        onChange={handleFormChange('month_of_year')}
-                        fullWidth
-                      >
-                        <MenuItem value="1">January / 一月</MenuItem>
-                        <MenuItem value="2">February / 二月</MenuItem>
-                        <MenuItem value="3">March / 三月</MenuItem>
-                        <MenuItem value="4">April / 四月</MenuItem>
-                        <MenuItem value="5">May / 五月</MenuItem>
-                        <MenuItem value="6">June / 六月</MenuItem>
-                        <MenuItem value="7">July / 七月</MenuItem>
-                        <MenuItem value="8">August / 八月</MenuItem>
-                        <MenuItem value="9">September / 九月</MenuItem>
-                        <MenuItem value="10">October / 十月</MenuItem>
-                        <MenuItem value="11">November / 十一月</MenuItem>
-                        <MenuItem value="12">December / 十二月</MenuItem>
-                      </TextField>
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <TextField
-                          select
-                          label="Week / 第几周"
-                          value={formData.week_of_month}
-                          onChange={handleFormChange('week_of_month')}
-                          sx={{ flex: 1 }}
-                        >
-                          <MenuItem value="1">1st / 第一</MenuItem>
-                          <MenuItem value="2">2nd / 第二</MenuItem>
-                          <MenuItem value="3">3rd / 第三</MenuItem>
-                          <MenuItem value="4">4th / 第四</MenuItem>
-                          <MenuItem value="5">Last / 最后</MenuItem>
-                        </TextField>
-                        <TextField
-                          select
-                          label="Day / 星期几"
-                          value={formData.days_of_week}
-                          onChange={handleFormChange('days_of_week')}
-                          sx={{ flex: 1 }}
-                        >
-                          <MenuItem value="0">Sunday / 周日</MenuItem>
-                          <MenuItem value="1">Monday / 周一</MenuItem>
-                          <MenuItem value="2">Tuesday / 周二</MenuItem>
-                          <MenuItem value="3">Wednesday / 周三</MenuItem>
-                          <MenuItem value="4">Thursday / 周四</MenuItem>
-                          <MenuItem value="5">Friday / 周五</MenuItem>
-                          <MenuItem value="6">Saturday / 周六</MenuItem>
-                        </TextField>
-                      </Box>
-                    </Box>
-                  )}
-
-                  <TextField
-                    type="date"
-                    label="End Date (optional) / 结束日期"
-                    value={formData.recurrence_end_date}
-                    onChange={handleFormChange('recurrence_end_date')}
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                    helperText="Leave empty for no end date / 留空表示无结束日期"
-                  />
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEventFormOpen(false)} disabled={loading}>
-            Cancel / 取消
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleFormSubmit}
-            disabled={loading}
-            sx={{
-              backgroundColor: '#FFB84D',
-              '&:hover': { backgroundColor: '#FFA833' }
-            }}
-          >
-            {loading ? <CircularProgress size={24} /> : (editingEventId ? 'Update / 更新' : 'Create / 创建')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Create/Edit Composer */}
+      <EventComposer
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        event={composerEvent}
+        onSaved={fetchEvents}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
@@ -1700,82 +411,6 @@ export default function CalendarPage() {
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : 'Delete / 删除'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Quick QR Upload Dialog */}
-      <Dialog
-        open={quickQrDialogOpen}
-        onClose={() => setQuickQrDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ textAlign: 'center' }}>
-          WeChat QR Code / 微信二维码
-        </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          {getEventQrCode(quickQrEventId) && !quickQrPreview && (
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Current QR Code / 当前二维码
-              </Typography>
-              <img
-                src={getEventQrCode(quickQrEventId)}
-                alt="Current QR Code"
-                style={{ width: 200, height: 200, objectFit: 'contain' }}
-              />
-              <Box sx={{ mt: 1 }}>
-                <Button size="small" color="error" onClick={handleQuickQrRemove}>
-                  Remove / 移除
-                </Button>
-              </Box>
-            </Box>
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleQuickQrSelect}
-            ref={quickQrFileInputRef}
-            style={{ display: 'none' }}
-            id="quick-qr-upload"
-          />
-          <label htmlFor="quick-qr-upload">
-            <Button
-              variant="outlined"
-              component="span"
-              startIcon={<CloudUploadIcon />}
-              sx={{
-                borderColor: '#FFB84D',
-                color: '#FFB84D',
-                '&:hover': { borderColor: '#FFA833', backgroundColor: 'rgba(255, 184, 77, 0.04)' }
-              }}
-            >
-              {getEventQrCode(quickQrEventId) ? 'Replace QR / 替换二维码' : 'Choose QR Code / 选择二维码'}
-            </Button>
-          </label>
-          {quickQrPreview && (
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                New QR Code / 新二维码
-              </Typography>
-              <img
-                src={quickQrPreview}
-                alt="QR Preview"
-                style={{ width: 200, height: 200, objectFit: 'contain' }}
-              />
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setQuickQrDialogOpen(false)}>Cancel / 取消</Button>
-          <Button
-            onClick={handleQuickQrSubmit}
-            variant="contained"
-            disabled={!quickQrFile || quickQrUploading}
-            sx={{ backgroundColor: '#07C160', '&:hover': { backgroundColor: '#06AD56' } }}
-          >
-            {quickQrUploading ? <CircularProgress size={20} /> : 'Upload / 上传'}
           </Button>
         </DialogActions>
       </Dialog>

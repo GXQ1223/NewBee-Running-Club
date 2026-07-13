@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events C — Calendar-First + Quick Create · NewBee Running Club</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* PROPOSAL C: the /calendar page becomes an actual calendar. Month grid
+     as the primary view, "This Week" card strip above it, committee
+     quick-create by clicking an empty day, recurring series shown as series. */
+  :root{
+    --orange:#FFA500; --orange-dark:#F29400; --orange-bg:#FFF6E8;
+    --ink:#212121; --muted:#757575; --line:#EEE7DC;
+    --green:#2e7d32; --green-bg:#e8f5e9; --blue:#1565c0; --blue-bg:#e3f2fd;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#FFFDFA;color:var(--ink)}
+  .container{max-width:1180px;margin:0 auto;padding:0 16px}
+
+  .explain{background:var(--orange-bg);border-bottom:1px solid var(--line);padding:14px 0}
+  .explain b{font-size:14px}
+  .explain p{font-size:12.5px;color:var(--muted);margin-top:3px}
+
+  .sechead{display:flex;align-items:baseline;gap:10px;margin:30px 2px 14px}
+  .sechead h2{font-size:20px;font-weight:700}
+  .sechead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+
+  /* this-week strip */
+  .strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .ecard{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;
+      box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s;display:flex;position:relative;min-height:118px}
+  .ecard:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(255,165,0,.35)}
+  .ecard .img{width:118px;flex-shrink:0}
+  .ecard .img img{width:100%;height:100%;object-fit:cover;display:block}
+  .ecard .body{padding:12px 14px;display:flex;flex-direction:column;gap:5px;min-width:0}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:99px}
+  .chip.upcoming{background:var(--green-bg);color:var(--green)}
+  .chip.race{background:var(--blue-bg);color:var(--blue)}
+  .chip.repeat{background:var(--orange-bg);color:var(--orange)}
+  .ecard h3{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ecard h3 small{font-size:12px;color:var(--muted);font-weight:400;font-family:'Noto Sans SC';margin-left:6px}
+  .ecard .meta{font-size:12px;color:var(--muted)}
+  .ecard .meta i{font-style:normal;color:var(--orange);margin-right:3px}
+  .ecard .go{margin-top:auto;font-size:12.5px;font-weight:700;color:var(--orange)}
+
+  /* calendar */
+  .calhead{display:flex;align-items:center;gap:14px;margin:8px 2px 12px}
+  .calhead h2{font-size:22px;font-weight:800}
+  .calhead h2 span{font-size:14px;color:var(--muted);font-weight:400;font-family:'Noto Sans SC';margin-left:8px}
+  .calhead .nav{display:flex;gap:6px}
+  .calhead .nav button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:#fff;
+      cursor:pointer;font-size:14px;color:var(--muted)}
+  .calhead .nav button:hover{background:var(--orange-bg);color:var(--orange)}
+  .calhead .today{font-size:12.5px;font-weight:600;border:1px solid var(--line);background:#fff;
+      padding:7px 16px;border-radius:99px;cursor:pointer;color:var(--muted)}
+  .calhead .addbtn{margin-left:auto;background:var(--orange);color:#fff;font-weight:600;font-size:13px;
+      padding:9px 20px;border-radius:99px;border:none;cursor:pointer;box-shadow:0 2px 6px rgba(255,165,0,.3)}
+
+  .cal{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+      box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px}
+  .cal .dow{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--line);background:#fffdf8}
+  .cal .dow div{padding:10px;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-align:center}
+  .cal .dow div span{display:block;font-size:10.5px;font-weight:400;font-family:'Noto Sans SC'}
+  .cal .week{display:grid;grid-template-columns:repeat(7,1fr)}
+  .cal .day{min-height:104px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+      padding:6px;position:relative;cursor:pointer;transition:background .12s}
+  .cal .day:nth-child(7n){border-right:none}
+  .cal .week:last-child .day{border-bottom:none}
+  .cal .day:hover{background:#fffaf1}
+  .cal .day .n{font-size:12px;font-weight:600;color:var(--muted);padding:2px 5px}
+  .cal .day.dim .n{color:#c9c2b6}
+  .cal .day.today .n{background:var(--orange);color:#fff;border-radius:99px;display:inline-block}
+  .ev{display:block;font-size:11px;font-weight:600;padding:3px 7px;border-radius:6px;margin-top:3px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+  .ev.run{background:var(--orange-bg);color:var(--orange-dark)}
+  .ev.race{background:var(--blue-bg);color:var(--blue)}
+  .ev.social{background:var(--green-bg);color:var(--green)}
+  .ev .r{font-weight:800;margin-right:2px}
+  .cal .day .addghost{display:none;position:absolute;inset:auto 6px 6px 6px;text-align:center;
+      font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-bg);
+      border:1px dashed var(--orange);border-radius:6px;padding:3px}
+  .cal .day:hover .addghost{display:block}
+
+  /* quick-create popover pinned to Jul 21 */
+  .daywrap{position:relative}
+  .qc{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;width:280px;z-index:30;
+      background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.2);padding:16px}
+  .qc::before{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%) rotate(45deg);
+      width:12px;height:12px;background:#fff;border-left:1px solid var(--line);border-top:1px solid var(--line)}
+  .qc h4{font-size:13px;font-weight:700;margin-bottom:2px}
+  .qc .d{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+  .qc input{width:100%;font:inherit;font-size:13px;padding:8px 11px;border:1px solid #d9d2c6;border-radius:8px;margin-bottom:8px}
+  .qc input:focus{outline:2px solid var(--orange);border-color:transparent}
+  .qc .row2{display:flex;gap:8px}
+  .qc .row2 input{flex:1}
+  .qc .foot{display:flex;align-items:center;margin-top:4px}
+  .qc .more{font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer}
+  .qc .more:hover{color:var(--orange)}
+  .qc .save{margin-left:auto;background:var(--orange);color:#fff;font-weight:600;font-size:12.5px;
+      padding:7px 18px;border-radius:99px;border:none;cursor:pointer}
+
+  /* series edit prompt */
+  .seriesbox{max-width:460px;margin:26px auto 0;background:#fff;border:1px solid var(--line);border-radius:14px;
+      box-shadow:0 12px 36px rgba(0,0,0,.14);padding:20px 22px}
+  .seriesbox h4{font-size:14.5px;font-weight:700}
+  .seriesbox p{font-size:12.5px;color:var(--muted);margin:4px 0 14px;font-family:'Noto Sans SC'}
+  .seriesbox .opt{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;
+      padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px}
+  .seriesbox .opt:hover{border-color:var(--orange);background:var(--orange-bg)}
+  .seriesbox .opt .dot{width:16px;height:16px;border-radius:50%;border:2px solid #d9d2c6}
+  .seriesbox .opt.on .dot{border-color:var(--orange);background:var(--orange);box-shadow:inset 0 0 0 3px #fff}
+  .seriesbox .opt small{display:block;font-size:11px;color:var(--muted);font-weight:400}
+
+  .legend{display:flex;gap:18px;font-size:12px;color:var(--muted);margin:6px 2px 40px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;font-style:normal}
+  .legend .o{background:var(--orange-bg);border:1px solid var(--orange)}
+  .legend .b{background:var(--blue-bg);border:1px solid var(--blue)}
+  .legend .g{background:var(--green-bg);border:1px solid var(--green)}
+
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:56px}
+  .twocol .cap{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.05em;margin-bottom:10px;text-align:center}
+
+  @media(max-width:900px){
+    .strip{grid-template-columns:1fr}
+    .cal .day{min-height:64px}
+    .ev{display:none}
+    .cal .day .dots{display:flex;gap:3px;padding:2px 5px}
+    .twocol{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="explain">
+  <div class="container">
+    <b>Proposal C — Calendar-First + Quick Create · 日历为主 + 快速创建</b>
+    <p>/calendar becomes a real month calendar. "This Week" strip on top, browsable past months, recurring series marked with ⟳ and edited as series. Committee clicks any empty day → 3-field quick-create popover; "More options" opens the full composer.</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="sechead"><h2>This Week</h2><span>本周活动</span></div>
+  <div class="strip">
+    <div class="ecard">
+      <div class="img"><img src="../ProjectCode/client/public/images/2025/20250604_9th_anniversary_run.jpg" alt=""></div>
+      <div class="body">
+        <div><span class="chip upcoming">TUE 7/15</span> <span class="chip repeat">⟳</span></div>
+        <h3>Track Tuesday <small>周二训练</small></h3>
+        <div class="meta"><i>⏰</i>6:30 PM · <i>📍</i>East River Track</div>
+        <div class="go">View Details 详情 →</div>
+      </div>
+    </div>
+    <div class="ecard">
+      <div class="img"><img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt=""></div>
+      <div class="body">
+        <div><span class="chip upcoming">SAT 7/19</span> <span class="chip repeat">⟳</span></div>
+        <h3>Saturday Long Run <small>周六长跑</small></h3>
+        <div class="meta"><i>⏰</i>8:00 AM · <i>📍</i>Engineers' Gate</div>
+        <div class="go">View Details 详情 →</div>
+      </div>
+    </div>
+    <div class="ecard">
+      <div class="img"><img src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg" alt=""></div>
+      <div class="body">
+        <div><span class="chip upcoming">SUN 7/27</span> <span class="chip race">RACE</span></div>
+        <h3>Team Championship <small>团队锦标赛</small></h3>
+        <div class="meta"><i>⏰</i>7:30 AM · <i>📍</i>Central Park</div>
+        <div class="go">Sign Up 报名 →</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sechead" style="margin-top:34px">
+    <div class="calhead" style="margin:0;flex:1">
+      <div class="nav"><button>‹</button><button>›</button></div>
+      <h2>July 2026<span>2026年7月</span></h2>
+      <button class="today">Today 今天</button>
+      <button class="addbtn">+ Add Event 添加活动</button>
+    </div>
+  </div>
+
+  <div class="cal">
+    <div class="dow">
+      <div>SUN<span>日</span></div><div>MON<span>一</span></div><div>TUE<span>二</span></div>
+      <div>WED<span>三</span></div><div>THU<span>四</span></div><div>FRI<span>五</span></div><div>SAT<span>六</span></div>
+    </div>
+    <div class="week">
+      <div class="day dim"><span class="n">28</span></div>
+      <div class="day dim"><span class="n">29</span></div>
+      <div class="day dim"><span class="n">30</span><span class="ev run"><span class="r">⟳</span>Track Tuesday</span></div>
+      <div class="day"><span class="n">1</span></div>
+      <div class="day"><span class="n">2</span></div>
+      <div class="day"><span class="n">3</span></div>
+      <div class="day"><span class="n">4</span><span class="ev social">🎆 July 4 Fun Run</span><span class="ev run"><span class="r">⟳</span>Long Run</span></div>
+    </div>
+    <div class="week">
+      <div class="day"><span class="n">5</span></div>
+      <div class="day"><span class="n">6</span></div>
+      <div class="day"><span class="n">7</span><span class="ev run"><span class="r">⟳</span>Track Tuesday</span></div>
+      <div class="day"><span class="n">8</span></div>
+      <div class="day"><span class="n">9</span></div>
+      <div class="day"><span class="n">10</span></div>
+      <div class="day"><span class="n">11</span><span class="ev run"><span class="r">⟳</span>Long Run</span></div>
+    </div>
+    <div class="week">
+      <div class="day today"><span class="n">12</span></div>
+      <div class="day"><span class="n">13</span></div>
+      <div class="day"><span class="n">14</span></div>
+      <div class="day"><span class="n">15</span><span class="ev run"><span class="r">⟳</span>Track Tuesday</span></div>
+      <div class="day"><span class="n">16</span></div>
+      <div class="day"><span class="n">17</span></div>
+      <div class="day"><span class="n">18</span></div>
+    </div>
+    <div class="week" style="position:relative">
+      <div class="day"><span class="n">19</span><span class="ev run"><span class="r">⟳</span>Long Run</span></div>
+      <div class="day"><span class="n">20</span></div>
+      <div class="day daywrap" style="background:#fffaf1"><span class="n">21</span>
+        <span class="addghost">+ Add 添加</span>
+        <div class="qc">
+          <h4>Quick create · 快速创建</h4>
+          <div class="d">Tuesday, July 21 — date is set from the day you clicked</div>
+          <input placeholder="Event name 活动名称" value="Bridge Run Social">
+          <div class="row2"><input type="time" value="18:30"><input placeholder="Location 地点" value="Brooklyn Bridge"></div>
+          <div class="foot"><span class="more">More options 更多选项 →</span><button class="save">Create 创建</button></div>
+        </div>
+      </div>
+      <div class="day"><span class="n">22</span><span class="ev run"><span class="r">⟳</span>Track Tuesday</span></div>
+      <div class="day"><span class="n">23</span></div>
+      <div class="day"><span class="n">24</span></div>
+      <div class="day"><span class="n">25</span><span class="ev run"><span class="r">⟳</span>Long Run</span></div>
+    </div>
+    <div class="week">
+      <div class="day"><span class="n">26</span></div>
+      <div class="day"><span class="n">27</span><span class="ev race">🏁 Team Championship</span></div>
+      <div class="day"><span class="n">28</span><span class="ev run"><span class="r">⟳</span>Track Tuesday</span></div>
+      <div class="day"><span class="n">29</span></div>
+      <div class="day"><span class="n">30</span></div>
+      <div class="day"><span class="n">31</span></div>
+      <div class="day dim"><span class="n">1</span><span class="ev run"><span class="r">⟳</span>Long Run</span></div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i class="o"></i>Club runs 例行跑（⟳ = recurring series）</span>
+    <span><i class="b"></i>Races 比赛</span>
+    <span><i class="g"></i>Social 社交活动</span>
+    <span style="margin-left:auto">Past months are browsable — past events finally reachable outside Highlights</span>
+  </div>
+
+  <div class="twocol">
+    <div>
+      <div class="cap">EDITING A RECURRING INSTANCE · 编辑重复活动</div>
+      <div class="seriesbox" style="margin-top:0">
+        <h4>Edit "Saturday Long Run"</h4>
+        <p>这是每周重复活动。要修改哪些？</p>
+        <div class="opt on"><span class="dot"></span><span>This event only · 仅此次<small>Jul 19 — e.g. moved to Prospect Park this week</small></span></div>
+        <div class="opt"><span class="dot"></span><span>This and following events · 此次及以后<small>Changes the series from Jul 19 onward</small></span></div>
+        <div class="opt"><span class="dot"></span><span>All events in the series · 整个系列<small>Every Saturday instance, past and future</small></span></div>
+      </div>
+    </div>
+    <div>
+      <div class="cap">DUPLICATE = FASTEST CREATION · 复制活动</div>
+      <div class="seriesbox" style="margin-top:0">
+        <h4>⧉ Duplicate "Queens 10K Team Outing"</h4>
+        <p>大多数活动都是往年的翻版——复制后只改日期。</p>
+        <div class="opt on"><span class="dot"></span><span>Copy everything, pick a new date<small>Name, descriptions, image, signup link carried over — opens Quick Create pre-filled with only Date empty</small></span></div>
+        <div class="opt"><span class="dot"></span><span>Copy as template (clear image &amp; link)<small>For similar-but-different events</small></span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

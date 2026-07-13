@@ -49,6 +49,33 @@ jest.mock('../components/MeetingMinutesEditor', () => ({
   },
 }));
 
+// EventComposer has its own test suite — stub it with save/close triggers.
+// Plain function in the factory (not jest.fn) so CRA's resetMocks:true
+// cannot wipe its implementation between tests.
+jest.mock('../components/EventComposer', () => ({
+  __esModule: true,
+  default: (props) => {
+    const ReactLocal = require('react');
+    if (!props.open) return null;
+    return ReactLocal.createElement(
+      'div',
+      { 'data-testid': 'event-composer' },
+      props.event ? `composer-editing:${props.event.id}` : 'composer-creating',
+      ReactLocal.createElement(
+        'button',
+        {
+          onClick: () => {
+            // Mirror the real composer: onSaved with the saved event, then close
+            Promise.resolve(props.onSaved(props.event ?? { id: 99 })).then(props.onClose);
+          },
+        },
+        'composer-save'
+      ),
+      ReactLocal.createElement('button', { onClick: props.onClose }, 'composer-close')
+    );
+  },
+}));
+
 const ADMIN_UID = 'admin-uid';
 const adminUser = { uid: ADMIN_UID, displayName: 'Admin', email: 'a@b.c' };
 
@@ -181,8 +208,6 @@ beforeEach(() => {
   membersApi.promoteToCommittee.mockResolvedValue({});
   membersApi.demoteFromCommittee.mockResolvedValue({});
   eventsApi.getAllEvents.mockResolvedValue(eventsFixture);
-  eventsApi.createEvent.mockResolvedValue({ id: 99, name: 'Brand New Run', date: '2026-07-10', status: 'Past', is_highlight: true });
-  eventsApi.updateEvent.mockResolvedValue({ id: 11, name: 'Legacy Gala Updated', date: '2025-01-01', status: 'Past', is_highlight: true });
   eventsApi.deleteEvent.mockResolvedValue({});
   donorsApi.getDonationSummary.mockResolvedValue(donationFixture);
   bannersApi.getAllBanners.mockResolvedValue(bannersFixture);
@@ -610,76 +635,66 @@ describe('events tab', () => {
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
   });
 
-  test('creates a new event', async () => {
+  test('+ Create Event opens the composer in create mode and closes cleanly', async () => {
     renderPage();
     await waitForDashboard();
     openTab('Events');
 
+    expect(screen.queryByTestId('event-composer')).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: '+ Create Event' }));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Create Event / 创建活动')).toBeInTheDocument();
+    expect(await screen.findByTestId('event-composer')).toHaveTextContent('composer-creating');
 
-    fireEvent.change(within(dialog).getByLabelText(/Event Name \(English\)/), { target: { value: 'Brand New Run' } });
-    fireEvent.change(within(dialog).getByLabelText('Time'), { target: { value: '9:00 AM' } });
-    selectMuiOption(within(dialog).getByRole('combobox'), /Past \(Memories\)/);
-    fireEvent.click(within(dialog).getByRole('checkbox')); // highlight switch
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-
-    await waitFor(() =>
-      expect(eventsApi.createEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: 'Brand New Run',
-          time: '9:00 AM',
-          status: 'Past',
-          is_highlight: true,
-          date: expect.any(String),
-        }),
-        ADMIN_UID
-      )
-    );
-    expect(await screen.findByText('Event created successfully!')).toBeInTheDocument();
-    expect(screen.getByText('Brand New Run')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'composer-close' }));
+    await waitFor(() => expect(screen.queryByTestId('event-composer')).not.toBeInTheDocument());
+    expect(eventsApi.getAllEvents).toHaveBeenCalledTimes(1); // no refetch on plain close
   });
 
-  test('edits a legacy Highlight event, normalizing its status', async () => {
+  test('row Edit opens the composer with that event', async () => {
     renderPage();
     await waitForDashboard();
     openTab('Events');
 
     const row = (await screen.findByText('Legacy Gala')).closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: 'Edit' }));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Edit Event / 编辑活动')).toBeInTheDocument();
-    // Legacy 'Highlight' normalized to Past + is_highlight
-    expect(within(dialog).getByRole('checkbox')).toBeChecked();
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-    await waitFor(() =>
-      expect(eventsApi.updateEvent).toHaveBeenCalledWith(
-        11,
-        expect.objectContaining({ status: 'Past', is_highlight: true, name: 'Legacy Gala' }),
-        ADMIN_UID
-      )
-    );
-    expect(await screen.findByText('Event updated successfully!')).toBeInTheDocument();
-    expect(screen.getByText('Legacy Gala Updated')).toBeInTheDocument();
+    expect(await screen.findByTestId('event-composer')).toHaveTextContent('composer-editing:11');
   });
 
-  test('shows error when saving an event fails, and dialog can be cancelled', async () => {
-    eventsApi.updateEvent.mockRejectedValueOnce(new Error('nope'));
+  test('a composer save refetches the events list', async () => {
+    renderPage();
+    await waitForDashboard();
+    openTab('Events');
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ Create Event' }));
+    await screen.findByTestId('event-composer');
+
+    // The refetch after save returns the list including the new event
+    eventsApi.getAllEvents.mockResolvedValue([
+      ...eventsFixture,
+      { id: 99, name: 'Brand New Run', date: '2026-07-10', status: 'Upcoming' },
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'composer-save' }));
+
+    await waitFor(() => expect(eventsApi.getAllEvents).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Brand New Run')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('event-composer')).not.toBeInTheDocument());
+  });
+
+  test('keeps the current list when the post-save refetch fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     renderPage();
     await waitForDashboard();
     openTab('Events');
 
     const row = (await screen.findByText('Spring Run')).closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: 'Edit' }));
-    let dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-    expect(await screen.findByText('Failed to save event. Please try again.')).toBeInTheDocument();
+    await screen.findByTestId('event-composer');
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    eventsApi.getAllEvents.mockRejectedValue(new Error('nope'));
+    fireEvent.click(screen.getByRole('button', { name: 'composer-save' }));
+
+    await waitFor(() => expect(eventsApi.getAllEvents).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('Spring Run')).toBeInTheDocument();
+    consoleSpy.mockRestore();
   });
 
   test('deletes an event after confirmation (and honors cancel)', async () => {

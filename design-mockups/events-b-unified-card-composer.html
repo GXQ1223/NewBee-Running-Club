@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events B — Unified Card + Staged Composer (recommended) · NewBee Running Club</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* PROPOSAL B (recommended): one redesigned card with a real information
+     hierarchy — status/type chips, date+time+location always visible,
+     engagement bar on every card, context-aware CTA — plus a 3-step
+     composer with live card preview replacing the 15-field wall. */
+  :root{
+    --orange:#FFA500; --orange-dark:#F29400; --orange-bg:#FFF6E8;
+    --ink:#212121; --muted:#757575; --line:#EEE7DC;
+    --green:#2e7d32; --green-bg:#e8f5e9; --red:#c62828; --red-bg:#ffebee;
+    --blue:#1565c0; --blue-bg:#e3f2fd;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#FFFDFA;color:var(--ink)}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:1180px;margin:0 auto;padding:0 16px}
+
+  .explain{background:var(--orange-bg);border-bottom:1px solid var(--line);padding:14px 0}
+  .explain b{font-size:14px}
+  .explain p{font-size:12.5px;color:var(--muted);margin-top:3px}
+
+  .sechead{display:flex;align-items:baseline;gap:10px;margin:34px 2px 14px}
+  .sechead h2{font-size:20px;font-weight:700}
+  .sechead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+  .sechead .addbtn{margin-left:auto;background:var(--orange);color:#fff;font-weight:600;font-size:13px;
+      padding:9px 20px;border-radius:99px;box-shadow:0 2px 6px rgba(255,165,0,.3);cursor:pointer;border:none}
+
+  /* ---- chips ---- */
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;
+      padding:3px 10px;border-radius:99px;letter-spacing:.02em}
+  .chip.upcoming{background:var(--green-bg);color:var(--green)}
+  .chip.race{background:var(--blue-bg);color:var(--blue)}
+  .chip.repeat{background:var(--orange-bg);color:var(--orange)}
+  .chip.cancelled{background:var(--red-bg);color:var(--red)}
+  .chip.past{background:#f0ede7;color:var(--muted)}
+
+  /* ---- the unified card ---- */
+  .ecard{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;
+      box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s;position:relative;display:flex}
+  .ecard:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(255,165,0,.35)}
+  .ecard.cancelled-card{opacity:.75}
+  .ecard .img{position:relative;flex-shrink:0}
+  .ecard .img img{width:100%;height:100%;object-fit:cover;display:block}
+  .ecard .img .bubble{position:absolute;left:10px;bottom:10px;width:48px;height:48px;border-radius:12px;
+      background:rgba(255,255,255,.95);box-shadow:0 2px 6px rgba(0,0,0,.18);
+      display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ecard .img .bubble b{font-size:17px;color:var(--orange);line-height:1.1}
+  .ecard .img .bubble span{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:var(--muted)}
+  .ecard .body{padding:14px 16px;display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+  .ecard .chiprow{display:flex;gap:6px;align-items:center}
+  .ecard .chiprow .icons{margin-left:auto;display:flex;gap:4px}
+  .ecard .chiprow .icons i{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+      font-size:13px;font-style:normal;color:var(--muted)}
+  .ecard .chiprow .icons i:hover{background:var(--orange-bg);color:var(--orange)}
+  .ecard h3{font-size:16.5px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ecard h3 small{font-size:13px;color:var(--muted);font-weight:400;font-family:'Noto Sans SC';margin-left:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--muted)}
+  .meta i{font-style:normal;color:var(--orange);margin-right:4px}
+  .engage{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--muted);margin-top:auto}
+  .engage .thumbs{display:flex;align-items:center;margin-left:auto}
+  .engage .thumbs img{width:26px;height:26px;border-radius:6px;object-fit:cover;border:2px solid #fff;margin-left:-8px}
+  .engage .thumbs img:first-child{margin-left:0}
+  .engage .thumbs .more{width:26px;height:26px;border-radius:6px;background:#f0ede7;color:var(--muted);
+      font-size:9.5px;font-weight:700;display:grid;place-items:center;margin-left:-8px;border:2px solid #fff}
+  .cta{display:flex;gap:10px;align-items:center;margin-top:2px}
+  .pill{display:inline-block;background:var(--orange);color:#fff;font-weight:600;font-size:13.5px;
+      padding:9px 22px;border-radius:99px;border:none;cursor:pointer;transition:all .15s}
+  .pill:hover{background:var(--orange-dark)}
+  .pill:active{transform:scale(.98)}
+  .pill.ghost{background:#fff;border:1.5px solid var(--orange);color:var(--orange)}
+  .pill.ghost:hover{background:var(--orange);color:#fff}
+  .pill small{font-family:'Noto Sans SC';font-weight:500;margin-left:6px}
+
+  /* grid density */
+  .fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .fgrid .ecard{flex-direction:column}
+  .fgrid .ecard .img{height:180px}
+  /* row density */
+  .rowlist{display:flex;flex-direction:column;gap:18px;margin-bottom:8px}
+  .rowlist .ecard .img{width:220px}
+  .rowlist .ecard{min-height:172px}
+
+  /* ---- composer ---- */
+  .dlgdemo{margin:46px 0 64px}
+  .composer{max-width:1020px;margin:0 auto;background:#fff;border-radius:14px;border:1px solid var(--line);
+      box-shadow:0 18px 50px rgba(0,0,0,.18);overflow:hidden;display:grid;grid-template-columns:1.25fr 1fr}
+  .cform{padding:22px 26px;border-right:1px solid var(--line)}
+  .steps{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+  .step{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--muted)}
+  .step .n{width:24px;height:24px;border-radius:50%;background:#f0ede7;display:grid;place-items:center;font-size:12px}
+  .step.done .n{background:var(--green-bg);color:var(--green)}
+  .step.on{color:var(--ink)}
+  .step.on .n{background:var(--orange);color:#fff}
+  .steps .bar{flex:1;height:2px;background:var(--line)}
+  .cform h3{font-size:16px;font-weight:700;margin-bottom:2px}
+  .cform .sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+  .fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:13px 14px}
+  .fld{display:flex;flex-direction:column;gap:5px}
+  .fld.full{grid-column:span 2}
+  .fld label{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.03em}
+  .fld label em{color:#d32f2f;font-style:normal}
+  .fld input,.fld select,.fld textarea{font:inherit;font-size:13.5px;padding:9px 12px;border:1px solid #d9d2c6;
+      border-radius:8px;background:#fff;color:var(--ink)}
+  .fld input:focus{outline:2px solid var(--orange);border-color:transparent}
+  .fld .hint{font-size:11px;color:var(--muted)}
+  .fld .err{font-size:11px;color:#d32f2f}
+  .fld input.bad{border-color:#d32f2f}
+  .upload{grid-column:span 2;border:1.5px dashed #d9d2c6;border-radius:10px;padding:14px;
+      color:var(--muted);font-size:12.5px;background:#fffdf8;display:flex;align-items:center;gap:12px}
+  .upload .prog{flex:1;height:6px;border-radius:3px;background:#f0ede7;overflow:hidden}
+  .upload .prog i{display:block;height:100%;width:72%;background:var(--orange)}
+  .cfoot{display:flex;justify-content:space-between;margin-top:20px}
+  .ghostbtn{background:#fff;border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:13px;
+      padding:9px 20px;border-radius:99px;cursor:pointer}
+
+  .cpreview{padding:22px;background:#FFFDFA;display:flex;flex-direction:column}
+  .cpreview .cap{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:12px}
+  .cpreview .cap span{font-family:'Noto Sans SC';font-weight:500;margin-left:6px}
+  .cpreview .ecard{cursor:default}
+  .cpreview .ecard:hover{transform:none;box-shadow:0 2px 4px rgba(0,0,0,.08)}
+  .cpreview .devnote{margin-top:auto;font-size:11.5px;color:var(--muted);line-height:1.55;padding-top:16px}
+
+  .note{max-width:1020px;margin:10px auto 0;font-size:12px;color:var(--muted);text-align:center}
+
+  @media(max-width:900px){
+    .fgrid{grid-template-columns:1fr}
+    .rowlist .ecard{flex-direction:column}
+    .rowlist .ecard .img{width:100%;height:150px}
+    .composer{grid-template-columns:1fr}
+    .cform{border-right:none;border-bottom:1px solid var(--line)}
+  }
+</style>
+</head>
+<body>
+
+<div class="explain">
+  <div class="container">
+    <b>Proposal B — Unified Card + Staged Composer (recommended) · 统一卡片 + 分步创建</b>
+    <p>One card everywhere with a real hierarchy: status/type chips, date bubble on the image, time &amp; location always visible, engagement on every card, and a CTA that matches the event (Sign Up when a signup link exists, View Details otherwise, nothing decorative). Creation becomes a 3-step composer with live preview.</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="sechead"><h2>Upcoming Events</h2><span>近期活动</span><button class="addbtn">+ Add Event 添加活动</button></div>
+
+  <div class="fgrid">
+    <div class="ecard">
+      <div class="img">
+        <img src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg" alt="">
+        <div class="bubble"><b>27</b><span>JUL</span></div>
+      </div>
+      <div class="body">
+        <div class="chiprow">
+          <span class="chip upcoming">UPCOMING</span><span class="chip race">RACE</span>
+          <span class="icons"><i>⤴</i><i>✎</i></span>
+        </div>
+        <h3>Team Championship <small>团队锦标赛</small></h3>
+        <div class="meta"><span><i>⏰</i>Sat 7:30 AM</span><span><i>📍</i>Central Park</span></div>
+        <div class="engage">
+          <span>♥ 12</span><span>💬 4</span>
+          <span class="thumbs">
+            <img src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg"><img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg"><span class="more">+6</span>
+          </span>
+        </div>
+        <div class="cta"><button class="pill" style="width:100%">Sign Up<small>报名</small></button></div>
+      </div>
+    </div>
+
+    <div class="ecard">
+      <div class="img">
+        <img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="">
+        <div class="bubble"><b>19</b><span>JUL</span></div>
+      </div>
+      <div class="body">
+        <div class="chiprow">
+          <span class="chip upcoming">UPCOMING</span><span class="chip repeat">⟳ WEEKLY</span>
+          <span class="icons"><i>⤴</i></span>
+        </div>
+        <h3>Saturday Long Run <small>周六长跑</small></h3>
+        <div class="meta"><span><i>⏰</i>Sat 8:00 AM</span><span><i>📍</i>Engineers' Gate</span></div>
+        <div class="engage"><span>♥ 31</span><span>💬 9</span></div>
+        <div class="cta"><button class="pill ghost" style="width:100%">View Details<small>查看详情</small></button></div>
+      </div>
+    </div>
+
+    <div class="ecard cancelled-card">
+      <div class="img">
+        <img src="../ProjectCode/client/public/images/2025/20250604_9th_anniversary_run.jpg" alt="" style="filter:grayscale(.6)">
+        <div class="bubble"><b>15</b><span>JUL</span></div>
+      </div>
+      <div class="body">
+        <div class="chiprow">
+          <span class="chip cancelled">CANCELLED 已取消</span>
+          <span class="icons"><i>⤴</i></span>
+        </div>
+        <h3 style="text-decoration:line-through;color:var(--muted)">Track Tuesday <small>周二训练</small></h3>
+        <div class="meta"><span><i>⏰</i>Tue 6:30 PM</span><span><i>📍</i>East River Track</span></div>
+        <div class="engage"><span style="color:var(--red)">Cancelled due to heat advisory 因高温取消</span></div>
+        <div class="cta"><button class="pill ghost" style="width:100%;opacity:.6">View Details<small>查看详情</small></button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sechead"><h2>All Upcoming</h2><span>全部活动</span></div>
+
+  <div class="rowlist">
+    <div class="ecard">
+      <div class="img">
+        <img src="../ProjectCode/client/public/images/2025/20250517_bk_half.jpg" alt="">
+        <div class="bubble"><b>02</b><span>AUG</span></div>
+      </div>
+      <div class="body">
+        <div class="chiprow">
+          <span class="chip upcoming">UPCOMING</span><span class="chip race">RACE</span><span class="chip repeat">⟳ YEARLY</span>
+          <span class="icons"><i>⤴</i><i>✎</i><i>⧉</i></span>
+        </div>
+        <h3>Bronx 10-Mile Team Outing <small>布朗克斯十英里</small></h3>
+        <div class="meta"><span><i>⏰</i>Sun 8:00 AM</span><span><i>📍</i>Van Cortlandt Park 范科特兰公园</span></div>
+        <div class="engage">
+          <span>♥ 18</span><span>💬 6</span>
+          <span class="thumbs"><img src="../ProjectCode/client/public/images/2025/20250503_bk_half_preview_run.jpg"><img src="../ProjectCode/client/public/images/2025/20250517_bk_half.jpg"><span class="more">+12</span></span>
+        </div>
+        <div class="cta"><button class="pill">Sign Up<small>报名</small></button><button class="pill ghost">Details<small>详情</small></button></div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--muted);margin:0 2px">Admin icons on hover: ✎ edit · ⧉ duplicate (fastest way to create next week's run) · same card component in both densities.</p>
+
+  <!-- composer -->
+  <div class="dlgdemo">
+    <div class="sechead"><h2>3-step composer with live preview</h2><span>分步创建 · 实时预览</span></div>
+
+    <div class="composer">
+      <div class="cform">
+        <div class="steps">
+          <span class="step done"><span class="n">✓</span>Basics 基本</span><span class="bar"></span>
+          <span class="step on"><span class="n">2</span>Details 详情</span><span class="bar"></span>
+          <span class="step"><span class="n">3</span>Publish 发布</span>
+        </div>
+        <h3>Details</h3>
+        <div class="sub">Everything here is optional — you can already save. 以下皆为选填，随时可保存。</div>
+        <div class="fgrid2">
+          <div class="fld full"><label>DESCRIPTION</label><textarea rows="2">Weekly long run, 10–16 miles with paced groups. Bagels after.</textarea></div>
+          <div class="fld full"><label>中文描述</label><textarea rows="2">每周长跑，10–16 英里，分组配速，跑后有贝果。</textarea></div>
+          <div class="upload">📷 <b>20250719_long_run.jpg</b><span class="prog"><i></i></span><span>72% — uploads now, not at Save</span></div>
+          <div class="fld"><label>SIGNUP LINK</label><input class="bad" value="htp:/heylo.group/newbee"><span class="err">Not a valid URL — inline validation, no snackbar 链接格式错误</span></div>
+          <div class="fld"><label>EVENT TYPE</label><select><option>Standard</option><option>Heylo</option><option selected>Race</option></select></div>
+          <div class="fld"><label>WECHAT QR 微信群二维码</label><input placeholder="Upload QR…"></div>
+          <div class="fld"><label>&nbsp;</label><span class="hint">Step 3 handles status, highlight &amp; recurrence, and shows this same preview one last time before publishing.</span></div>
+        </div>
+        <div class="cfoot"><button class="ghostbtn">← Back 上一步</button><button class="pill">Continue 下一步 →</button></div>
+      </div>
+
+      <div class="cpreview">
+        <div class="cap">LIVE PREVIEW — WHAT MEMBERS WILL SEE<span>会员所见预览</span></div>
+        <div class="ecard" style="flex-direction:column">
+          <div class="img" style="height:150px">
+            <img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="">
+            <div class="bubble"><b>19</b><span>JUL</span></div>
+          </div>
+          <div class="body">
+            <div class="chiprow"><span class="chip upcoming">UPCOMING</span><span class="chip race">RACE</span></div>
+            <h3>Saturday Long Run <small>周六长跑</small></h3>
+            <div class="meta"><span><i>⏰</i>Sat 8:00 AM</span><span><i>📍</i>Engineers' Gate</span></div>
+            <div class="cta"><button class="pill" style="width:100%">Sign Up<small>报名</small></button></div>
+          </div>
+        </div>
+        <div class="devnote">The preview renders the <b>actual EventCard component</b> with the form state — committee sees exactly what will appear on the Calendar page before saving. Fixes the "publish and check" loop.</div>
+      </div>
+    </div>
+    <p class="note">Step 1 (Basics) is just name / date / time / location — enough to save. One composer mounted from CalendarPage, AdminPanel and the detail modal; the three divergent editors are deleted.</p>
+  </div>
+
+</div>
+</body>
+</html>

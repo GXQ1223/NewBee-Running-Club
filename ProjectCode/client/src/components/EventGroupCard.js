@@ -13,6 +13,7 @@ import EventEngagementBar from './EventEngagementBar';
 import ImagePositionEditor from './ImagePositionEditor';
 import { updateEvent } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { ORANGE, ORANGE_DARK, ORANGE_BG, LINE, CARD_HOVER_SHADOW, FALLBACK_EVENT_IMAGE } from '../theme/tokens';
 
 /**
  * EventGroupCard - iOS-style stacked card for event groups
@@ -30,7 +31,7 @@ const EventGroupCard = ({
   const [coverPosition, setCoverPosition] = useState(group.cover_image_position || 'center center');
 
   const handleImageError = (e) => {
-    e.target.src = '/images/2025/20250517_bk_half.jpg';
+    e.target.src = FALLBACK_EVENT_IMAGE;
   };
 
   const eventCount = group.event_count;
@@ -69,10 +70,10 @@ const EventGroupCard = ({
           zIndex: -2,
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
         },
+        transition: 'all 0.2s ease',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          transition: 'transform 0.3s ease-in-out',
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+          transform: 'translateY(-3px)',
+          boxShadow: CARD_HOVER_SHADOW,
         },
       }}
       onClick={() => onGroupClick(group)}
@@ -108,9 +109,9 @@ const EventGroupCard = ({
               width: '100%',
               objectFit: 'cover',
               objectPosition: coverPosition,
-              backgroundColor: '#f5f5f5',
+              backgroundColor: ORANGE_BG,
             }}
-            image={group.cover_image || '/images/2025/20250517_bk_half.jpg'}
+            image={group.cover_image || FALLBACK_EVENT_IMAGE}
             alt={group.group_name}
             onError={handleImageError}
           />
@@ -141,9 +142,9 @@ const EventGroupCard = ({
           justifyContent: 'center',
           alignItems: 'center',
           backgroundColor: 'white',
-          color: '#FFA500',
+          color: ORANGE,
           p: 2,
-          borderRight: '1px solid #e0e0e0',
+          borderRight: `1px solid ${LINE}`,
           whiteSpace: 'nowrap',
           position: 'relative',
         }}
@@ -203,9 +204,9 @@ const EventGroupCard = ({
               width: '100%',
               objectFit: 'cover',
               objectPosition: coverPosition,
-              backgroundColor: '#f5f5f5',
+              backgroundColor: ORANGE_BG,
             }}
-            image={group.cover_image || '/images/2025/20250517_bk_half.jpg'}
+            image={group.cover_image || FALLBACK_EVENT_IMAGE}
             alt={group.group_name}
             onError={handleImageError}
           />
@@ -222,7 +223,7 @@ const EventGroupCard = ({
         }}
       >
         {/* Mobile: Show date and badge at top of content */}
-        <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: '#FFA500' }}>
+        <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: ORANGE }}>
           <Typography variant="subtitle1" color="text.secondary">
             {new Date(group.most_recent_date).toLocaleDateString('en-US', {
               month: 'short',
@@ -258,24 +259,26 @@ const EventGroupCard = ({
           </Box>
           <Button
             variant="contained"
+            disableElevation
             sx={{
-              backgroundColor: '#FFB84D',
+              backgroundColor: ORANGE,
               color: 'white',
               textTransform: 'none',
-              fontSize: { xs: '14px', sm: '16px' },
-              px: { xs: 1.5, sm: 2 },
-              py: { xs: 1, sm: 1.5 },
-              borderRadius: '12px',
-              border: '2px solid #FFB84D',
+              fontWeight: 600,
+              fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
+              px: { xs: 2, sm: 2.5 },
+              py: { xs: 0.75, sm: 1 },
+              borderRadius: '99px',
               flexShrink: 0,
               '&:hover': {
-                backgroundColor: '#FFA833',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                transform: 'translateY(-2px)',
+                backgroundColor: ORANGE_DARK,
+              },
+              '&:active': {
+                transform: 'scale(0.98)',
               },
             }}
           >
-            View All {eventCount} Events
+            View All {eventCount} Events 查看全部
           </Button>
         </Box>
 
