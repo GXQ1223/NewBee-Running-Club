@@ -1,12 +1,11 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import EventDetailModal from './EventDetailModal';
-import { getEventEngagement, updateEvent, getEventById } from '../api';
+import { getEventEngagement, getEventById } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 
 jest.mock('../api', () => ({
   getEventEngagement: jest.fn(),
-  updateEvent: jest.fn(),
   getEventById: jest.fn(),
 }));
 jest.mock('../context/AuthContext', () => ({ useAuth: jest.fn() }));
@@ -89,6 +88,30 @@ jest.mock('./ImagePositionEditor', () => (props) => {
     { 'data-testid': 'position-editor' },
     React.createElement('span', null, props.currentPosition),
     React.createElement('button', { onClick: () => props.onPositionSaved('5% 5%') }, 'saved-pos')
+  );
+});
+
+// EventComposer has its own test suite — stub it with save/close triggers.
+// Plain function in the factory (not jest.fn) so CRA's resetMocks:true
+// cannot wipe its implementation between tests.
+jest.mock('./EventComposer', () => (props) => {
+  const React = require('react');
+  if (!props.open) return null;
+  return React.createElement(
+    'div',
+    { 'data-testid': 'event-composer' },
+    `composer:${props.event?.id}:z${props.sx?.zIndex}`,
+    React.createElement(
+      'button',
+      {
+        onClick: () => {
+          // Mirror the real composer: onSaved with the saved event, then close
+          Promise.resolve(props.onSaved({ id: props.event?.id, name: 'Saved Name' })).then(props.onClose);
+        },
+      },
+      'composer-save'
+    ),
+    React.createElement('button', { onClick: props.onClose }, 'composer-close')
   );
 });
 
@@ -273,7 +296,7 @@ describe('EventDetailModal', () => {
     const img = screen.getByAltText('Spring Race');
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     fireEvent.error(img);
-    expect(img).toHaveAttribute('src', '/images/2025/20250517_bk_half.jpg');
+    expect(img).toHaveAttribute('src', '/images/placeholder-event.jpg');
     consoleSpy.mockRestore();
     await waitFor(() => expect(getEventEngagement).toHaveBeenCalled());
   });
@@ -344,175 +367,75 @@ describe('EventDetailModal', () => {
       expect(screen.queryByTestId('like-button')).not.toBeInTheDocument();
     });
 
-    test('edit opens with fresh server data; legacy Highlight status maps to Past + flag', async () => {
+    test('edit pencil opens the composer with the event, stacked above the overlay', async () => {
       renderModal();
+      expect(screen.queryByTestId('event-composer')).not.toBeInTheDocument();
       fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
 
-      await waitFor(() => expect(getEventById).toHaveBeenCalledWith(1));
-      expect(await screen.findByLabelText(/Event Name/)).toHaveValue('Server Name');
-      expect(screen.getByLabelText(/Chinese Name/)).toHaveValue('服务器名');
-      expect(screen.getByLabelText(/Date \/ 日期/)).toHaveValue('2026-04-02');
-      expect(screen.getByLabelText(/Time \/ 时间/)).toHaveValue('9:00 AM');
-      expect(screen.getByLabelText(/Image URL/)).toHaveValue('/img/server.jpg');
-      expect(screen.getByLabelText(/Signup Link/)).toHaveValue('https://server.example.com');
-      expect(screen.getByText('Past / 已结束')).toBeInTheDocument();
-      expect(screen.getByRole('checkbox')).toBeChecked(); // highlight switch
+      // The modal overlay uses zIndex 9999 — the composer dialog must stack above it
+      expect(await screen.findByTestId('event-composer')).toHaveTextContent('composer:1:z10000');
     });
 
-    test('falls back to the prop event when the fresh fetch fails', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      getEventById.mockRejectedValue(new Error('404'));
-      renderModal();
-      fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
-      expect(await screen.findByLabelText(/Event Name/)).toHaveValue('Spring Race');
-      expect(screen.getByLabelText(/Chinese Name/)).toHaveValue('春季赛');
-      consoleSpy.mockRestore();
-    });
-
-    test('validates required name and date before saving', async () => {
-      renderModal();
-      fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
-      const nameField = await screen.findByLabelText(/Event Name/);
-
-      fireEvent.change(nameField, { target: { value: '   ' } });
-      fireEvent.click(screen.getByRole('button', { name: /Save \/ 保存/ }));
-      expect(await screen.findByText('Name cannot be empty / 名称不能为空')).toBeInTheDocument();
-      expect(updateEvent).not.toHaveBeenCalled();
-
-      fireEvent.change(nameField, { target: { value: 'Valid' } });
-      fireEvent.change(screen.getByLabelText(/Date \/ 日期/), { target: { value: '' } });
-      fireEvent.click(screen.getByRole('button', { name: /Save \/ 保存/ }));
-      expect(await screen.findByText('Date is required / 日期为必填项')).toBeInTheDocument();
-      expect(updateEvent).not.toHaveBeenCalled();
-    });
-
-    test('saves trimmed values, nulls empty strings, and mirrors camelCase to parent', async () => {
-      updateEvent.mockResolvedValue({
-        id: 1,
-        name: 'New Name',
-        chinese_name: '新名字',
-        chinese_location: null,
-        chinese_description: '服务器描述',
-        signup_link: null,
-        wechat_qr_code: '/img/server-qr.png',
-        status: 'Past',
-        is_highlight: true,
-      });
+    test('composer close hides it without notifying the parent', async () => {
       const { props } = renderModal();
       fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
-      const nameField = await screen.findByLabelText(/Event Name/);
+      await screen.findByTestId('event-composer');
 
-      fireEvent.change(nameField, { target: { value: '  New Name  ' } });
-      fireEvent.change(screen.getByLabelText(/Chinese Location/), { target: { value: '   ' } });
-      fireEvent.change(screen.getByLabelText(/Signup Link/), { target: { value: '' } });
-      fireEvent.click(screen.getByRole('button', { name: /Save \/ 保存/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'composer-close' }));
+      await waitFor(() => expect(screen.queryByTestId('event-composer')).not.toBeInTheDocument());
+      expect(props.onEventUpdate).not.toHaveBeenCalled();
+      expect(getEventById).not.toHaveBeenCalled();
+      expect(screen.getByText('Spring Race')).toBeInTheDocument();
+    });
 
-      await waitFor(() =>
-        expect(updateEvent).toHaveBeenCalledWith(
-          1,
-          expect.objectContaining({
-            name: 'New Name',
-            chinese_name: '服务器名',
-            date: '2026-04-02',
-            time: '9:00 AM',
-            location: 'Server Loc',
-            chinese_location: null,
-            signup_link: null,
-            wechat_qr_code: '/img/server-qr.png',
-            status: 'Past',
-            is_highlight: true,
-            event_type: 'race',
-          }),
-          'user-1'
-        )
-      );
+    test('composer save refetches the event and mirrors camelCase to the parent', async () => {
+      const { props } = renderModal();
+      fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
+      await screen.findByTestId('event-composer');
+
+      fireEvent.click(screen.getByRole('button', { name: 'composer-save' }));
+
+      await waitFor(() => expect(getEventById).toHaveBeenCalledWith(1));
       await waitFor(() =>
         expect(props.onEventUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
-            name: 'New Name',
-            chineseName: '新名字',
-            chineseLocation: null,
+            name: 'Server Name',
+            chineseName: '服务器名',
+            chineseLocation: '服务器地点',
             chineseDescription: '服务器描述',
-            signupLink: null,
+            signupLink: 'https://server.example.com',
             wechatQrCode: '/img/server-qr.png',
           })
         )
       );
-      // edit mode exits
-      await waitFor(() =>
-        expect(screen.queryByLabelText(/Event Name/)).not.toBeInTheDocument()
-      );
+      await waitFor(() => expect(screen.queryByTestId('event-composer')).not.toBeInTheDocument());
     });
 
-    test('status and type dropdowns open above the overlay and change values', async () => {
-      updateEvent.mockResolvedValue({ id: 1, name: 'Server Name', status: 'Cancelled' });
-      renderModal();
-      fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
-      await screen.findByLabelText(/Event Name/);
-
-      // The modal overlay uses zIndex 9999 — menus must portal above it or
-      // they open invisibly behind the backdrop (regression: uneditable selects)
-      fireEvent.mouseDown(screen.getByLabelText(/Status \/ 状态/));
-      let listbox = await screen.findByRole('listbox');
-      expect(Number(getComputedStyle(listbox.closest('.MuiModal-root')).zIndex)).toBeGreaterThan(9999);
-      fireEvent.click(within(listbox).getByText('Cancelled / 已取消'));
-      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
-
-      fireEvent.mouseDown(screen.getByLabelText(/Type \/ 类型/));
-      listbox = await screen.findByRole('listbox');
-      expect(Number(getComputedStyle(listbox.closest('.MuiModal-root')).zIndex)).toBeGreaterThan(9999);
-      fireEvent.click(within(listbox).getByText('Standard'));
-      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Save \/ 保存/ }));
-      await waitFor(() =>
-        expect(updateEvent).toHaveBeenCalledWith(
-          1,
-          expect.objectContaining({ status: 'Cancelled', event_type: 'standard' }),
-          'user-1'
-        )
-      );
-    });
-
-    test('toggling the highlight switch updates the form value sent on save', async () => {
-      updateEvent.mockResolvedValue({ id: 1, name: 'Server Name', status: 'Past' });
-      renderModal();
-      fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
-      const highlightSwitch = await screen.findByRole('checkbox');
-      expect(highlightSwitch).toBeChecked();
-      fireEvent.click(highlightSwitch);
-      expect(highlightSwitch).not.toBeChecked();
-
-      fireEvent.click(screen.getByRole('button', { name: /Save \/ 保存/ }));
-      await waitFor(() =>
-        expect(updateEvent).toHaveBeenCalledWith(
-          1,
-          expect.objectContaining({ is_highlight: false }),
-          'user-1'
-        )
-      );
-    });
-
-    test('save failure keeps the form open and shows an error snackbar', async () => {
+    test('falls back to the composer save payload when the refetch fails', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      updateEvent.mockRejectedValue(new Error('500'));
-      renderModal();
+      getEventById.mockRejectedValue(new Error('404'));
+      const { props } = renderModal();
       fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
-      await screen.findByLabelText(/Event Name/);
-      fireEvent.click(screen.getByRole('button', { name: /Save \/ 保存/ }));
-      expect(await screen.findByText('Failed to save event / 保存活动失败')).toBeInTheDocument();
-      expect(screen.getByLabelText(/Event Name/)).toBeInTheDocument();
+      await screen.findByTestId('event-composer');
+
+      fireEvent.click(screen.getByRole('button', { name: 'composer-save' }));
+
+      await waitFor(() =>
+        expect(props.onEventUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 1, name: 'Saved Name' })
+        )
+      );
       consoleSpy.mockRestore();
     });
 
-    test('cancel exits edit mode without saving', async () => {
-      renderModal();
+    test('composer save without an onEventUpdate handler is a no-op', async () => {
+      renderModal({ onEventUpdate: undefined });
       fireEvent.click((await screen.findByTestId('EditIcon')).closest('button'));
-      await screen.findByLabelText(/Event Name/);
-      fireEvent.click(screen.getByRole('button', { name: /Cancel \/ 取消/ }));
-      expect(screen.queryByLabelText(/Event Name/)).not.toBeInTheDocument();
-      expect(screen.getByText('Spring Race')).toBeInTheDocument();
-      expect(updateEvent).not.toHaveBeenCalled();
+      await screen.findByTestId('event-composer');
+
+      fireEvent.click(screen.getByRole('button', { name: 'composer-save' }));
+      await waitFor(() => expect(screen.queryByTestId('event-composer')).not.toBeInTheDocument());
+      expect(getEventById).not.toHaveBeenCalled();
     });
   });
 });

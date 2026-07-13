@@ -1,17 +1,14 @@
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import ShareIcon from '@mui/icons-material/Share';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, TextField, Typography } from '@mui/material';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, useSensor, useSensors, TouchSensor, MouseSensor, closestCenter } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import EventCardImage from '../components/EventCardImage';
-import EventEngagementBar from '../components/EventEngagementBar';
-import EventGalleryPreview from '../components/EventGalleryPreview';
+import EventCard from '../components/EventCard';
 import EventDetailModal from '../components/EventDetailModal';
 import EventGroupCard from '../components/EventGroupCard';
 import EventGroupGalleryModal from '../components/EventGroupGalleryModal';
@@ -19,24 +16,10 @@ import UndoSnackbar from '../components/UndoSnackbar';
 import { getBatchEngagement, toggleSeriesParent, getHighlightsGrouped, mergeEventsToGroup, removeEventFromGroup, undoGroupMerge, deleteEvent, createEvent } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
-
-// Design tokens — match the redesigned HomePage / NavBar
-const ORANGE = '#FFA500';
-const ORANGE_DARK = '#F29400';
-const ORANGE_BG = '#FFF6E8';
-const LINE = '#EEE7DC';
-const INK = '#212121';
-const MUTED = '#757575';
-
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-// Parse an event date (YYYY-MM-DD) into { day, month } for the date bubble
-function parseBubbleDate(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (isNaN(d.getTime())) return null;
-  return { day: d.getDate(), month: MONTHS[d.getMonth()] };
-}
+import {
+  ORANGE, ORANGE_DARK, ORANGE_BG, LINE, INK, MUTED,
+  CARD_SHADOW, CARD_HOVER_SHADOW, FALLBACK_EVENT_IMAGE,
+} from '../theme/tokens';
 
 // Pill styling for the filter selects
 const filterPillSx = {
@@ -277,7 +260,7 @@ export default function HighlightsPage() {
           chineseLocation: event.chinese_location,
           description: event.description,
           chineseDescription: event.chinese_description,
-          image: event.image || '/images/2025/20250517_bk_half.jpg',
+          image: event.image || FALLBACK_EVENT_IMAGE,
           image_position: event.image_position,
           signupLink: event.signup_link,
           status: event.status,
@@ -304,8 +287,9 @@ export default function HighlightsPage() {
           time: e.time,
           location: e.location,
           chineseLocation: e.chinese_location,
-          image: e.image || '/images/2025/20250517_bk_half.jpg',
+          image: e.image || FALLBACK_EVENT_IMAGE,
           image_position: e.image_position,
+          status: e.status,
           is_highlight: !!e.is_highlight,
         })))
       ];
@@ -324,7 +308,9 @@ export default function HighlightsPage() {
           time: e.time,
           location: e.location,
           chineseLocation: e.chineseLocation,
-          chineseDescription: e.chineseDescription
+          chineseDescription: e.chineseDescription,
+          // Featured cards are memories — never let EventCard default to Upcoming
+          status: e.status || 'Past'
         }));
       setFeaturedEvents(featured);
 
@@ -524,13 +510,7 @@ export default function HighlightsPage() {
     handleMenuClose();
   };
 
-  const handleImageError = (e) => {
-    console.error('Image failed to load:', e.target.src);
-    e.target.src = '/images/2025/20250517_bk_half.jpg';
-  };
-
-  const handleShare = async (e, eventId, eventName) => {
-    e.stopPropagation();
+  const handleShare = async (eventId) => {
     const shareUrl = `${window.location.origin}/highlights?event=${eventId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -661,93 +641,13 @@ export default function HighlightsPage() {
         <Grid container spacing={3}>
           {featuredEvents.map((event) => (
             <Grid item xs={12} md={4} key={event.id}>
-              <Card
-                elevation={0}
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  cursor: 'pointer',
-                  backgroundColor: 'white',
-                  border: `1px solid ${LINE}`,
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-3px)',
-                    boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
-                  }
-                }}
-                onClick={() => handleEventClick(event)}
-              >
-                <Box sx={{ position: 'relative' }}>
-                  <EventCardImage event={event} height="200" onError={handleImageError} />
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleShare(e, event.id, event.title)}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
-                    }}
-                  >
-                    <ShareIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Typography gutterBottom variant="h6" component="div" sx={{
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 1,
-                    WebkitBoxOrient: 'vertical',
-                  }}>
-                    {event.title}
-                  </Typography>
-                  <Typography gutterBottom variant="subtitle1" color="text.secondary" sx={{
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 1,
-                    WebkitBoxOrient: 'vertical',
-                    minHeight: '1.75em',
-                  }}>
-                    {event.chineseTitle || '\u00A0'}
-                  </Typography>
-                  <Box sx={{ mb: 1 }}>
-                    <EventGalleryPreview eventId={event.id} maxImages={4} size={40} />
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <EventEngagementBar
-                      eventId={event.id}
-                      initialData={engagementData[event.id]}
-                    />
-                  </Box>
-                  <Button
-                    variant="contained"
-                    disableElevation
-                    sx={{
-                      mt: 'auto',
-                      backgroundColor: ORANGE,
-                      color: 'white',
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.9375rem',
-                      px: 2.5,
-                      py: 1.1,
-                      borderRadius: '99px',
-                      '&:hover': {
-                        backgroundColor: ORANGE_DARK,
-                      },
-                      '&:active': {
-                        transform: 'scale(0.98)',
-                      }
-                    }}
-                  >
-                    View Details 查看详情
-                  </Button>
-                </CardContent>
-              </Card>
+              <EventCard
+                event={event}
+                density="grid"
+                showGalleryPreview
+                onClick={handleEventClick}
+                onShare={(ev) => handleShare(ev.id)}
+              />
             </Grid>
           ))}
         </Grid>
@@ -888,255 +788,47 @@ export default function HighlightsPage() {
               {({ isOver }) => (
                 <DraggableEventCard id={event.id} disabled={!adminModeEnabled}>
                   {({ dragHandleProps, isDragging }) => (
-                    <Card
-                      elevation={0}
+                    <EventCard
+                      event={event}
+                      density="row"
+                      showGalleryPreview
+                      onClick={(ev) => !isDragging && handleEventClick(ev)}
+                      onShare={(ev) => handleShare(ev.id)}
+                      adminActions={adminModeEnabled ? (
+                        <>
+                          {/* Drag handle: hold (touch) or press-and-move (mouse) to merge */}
+                          <Box
+                            {...dragHandleProps}
+                            aria-label="drag to merge"
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              cursor: 'grab',
+                              p: 0.5,
+                              borderRadius: '4px',
+                              '&:hover': { backgroundColor: ORANGE_BG },
+                            }}
+                          >
+                            <DragIndicatorIcon sx={{ color: ORANGE, fontSize: 20 }} />
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleMenuOpen(e, event.id)}
+                            aria-label="event admin menu"
+                            sx={{ color: MUTED, '&:hover': { color: ORANGE, backgroundColor: ORANGE_BG } }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      ) : null}
                       sx={{
-                        display: 'flex',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        minHeight: { xs: 'auto', sm: '200px' },
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        backgroundColor: 'white',
-                        borderRadius: '12px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-                        transition: 'all 0.2s ease',
                         opacity: isDragging ? 0.5 : 1,
                         border: isOver ? `3px dashed ${ORANGE}` : `1px solid ${LINE}`,
-                        '&:hover': {
-                          transform: isDragging ? 'none' : 'translateY(-3px)',
-                          boxShadow: '0 8px 24px rgba(255,165,0,0.35)'
-                        },
+                        ...(isDragging && {
+                          '&:hover': { transform: 'none', boxShadow: CARD_SHADOW },
+                        }),
                       }}
-                      onClick={() => !isDragging && handleEventClick(event)}
-                    >
-                      {/* Mobile: Image at top */}
-                      <Box
-                        sx={{
-                          display: { xs: 'block', sm: 'none' },
-                          width: '100%',
-                          height: '150px',
-                          position: 'relative'
-                        }}
-                      >
-                        <EventCardImage
-                          event={event}
-                          onError={handleImageError}
-                          sx={{ height: '100%', width: '100%' }}
-                        />
-                        {/* Mobile drag handle - long press to drag */}
-                        {adminModeEnabled && (
-                          <Box
-                            {...dragHandleProps}
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              left: 8,
-                              zIndex: 10,
-                              cursor: 'grab',
-                            }}
-                          >
-                            <Chip
-                              icon={<DragIndicatorIcon sx={{ fontSize: 16 }} />}
-                              label="Hold to drag"
-                              size="small"
-                              sx={{
-                                backgroundColor: 'rgba(255, 165, 0, 0.95)',
-                                color: 'white',
-                                fontWeight: 600,
-                                fontSize: '0.75rem',
-                              }}
-                            />
-                          </Box>
-                        )}
-                      </Box>
-
-                      {/* Date/Time Column - hidden on mobile, shown on sm+ */}
-                      <Box
-                        sx={{
-                          display: { xs: 'none', sm: 'flex' },
-                          width: '120px',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          gap: 0.75,
-                          backgroundColor: 'white',
-                          p: 2,
-                          borderRight: `1px solid ${LINE}`,
-                          whiteSpace: 'nowrap',
-                          position: 'relative'
-                        }}
-                      >
-                        {/* Desktop drag handle */}
-                        {adminModeEnabled && (
-                          <Box
-                            {...dragHandleProps}
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              cursor: 'grab',
-                              padding: '4px',
-                              borderRadius: '4px',
-                              '&:hover': {
-                                backgroundColor: 'rgba(255, 165, 0, 0.2)',
-                              },
-                            }}
-                          >
-                            <DragIndicatorIcon
-                              sx={{
-                                color: '#FFA500',
-                                fontSize: 20,
-                              }}
-                            />
-                          </Box>
-                        )}
-                {(() => {
-                  const bubbleDate = parseBubbleDate(event.date);
-                  return bubbleDate ? (
-                    <Box
-                      sx={{
-                        width: 46,
-                        height: 46,
-                        borderRadius: '12px',
-                        backgroundColor: ORANGE_BG,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: ORANGE, lineHeight: 1.1 }}>
-                        {bubbleDate.day}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.59rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, textTransform: 'uppercase' }}>
-                        {bubbleDate.month}
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" sx={{ color: MUTED, whiteSpace: 'nowrap' }}>
-                      {event.date}
-                    </Typography>
-                  );
-                })()}
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', color: MUTED, whiteSpace: 'nowrap' }}>
-                  {(event.date || '').split('-')[0]}
-                </Typography>
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: ORANGE, whiteSpace: 'nowrap' }}>
-                  {event.time}
-                </Typography>
-              </Box>
-
-              {/* Image Column - hidden on mobile, shown on sm+ */}
-              <Box
-                sx={{
-                  display: { xs: 'none', sm: 'block' },
-                  width: '200px',
-                  flexShrink: 0
-                }}
-              >
-                <EventCardImage event={event} onError={handleImageError} sx={{ height: '100%', width: '100%' }} />
-              </Box>
-
-              {/* Content Column */}
-              <Box
-                sx={{
-                  flex: 1,
-                  p: 2,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative'
-                }}
-              >
-                {/* Share and admin buttons */}
-                <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', gap: 0.5 }}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleShare(e, event.id, event.name)}
-                    sx={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' },
-                    }}
-                  >
-                    <ShareIcon fontSize="small" />
-                  </IconButton>
-                  {adminModeEnabled && (
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleMenuOpen(e, event.id)}
-                      sx={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '&:hover': { backgroundColor: 'rgba(255, 165, 0, 0.2)' }
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </Box>
-                {/* Mobile: Show date/time at top of content */}
-                <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 2, mb: 1, color: ORANGE }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {event.time}
-                  </Typography>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    {event.date}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-start' }, mb: 1, gap: 1 }}>
-                  <Box>
-                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                      {event.name}
-                    </Typography>
-                    <Typography variant="subtitle1" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                      {event.chineseName}
-                    </Typography>
-                  </Box>
-                  <Button
-                    variant="contained"
-                    disableElevation
-                    sx={{
-                      backgroundColor: ORANGE,
-                      color: 'white',
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
-                      px: { xs: 2, sm: 2.5 },
-                      py: { xs: 0.75, sm: 1 },
-                      borderRadius: '99px',
-                      flexShrink: 0,
-                      '&:hover': {
-                        backgroundColor: ORANGE_DARK,
-                      },
-                      '&:active': {
-                        transform: 'scale(0.98)',
-                      }
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEventClick(event);
-                    }}
-                  >
-                    View Details 查看详情
-                  </Button>
-                </Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {event.location}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {event.chineseLocation}
-                </Typography>
-                <EventGalleryPreview eventId={event.id} maxImages={5} size={36} />
-                <Box sx={{ mt: 'auto' }}>
-                  <EventEngagementBar
-                    eventId={event.id}
-                    initialData={engagementData[event.id]}
-                  />
-                </Box>
-              </Box>
-                    </Card>
+                    />
                   )}
                 </DraggableEventCard>
               )}
@@ -1155,7 +847,7 @@ export default function HighlightsPage() {
                 p: 2,
                 border: `1px solid ${LINE}`,
                 borderRadius: '12px',
-                boxShadow: '0 8px 24px rgba(255,165,0,0.35)',
+                boxShadow: CARD_HOVER_SHADOW,
                 transform: 'rotate(3deg)',
                 opacity: 0.9,
               }}
@@ -1197,7 +889,7 @@ export default function HighlightsPage() {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <MenuItem onClick={handleToggleSeriesParent}>
-          <PlaylistAddIcon sx={{ mr: 1, color: '#FFA500' }} />
+          <PlaylistAddIcon sx={{ mr: 1, color: ORANGE }} />
           Mark as Series Parent 设为系列主活动
         </MenuItem>
         <MenuItem onClick={handleDeleteEvent}>
@@ -1337,7 +1029,7 @@ export default function HighlightsPage() {
             variant="contained"
             disabled={addEventLoading}
             startIcon={addEventLoading ? <CircularProgress size={20} color="inherit" /> : <AddIcon />}
-            sx={{ backgroundColor: '#FFA500', '&:hover': { backgroundColor: '#e69500' } }}
+            sx={{ backgroundColor: ORANGE, '&:hover': { backgroundColor: ORANGE_DARK } }}
           >
             {addEventLoading ? 'Creating...' : 'Create 创建'}
           </Button>

@@ -55,7 +55,8 @@ describe('EventGroupCard', () => {
     expect(screen.getByText('布鲁克林半马系列')).toBeInTheDocument();
     expect(screen.getByText('3 Events')).toBeInTheDocument(); // mobile badge
     expect(screen.getByText('3')).toBeInTheDocument(); // desktop badge
-    expect(screen.getByRole('button', { name: 'View All 3 Events' })).toBeInTheDocument();
+    // Bilingual orange pill CTA
+    expect(screen.getByRole('button', { name: 'View All 3 Events 查看全部' })).toBeInTheDocument();
     expect(screen.getByText('3 events from 2023 to 2025')).toBeInTheDocument();
     expect(screen.getAllByText('May 2025')).toHaveLength(2); // mobile + desktop
     expect(screen.getByText('to present')).toBeInTheDocument();
@@ -83,7 +84,7 @@ describe('EventGroupCard', () => {
       expect(img).toHaveStyle({ objectPosition: '30% 40%' });
     });
     fireEvent.error(imgs[0]);
-    expect(imgs[0]).toHaveAttribute('src', '/images/2025/20250517_bk_half.jpg');
+    expect(imgs[0]).toHaveAttribute('src', '/images/placeholder-event.jpg');
   });
 
   test('falls back to default cover image and position when missing', () => {
@@ -91,7 +92,7 @@ describe('EventGroupCard', () => {
     render(<EventGroupCard group={group} onGroupClick={jest.fn()} />);
     const imgs = screen.getAllByAltText('Brooklyn Half Series');
     imgs.forEach((img) => {
-      expect(img).toHaveAttribute('src', '/images/2025/20250517_bk_half.jpg');
+      expect(img).toHaveAttribute('src', '/images/placeholder-event.jpg');
       expect(img).toHaveStyle({ objectPosition: 'center center' });
     });
     // no admin editor without cover image even in admin mode

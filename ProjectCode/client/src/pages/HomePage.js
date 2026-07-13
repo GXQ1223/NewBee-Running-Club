@@ -47,11 +47,8 @@ import { updateBanner } from '../api/banners';
 import { getActiveSections, updateSection, reorderSections, uploadImage } from '../api/homepageSections';
 import ImagePositionEditor from '../components/ImagePositionEditor';
 import { updateEvent, getEventsByStatus } from '../api';
-
-const ORANGE = '#FFA500';
-const ORANGE_BG = '#FFF6E8';
-const LINE = '#EEE7DC';
-const MUTED = '#757575';
+import { ORANGE, ORANGE_BG, LINE, MUTED } from '../theme/tokens';
+import { parseBubbleDate as parseEventDate } from '../helpers/eventDate';
 
 // Fallback carousel images if API fails
 const fallbackCarouselImages = [
@@ -85,16 +82,6 @@ const fallbackSections = [
   // Training With Us ('/training') hidden for now — restore an entry here (and
   // reactivate the DB section in admin mode) to bring it back
 ];
-
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-// Parse a banner's event_date (YYYY-MM-DD) into { day, month } for the date bubble
-function parseEventDate(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (isNaN(d.getTime())) return null;
-  return { day: d.getDate(), month: MONTHS[d.getMonth()] };
-}
 
 // Sortable Section Card — featured grid card with title overlaid on the image.
 // The first two sections render as large (span-2) cards.

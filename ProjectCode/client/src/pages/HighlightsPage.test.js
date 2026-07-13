@@ -404,20 +404,25 @@ describe('rendering', () => {
     expect(screen.getAllByText('Winter Marathon')).toHaveLength(1); // memories only
   });
 
-  test('renders memory cards with date bubbles, year, time and fallback for bad dates', async () => {
+  test('renders memory cards with date bubbles and a View Details CTA', async () => {
     await renderLoaded();
 
-    // Date bubble for Brooklyn Half: 17 / MAY
-    expect(screen.getByText('17')).toBeInTheDocument();
+    // Date bubble for Brooklyn Half: 17 / MAY (featured + memory card)
+    expect(screen.getAllByText('17').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('MAY').length).toBeGreaterThanOrEqual(2); // May 17 + May 10
     expect(screen.getByText('JAN')).toBeInTheDocument(); // Jan 5
     expect(screen.getByText('APR')).toBeInTheDocument(); // Apr 1 (converted single group)
-    // Year row under the bubble
-    expect(screen.getAllByText('2025').length).toBeGreaterThanOrEqual(4);
-    // Unparseable date falls back to raw date text (no bubble)
-    expect(screen.getAllByText('not-a-date').length).toBeGreaterThanOrEqual(1);
-    // Time column rendered
-    expect(screen.getAllByText('7:00 am').length).toBeGreaterThanOrEqual(1);
+    // Date · time meta row
+    expect(screen.getAllByText('2025-05-17 · 7:00 am').length).toBeGreaterThanOrEqual(1);
+    // Unparseable date renders no bubble but still shows the raw date in the meta row
+    expect(screen.getAllByText(/not-a-date/).length).toBeGreaterThanOrEqual(1);
+    // Past events carry the MEMORY chip
+    expect(screen.getAllByText('MEMORY 回忆').length).toBeGreaterThanOrEqual(1);
+    // Standalone memory cards offer the outlined View Details CTA
+    const winterCard = screen.getByText('Winter Marathon').closest('[data-testid="event-card"]');
+    expect(
+      within(winterCard).getByRole('button', { name: 'View Details 查看详情' })
+    ).toBeInTheDocument();
   });
 
   test('renders multi-event group card and converts single-event groups to standalone', async () => {
@@ -432,14 +437,12 @@ describe('rendering', () => {
     expect(screen.getByText('Solo Group Event')).toBeInTheDocument();
   });
 
-  test('passes engagement data to standalone event cards', async () => {
+  test('renders engagement bars for standalone event cards', async () => {
     await renderLoaded();
-    // Event 1 is both featured and a memory card; both get engagement data
+    // Event 1 is both featured and a memory card; each EventCard renders an
+    // engagement bar (the bar fetches its own data via the API)
     const bars = screen.getAllByTestId('engagement-1');
-    expect(bars.length).toBeGreaterThanOrEqual(1);
-    bars.forEach((bar) =>
-      expect(bar.getAttribute('data-initial')).toContain('like_count')
-    );
+    expect(bars.length).toBeGreaterThanOrEqual(2);
   });
 
   test('renders nothing crashing when API returns empty payload and skips engagement fetch', async () => {
@@ -483,15 +486,11 @@ describe('rendering', () => {
     );
   });
 
-  test('image load errors swap in the fallback image', async () => {
+  test('image load errors swap in the shared fallback image', async () => {
     await renderLoaded();
     const img = screen.getAllByTestId('event-card-image')[0];
     fireEvent.error(img);
-    expect(img.src).toContain('/images/2025/20250517_bk_half.jpg');
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Image failed to load:',
-      expect.anything()
-    );
+    expect(img.src).toContain('/images/placeholder-event.jpg');
   });
 });
 
@@ -727,7 +726,6 @@ describe('admin gating', () => {
 
     expect(screen.getByRole('button', { name: /Add Event/ })).toBeInTheDocument();
     expect(screen.getAllByTestId('DragIndicatorIcon').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Hold to drag').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('MoreVertIcon').length).toBeGreaterThan(0);
     expect(
       screen.getByText('Long press the drag handle to move events')
@@ -741,10 +739,9 @@ describe('admin gating', () => {
     expect(screen.getByTestId('event-group-card')).toHaveAttribute('data-admin', 'true');
 
     // Clicking a drag handle does not open the event detail modal
-    // (stopPropagation on both the mobile chip handle and the desktop handle)
+    // (EventCard stops propagation from the whole admin-actions cluster)
     const icons = screen.getAllByTestId('DragIndicatorIcon');
     icons.forEach((icon) => fireEvent.click(icon));
-    fireEvent.click(screen.getAllByText('Hold to drag')[0]);
     expect(screen.queryByTestId('event-detail-modal')).not.toBeInTheDocument();
   });
 

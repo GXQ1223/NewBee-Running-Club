@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events A — Consolidated (one card, three variants) · NewBee Running Club</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* PROPOSAL A: keep today's visual language, but ONE EventCard component
+     (variant: featured | row | group) + one shared token file + one editor.
+     Fixes folded in: featured cards get date/time/location, every CTA works,
+     group card uses the real orange tokens + bilingual label. */
+  :root{
+    --orange:#FFA500; --orange-dark:#F29400; --orange-bg:#FFF6E8;
+    --ink:#212121; --muted:#757575; --line:#EEE7DC;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Roboto,'Noto Sans SC',sans-serif;background:#FFFDFA;color:var(--ink)}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:1180px;margin:0 auto;padding:0 16px}
+
+  .explain{background:var(--orange-bg);border-bottom:1px solid var(--line);padding:14px 0}
+  .explain b{font-size:14px}
+  .explain p{font-size:12.5px;color:var(--muted);margin-top:3px}
+
+  .sechead{display:flex;align-items:baseline;gap:10px;margin:34px 2px 14px}
+  .sechead h2{font-size:20px;font-weight:700}
+  .sechead span{font-size:14px;color:var(--muted);font-family:'Noto Sans SC'}
+  .sechead .addbtn{margin-left:auto;background:var(--orange);color:#fff;font-weight:600;font-size:13px;
+      padding:9px 20px;border-radius:99px;box-shadow:0 2px 6px rgba(255,165,0,.3);cursor:pointer;border:none}
+  .sechead .addbtn:hover{background:var(--orange-dark)}
+
+  /* ---- the ONE card: shared shell ---- */
+  .ecard{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;
+      box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s;position:relative}
+  .ecard:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(255,165,0,.35)}
+
+  .pill{display:inline-block;background:var(--orange);color:#fff;font-weight:600;font-size:14px;
+      padding:10px 22px;border-radius:99px;border:none;cursor:pointer;text-align:center;transition:all .15s}
+  .pill:hover{background:var(--orange-dark)}
+  .pill:active{transform:scale(.98)}
+  .pill small{font-family:'Noto Sans SC';font-weight:500;margin-left:6px}
+
+  .bubble{width:46px;height:46px;border-radius:12px;background:var(--orange-bg);flex-shrink:0;
+      display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .bubble b{font-size:16px;color:var(--orange);line-height:1.1}
+  .bubble span{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:var(--muted)}
+
+  .meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted)}
+  .meta i{font-style:normal;color:var(--orange);margin-right:4px}
+
+  /* variant: featured (vertical, image top) */
+  .fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .ecard.featured{display:flex;flex-direction:column}
+  .ecard.featured .img{height:190px;position:relative}
+  .ecard.featured .img img{width:100%;height:100%;object-fit:cover;display:block}
+  .ecard.featured .body{padding:16px;display:flex;flex-direction:column;flex:1;gap:8px}
+  .ecard.featured h3{font-size:17px;font-weight:600;line-height:1.3}
+  .ecard.featured h3 small{display:block;font-size:13px;color:var(--muted);font-weight:400;font-family:'Noto Sans SC';margin-top:2px}
+  .ecard.featured p{font-size:13px;color:var(--muted);line-height:1.5;
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .ecard.featured .pill{margin-top:auto;width:100%}
+
+  /* variant: row (horizontal) */
+  .rowlist{display:flex;flex-direction:column;gap:20px}
+  .ecard.row{display:flex;min-height:180px}
+  .ecard.row .datecol{width:112px;flex-shrink:0;border-right:1px solid var(--line);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 8px}
+  .ecard.row .datecol .time{font-size:12.5px;font-weight:600;color:var(--orange)}
+  .ecard.row .img{width:200px;flex-shrink:0}
+  .ecard.row .img img{width:100%;height:100%;object-fit:cover;display:block}
+  .ecard.row .body{flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;position:relative}
+  .ecard.row h3{font-size:17px;font-weight:600}
+  .ecard.row h3 small{font-size:13px;color:var(--muted);font-weight:400;font-family:'Noto Sans SC';margin-left:8px}
+  .ecard.row .pill{align-self:flex-start;margin-top:auto}
+
+  /* variant: group (row + stack effect) — now uses the SAME tokens & pill */
+  .groupwrap{position:relative;margin-top:26px}
+  .groupwrap::before,.groupwrap::after{content:'';position:absolute;left:8px;right:8px;height:100%;
+      border:1px solid var(--line);border-radius:12px;background:#fff;z-index:0}
+  .groupwrap::before{top:-5px;left:4px;right:4px;background:#f7f3ec}
+  .groupwrap::after{top:-10px;background:#efe9df}
+  .groupwrap .ecard{z-index:1}
+  .folder{display:inline-flex;align-items:center;gap:6px;background:var(--orange-bg);color:var(--orange);
+      font-size:12px;font-weight:700;padding:5px 12px;border-radius:99px}
+
+  .share{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;
+      background:rgba(255,255,255,.92);display:grid;place-items:center;font-size:14px;color:var(--muted);z-index:2}
+  .share:hover{color:var(--orange)}
+  .adminrow{position:absolute;top:10px;right:48px;display:flex;gap:6px;z-index:2}
+  .adminrow i{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.92);
+      display:grid;place-items:center;font-size:14px;font-style:normal;color:var(--muted)}
+  .adminrow i:hover{color:var(--orange)}
+
+  /* ---- unified editor dialog (the ONE form, superset of all three) ---- */
+  .dlgdemo{margin:44px 0 60px}
+  .dialog{max-width:720px;margin:0 auto;background:#fff;border-radius:14px;border:1px solid var(--line);
+      box-shadow:0 18px 50px rgba(0,0,0,.18);overflow:hidden}
+  .dialog .dhead{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px}
+  .dialog .dhead h3{font-size:17px;font-weight:700}
+  .dialog .dhead span{font-size:13px;color:var(--muted);font-family:'Noto Sans SC'}
+  .dialog .dbody{padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+  .fld{display:flex;flex-direction:column;gap:5px}
+  .fld.full{grid-column:span 2}
+  .fld label{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.03em}
+  .fld label em{color:#d32f2f;font-style:normal}
+  .fld input,.fld select,.fld textarea{font:inherit;font-size:13.5px;padding:9px 12px;border:1px solid #d9d2c6;
+      border-radius:8px;background:#fff;color:var(--ink)}
+  .fld input:focus,.fld textarea:focus{outline:2px solid var(--orange);border-color:transparent}
+  .fld .hint{font-size:11px;color:var(--muted)}
+  .fset{grid-column:span 2;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:4px}
+  .fset legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
+  .fset .inner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px}
+  .daychip{font-size:12px;font-weight:600;padding:6px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .daychip.on{background:var(--orange);border-color:var(--orange);color:#fff}
+  .upload{grid-column:span 2;border:1.5px dashed #d9d2c6;border-radius:10px;padding:18px;text-align:center;
+      color:var(--muted);font-size:13px;background:#fffdf8}
+  .upload b{color:var(--orange)}
+  .dfoot{padding:16px 24px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+  .ghost{background:#fff;border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:13px;
+      padding:9px 20px;border-radius:99px;cursor:pointer}
+  .note{max-width:720px;margin:10px auto 0;font-size:12px;color:var(--muted);text-align:center}
+
+  @media(max-width:860px){
+    .fgrid{grid-template-columns:1fr}
+    .ecard.row{flex-direction:column;min-height:0}
+    .ecard.row .datecol{display:none}
+    .ecard.row .img{width:100%;height:150px}
+    .dialog .dbody{grid-template-columns:1fr}
+    .fld.full,.fset,.upload{grid-column:span 1}
+  }
+</style>
+</head>
+<body>
+
+<div class="explain">
+  <div class="container">
+    <b>Proposal A — Consolidated · 统一现有样式</b>
+    <p>Same visual language as today, but one &lt;EventCard variant="featured|row|group"&gt; everywhere, shared tokens, and one editor dialog replacing the three divergent forms. Featured cards gain date/time/location; every CTA is clickable; the group card joins the token system.</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="sechead"><h2>Upcoming Events</h2><span>近期活动</span><button class="addbtn">+ Add Event 添加活动</button></div>
+
+  <div class="fgrid">
+    <div class="ecard featured">
+      <div class="img">
+        <img src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg" alt="">
+        <span class="share">⤴</span>
+        <span class="adminrow"><i>✎</i><i>🗑</i></span>
+      </div>
+      <div class="body">
+        <h3>Team Championship<small>团队锦标赛</small></h3>
+        <div class="meta"><span><i>⏰</i>Jul 27 · 7:30 AM</span><span><i>📍</i>Central Park</span></div>
+        <p>Race with the NewBee squad at the NYRR Team Championships — 5 miles, club scoring, post-race picnic.</p>
+        <button class="pill">Sign Up<small>报名</small></button>
+      </div>
+    </div>
+    <div class="ecard featured">
+      <div class="img">
+        <img src="../ProjectCode/client/public/images/2025/20250620_queens_10k.jpg" alt="">
+        <span class="share">⤴</span>
+      </div>
+      <div class="body">
+        <h3>Saturday Long Run<small>周六长跑</small></h3>
+        <div class="meta"><span><i>⏰</i>Jul 19 · 8:00 AM</span><span><i>📍</i>Central Park, Engineers' Gate</span></div>
+        <p>Weekly long run, 10–16 miles with paced groups. All levels welcome — bagels after.</p>
+        <button class="pill">View Details<small>查看详情</small></button>
+      </div>
+    </div>
+    <div class="ecard featured">
+      <div class="img">
+        <img src="../ProjectCode/client/public/images/2025/20250604_9th_anniversary_run.jpg" alt="">
+        <span class="share">⤴</span>
+      </div>
+      <div class="body">
+        <h3>Track Tuesday<small>周二田径场训练</small></h3>
+        <div class="meta"><span><i>⏰</i>Jul 15 · 6:30 PM</span><span><i>📍</i>East River Track</span></div>
+        <p>Coached interval session — 8×400m this week. Meet at the north gate.</p>
+        <button class="pill">View Details<small>查看详情</small></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sechead"><h2>All Upcoming</h2><span>全部活动</span></div>
+
+  <div class="rowlist">
+    <div class="ecard row">
+      <div class="datecol"><div class="bubble"><b>15</b><span>JUL</span></div><div class="time">6:30 PM</div></div>
+      <div class="img"><img src="../ProjectCode/client/public/images/2025/20250604_9th_anniversary_run.jpg" alt=""></div>
+      <div class="body">
+        <span class="share">⤴</span>
+        <h3>Track Tuesday<small>周二田径场训练</small></h3>
+        <div class="meta"><span><i>📍</i>East River Track 东河田径场</span></div>
+        <button class="pill">View Details<small>查看详情</small></button>
+      </div>
+    </div>
+    <div class="ecard row">
+      <div class="datecol"><div class="bubble"><b>27</b><span>JUL</span></div><div class="time">7:30 AM</div></div>
+      <div class="img"><img src="../ProjectCode/client/public/images/2025/20250727_team_champ.jpg" alt=""></div>
+      <div class="body">
+        <span class="share">⤴</span>
+        <h3>Team Championship<small>团队锦标赛</small></h3>
+        <div class="meta"><span><i>📍</i>Central Park 中央公园</span></div>
+        <button class="pill">Sign Up<small>报名</small></button>
+      </div>
+    </div>
+
+    <div class="groupwrap">
+      <div class="ecard row">
+        <div class="datecol">
+          <span class="folder">🗂 6 events</span>
+          <div class="meta" style="justify-content:center"><span>May 2024 – present</span></div>
+        </div>
+        <div class="img"><img src="../ProjectCode/client/public/images/2025/20250517_bk_half.jpg" alt=""></div>
+        <div class="body">
+          <span class="share">⤴</span>
+          <h3>Brooklyn Half Series<small>布鲁克林半马系列</small></h3>
+          <div class="meta"><span>6 events from 2024 to 2026</span></div>
+          <button class="pill">View All 6 Events<small>查看全部</small></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- the ONE editor -->
+  <div class="dlgdemo">
+    <div class="sechead"><h2>One editor, three doors</h2><span>统一编辑表单</span></div>
+    <div class="dialog">
+      <div class="dhead"><h3>Add Event</h3><span>添加活动</span></div>
+      <div class="dbody">
+        <div class="fld"><label>EVENT NAME <em>*</em></label><input value="Saturday Long Run"></div>
+        <div class="fld"><label>中文名称</label><input value="周六长跑"><span class="hint">Press Tab to auto-fill 按 Tab 自动翻译</span></div>
+        <div class="fld"><label>DATE <em>*</em></label><input type="date" value="2026-07-19"></div>
+        <div class="fld"><label>TIME</label><input type="time" value="08:00"><span class="hint">Time picker — no more free-text "e.g. 8:00 AM"</span></div>
+        <div class="fld"><label>LOCATION</label><input value="Central Park, Engineers' Gate"></div>
+        <div class="fld"><label>中文地点</label><input value="中央公园"></div>
+        <div class="fld full"><label>DESCRIPTION</label><textarea rows="2">Weekly long run, 10–16 miles with paced groups.</textarea></div>
+        <div class="upload">📷 <b>Upload image</b> or drag &amp; drop — uploads immediately with progress (not deferred to Save)</div>
+        <div class="fld"><label>SIGNUP LINK</label><input placeholder="https://…"></div>
+        <div class="fld"><label>EVENT TYPE</label><select><option>Standard</option><option>Heylo</option><option>Race</option></select></div>
+        <div class="fld"><label>STATUS</label><select><option>Upcoming</option><option>Past</option><option>Cancelled</option></select></div>
+        <div class="fld"><label>WECHAT QR</label><input placeholder="Upload QR image…"><span class="hint">Now part of the same form, not a separate mini-dialog</span></div>
+        <fieldset class="fset"><legend>REPEATS · 重复</legend>
+          <div class="inner">
+            <select><option>Weekly</option><option>Biweekly</option><option>Monthly</option><option>Yearly</option></select>
+            <span class="daychip">Mon</span><span class="daychip on">Sat</span><span class="daychip">Sun</span>
+            <span class="hint">"Custom" option removed — it rendered no UI</span>
+          </div>
+        </fieldset>
+      </div>
+      <div class="dfoot"><button class="ghost">Cancel 取消</button><button class="pill">Save Event 保存</button></div>
+    </div>
+    <p class="note">This single dialog is mounted from CalendarPage, AdminPanel, and EventDetailModal — replacing three forms that each had different fields and different null-handling.</p>
+  </div>
+
+</div>
+</body>
+</html>

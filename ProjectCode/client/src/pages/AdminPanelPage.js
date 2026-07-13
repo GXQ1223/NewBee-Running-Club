@@ -14,14 +14,12 @@ import {
   DialogContentText,
   DialogTitle,
   FormControl,
-  FormControlLabel,
   Grid,
   IconButton,
   InputLabel,
   MenuItem,
   Paper,
   Select,
-  Switch,
   Tab,
   Table,
   TableBody,
@@ -39,9 +37,10 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import MeetingMinutesEditor from '../components/MeetingMinutesEditor';
+import EventComposer from '../components/EventComposer';
 import { useAuth } from '../context/AuthContext';
 import { getPendingMembers, approveMember, rejectMember, getMemberByFirebaseUid, getAllMembers, updateMember, promoteToCommittee, demoteFromCommittee } from '../api/members';
-import { createEvent, getAllEvents, updateEvent, deleteEvent } from '../api/events';
+import { getAllEvents, deleteEvent } from '../api/events';
 import { getDonationSummary } from '../api/donors';
 import { getAllBanners, createBanner, updateBanner, deleteBanner } from '../api/banners';
 import { getAllSections, createSection, updateSection, deleteSection } from '../api/homepageSections';
@@ -158,23 +157,9 @@ export default function AdminPanelPage() {
   const [selectedActivityMember, setSelectedActivityMember] = useState(null);
   const [selectedMemberActivities, setSelectedMemberActivities] = useState([]);
 
-  // Event form state
-  const [eventDialogOpen, setEventDialogOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState(null);
-  const [eventFormData, setEventFormData] = useState({
-    name: '',
-    chinese_name: '',
-    date: '',
-    time: '',
-    location: '',
-    chinese_location: '',
-    description: '',
-    chinese_description: '',
-    image: '',
-    signup_link: '',
-    status: 'Upcoming',
-    is_highlight: false
-  });
+  // Event composer state (create/edit handled by the shared EventComposer)
+  const [eventComposerOpen, setEventComposerOpen] = useState(false);
+  const [composerEvent, setComposerEvent] = useState(null);
 
   // Newsletter state
   const [newsletterSubject, setNewsletterSubject] = useState('');
@@ -427,77 +412,23 @@ export default function AdminPanelPage() {
     }
   };
 
-  // Event form handlers
-  const handleEventDialogOpen = (event = null) => {
-    if (event) {
-      setEditingEvent(event);
-      // Legacy 'Highlight' status maps to Past + is_highlight in the new model
-      const rawStatus = event.status || 'Upcoming';
-      const normalizedStatus = rawStatus === 'Highlight' ? 'Past' : rawStatus;
-      const isHighlight = event.is_highlight === true || rawStatus === 'Highlight';
-      setEventFormData({
-        name: event.name || '',
-        chinese_name: event.chinese_name || '',
-        date: event.date || '',
-        time: event.time || '',
-        location: event.location || '',
-        chinese_location: event.chinese_location || '',
-        description: event.description || '',
-        chinese_description: event.chinese_description || '',
-        image: event.image || '',
-        signup_link: event.signup_link || '',
-        status: normalizedStatus,
-        is_highlight: isHighlight
-      });
-    } else {
-      setEditingEvent(null);
-      setEventFormData({
-        name: '',
-        chinese_name: '',
-        date: new Date().toISOString().split('T')[0],
-        time: '',
-        location: '',
-        chinese_location: '',
-        description: '',
-        chinese_description: '',
-        image: '',
-        signup_link: '',
-        status: 'Upcoming',
-        is_highlight: false
-      });
-    }
-    setEventDialogOpen(true);
+  // Event composer handlers — all form logic lives in EventComposer
+  const handleEventComposerOpen = (event = null) => {
+    setComposerEvent(event);
+    setEventComposerOpen(true);
   };
 
-  const handleEventDialogClose = () => {
-    setEventDialogOpen(false);
-    setEditingEvent(null);
+  const handleEventComposerClose = () => {
+    setEventComposerOpen(false);
+    setComposerEvent(null);
   };
 
-  const handleEventFormChange = (e) => {
-    const { name, value } = e.target;
-    setEventFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSaveEvent = async () => {
-    setActionLoading('event');
+  const handleEventSaved = async () => {
     try {
-      if (editingEvent) {
-        const updated = await updateEvent(editingEvent.id, eventFormData, currentUser.uid);
-        setEvents(prev => prev.map(e => e.id === editingEvent.id ? updated : e));
-        setSuccessMessage('Event updated successfully!');
-      } else {
-        const created = await createEvent(eventFormData, currentUser.uid);
-        setEvents(prev => [created, ...prev]);
-        setSuccessMessage('Event created successfully!');
-      }
-      handleEventDialogClose();
-      setTimeout(() => setSuccessMessage(''), 5000);
+      const eventList = await getAllEvents();
+      setEvents(eventList);
     } catch (err) {
-      console.error('Error saving event:', err);
-      setError('Failed to save event. Please try again.');
-    } finally {
-      setActionLoading(null);
+      console.error('Error refreshing events:', err);
     }
   };
 
@@ -1232,7 +1163,7 @@ export default function AdminPanelPage() {
             </Typography>
             <Button
               variant="contained"
-              onClick={() => handleEventDialogOpen()}
+              onClick={() => handleEventComposerOpen()}
               sx={orangeButtonSx}
             >
               + Create Event
@@ -1282,7 +1213,7 @@ export default function AdminPanelPage() {
                     </TableCell>
                     <TableCell align="right">
                       <Tooltip title="Edit">
-                        <IconButton size="small" onClick={() => handleEventDialogOpen(event)}>
+                        <IconButton size="small" onClick={() => handleEventComposerOpen(event)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -1983,157 +1914,13 @@ export default function AdminPanelPage() {
         )}
       </Container>
 
-      {/* Event Create/Edit Dialog */}
-      <Dialog open={eventDialogOpen} onClose={handleEventDialogClose} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingEvent ? 'Edit Event / 编辑活动' : 'Create Event / 创建活动'}
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Event Name (English)"
-                name="name"
-                value={eventFormData.name}
-                onChange={handleEventFormChange}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Event Name (Chinese)"
-                name="chinese_name"
-                value={eventFormData.chinese_name}
-                onChange={handleEventFormChange}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Date"
-                name="date"
-                type="date"
-                value={eventFormData.date}
-                onChange={handleEventFormChange}
-                InputLabelProps={{ shrink: true }}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Time"
-                name="time"
-                value={eventFormData.time}
-                onChange={handleEventFormChange}
-                placeholder="e.g., 8:00 AM"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Location (English)"
-                name="location"
-                value={eventFormData.location}
-                onChange={handleEventFormChange}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Location (Chinese)"
-                name="chinese_location"
-                value={eventFormData.chinese_location}
-                onChange={handleEventFormChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description (English)"
-                name="description"
-                value={eventFormData.description}
-                onChange={handleEventFormChange}
-                multiline
-                rows={3}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description (Chinese)"
-                name="chinese_description"
-                value={eventFormData.chinese_description}
-                onChange={handleEventFormChange}
-                multiline
-                rows={3}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Image URL"
-                name="image"
-                value={eventFormData.image}
-                onChange={handleEventFormChange}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Signup Link"
-                name="signup_link"
-                value={eventFormData.signup_link}
-                onChange={handleEventFormChange}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  name="status"
-                  value={eventFormData.status}
-                  onChange={handleEventFormChange}
-                  label="Status"
-                >
-                  <MenuItem value="Upcoming">Upcoming / 即将举行</MenuItem>
-                  <MenuItem value="Past">Past (Memories) / 已结束（回忆）</MenuItem>
-                  <MenuItem value="Cancelled">Cancelled / 已取消</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={!!eventFormData.is_highlight}
-                    onChange={(e) =>
-                      setEventFormData((prev) => ({ ...prev, is_highlight: e.target.checked }))
-                    }
-                    color="warning"
-                  />
-                }
-                label="Highlight / 精选"
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleEventDialogClose} disabled={actionLoading === 'event'}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveEvent}
-            disabled={actionLoading === 'event' || !eventFormData.name || !eventFormData.date}
-            sx={orangeButtonSx}
-          >
-            {actionLoading === 'event' ? <CircularProgress size={24} /> : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Event Create/Edit Composer */}
+      <EventComposer
+        open={eventComposerOpen}
+        onClose={handleEventComposerClose}
+        event={composerEvent}
+        onSaved={handleEventSaved}
+      />
 
       {/* Banner Create/Edit Dialog */}
       <Dialog open={bannerDialogOpen} onClose={handleBannerDialogClose} maxWidth="sm" fullWidth>
