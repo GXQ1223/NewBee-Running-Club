@@ -56,7 +56,13 @@ test('getDonorById GETs donor by id', async () => {
 test('createDonor POSTs donor data', async () => {
   const data = { name: 'Alice', amount: 100 };
   await expect(createDonor(data)).resolves.toBe('POST');
-  expect(api.post).toHaveBeenCalledWith('/api/donors', data);
+  expect(api.post).toHaveBeenCalledWith('/api/donors', data, {});
+});
+
+test('createDonor passes the auth header when a uid is given', async () => {
+  const data = { name: 'Alice', amount: 100 };
+  await createDonor(data, 'uid-1');
+  expect(api.post).toHaveBeenCalledWith('/api/donors', data, { 'X-Firebase-UID': 'uid-1' });
 });
 
 test('updateDonor PUTs donor data', async () => {
