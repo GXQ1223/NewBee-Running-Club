@@ -820,6 +820,27 @@ def test_search_zelle_emails_failure_returns_empty():
     assert szd.search_zelle_emails(FakeSearchMail(status='NO')) == []
 
 
+def test_search_venmo_emails_matches_both_subject_formats():
+    # "paid you $Y" and "paid $Y to your Venmo account" are both real
+    # incoming payments — the OR must cover both or the second is invisible
+    mail = FakeSearchMail()
+    assert szd.search_venmo_emails(mail) == [b'1', b'2', b'3']
+    assert 'SUBJECT "paid you"' in mail.criteria
+    assert 'SUBJECT "to your Venmo account"' in mail.criteria
+    assert 'OR' in mail.criteria
+    assert 'SINCE' not in mail.criteria
+
+    mail = FakeSearchMail()
+    szd.search_venmo_emails(mail, since_date='01-Jan-2026')
+    assert 'SINCE 01-Jan-2026' in mail.criteria
+    assert 'SUBJECT "paid you"' in mail.criteria
+    assert 'SUBJECT "to your Venmo account"' in mail.criteria
+
+
+def test_search_venmo_emails_failure_returns_empty():
+    assert szd.search_venmo_emails(FakeSearchMail(status='NO')) == []
+
+
 # ---- strip_html
 
 def test_strip_html_removes_tags_and_decodes_entities():
@@ -866,9 +887,13 @@ def test_parse_rejects_non_incoming_payment():
     assert szd.parse_zelle_email(not_incoming_email()) is None
 
 
-def test_parse_rejects_lowercase_sender_name():
-    # "sent you" is present but the uppercase sender pattern cannot match
-    assert szd.parse_zelle_email(lowercase_sender_email()) is None
+def test_parse_accepts_lowercase_sender_name():
+    # Chase doesn't always render the sender name in caps — the match must
+    # be case-insensitive or a real donation silently fails to parse
+    parsed = szd.parse_zelle_email(lowercase_sender_email())
+    assert parsed is not None
+    assert parsed['sender_name'] == 'John Doe'
+    assert parsed['amount'] == Decimal('25.00')
 
 
 def test_parse_invalid_sent_on_date_falls_back_to_header():
