@@ -412,12 +412,34 @@ def _select_template(db: Session, donor):
     return None
 
 
+def _payment_method_label(source: str) -> str:
+    """Human-readable payment method for the {payment_method} placeholder,
+    matching the provider labels shown in the ledger UI."""
+    lowered = (source or "").lower()
+    if "venmo" in lowered:
+        return "Venmo"
+    if "zelle" in lowered:
+        return "Zelle"
+    if "check" in lowered:
+        return "Check"
+    if "ach" in lowered:
+        return "ACH"
+    if "cash" in lowered:
+        return "Cash"
+    return "Manual"
+
+
 def _render_placeholders(text: str, donor) -> str:
     amount = f"${donor.amount:,.2f}"
     date_str = donor.donation_date.strftime('%B %d, %Y') if donor.donation_date else ''
+    # Chinese convention omits the leading zero on month/day (七月 not 07月)
+    date_cn = (f"{donor.donation_date.year}年{donor.donation_date.month}月{donor.donation_date.day}日"
+               if donor.donation_date else '')
     return (text.replace('{name}', donor.name)
                 .replace('{amount}', amount)
-                .replace('{date}', date_str))
+                .replace('{date_cn}', date_cn)
+                .replace('{date}', date_str)
+                .replace('{payment_method}', _payment_method_label(donor.source)))
 
 
 def _text_to_html(text: str) -> str:
