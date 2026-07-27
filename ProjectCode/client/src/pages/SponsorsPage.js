@@ -4,7 +4,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
 import { useEffect, useState } from 'react';
-import { useAdmin } from '../context';
+import { useAdmin, useAuth } from '../context';
 import { useAutoFillOnTab } from '../hooks';
 import DonationLedger from '../components/DonationLedger';
 import DonationHeroCard from '../components/DonationHeroCard';
@@ -22,6 +22,8 @@ const MUTED = '#757575';
 
 export default function SponsorsPage() {
   const { adminModeEnabled } = useAdmin();
+  const { currentUser } = useAuth();
+  const firebaseUid = currentUser?.uid;
   const [individualDonors, setIndividualDonors] = useState([]);
   const [enterpriseDonors, setEnterpriseDonors] = useState([]);
   const [selectedTab, setSelectedTab] = useState(0);
@@ -158,7 +160,7 @@ export default function SponsorsPage() {
           notes: donorFormData.notes || null,
           hide_name: donorFormData.hide_name,
           hide_message: donorFormData.hide_message
-        });
+        }, firebaseUid);
       } else {
         // Create new donor
         const donorType = selectedTab === 0 ? 'individual' : 'enterprise';
@@ -175,7 +177,7 @@ export default function SponsorsPage() {
           notes: donorFormData.notes || null,
           hide_name: donorFormData.hide_name,
           hide_message: donorFormData.hide_message
-        });
+        }, firebaseUid);
       }
       handleCloseEditDialog();
       fetchDonors(); // Refresh the list
@@ -195,7 +197,7 @@ export default function SponsorsPage() {
   const handleConfirmDelete = async () => {
     setSaving(true);
     try {
-      await deleteDonor(editingDonor.donor_id);
+      await deleteDonor(editingDonor.donor_id, firebaseUid);
       setDeleteDialogOpen(false);
       setEditingDonor(null);
       fetchDonors(); // Refresh the list

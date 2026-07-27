@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SponsorsPage from './SponsorsPage';
-import { useAdmin } from '../context';
+import { useAdmin, useAuth } from '../context';
 import {
   getAllDonors,
   getPublicDonors,
@@ -14,6 +14,7 @@ import {
 
 jest.mock('../context', () => ({
   useAdmin: jest.fn(),
+  useAuth: jest.fn(),
 }));
 let mockAutoFillOptions = null;
 jest.mock('../hooks', () => ({
@@ -74,6 +75,7 @@ const renderPage = () =>
 beforeEach(() => {
   jest.clearAllMocks();
   useAdmin.mockReturnValue({ adminModeEnabled: false });
+  useAuth.mockReturnValue({ currentUser: { uid: 'admin-uid' } });
   getPublicDonors.mockResolvedValue(publicDonors);
   getAllDonors.mockResolvedValue(adminDonors);
   getHideAmounts.mockResolvedValue({ hide_amounts: false });
@@ -210,7 +212,8 @@ describe('admin view', () => {
           hide_name: true,
           hide_message: true,
           quantity: 1,
-        })
+        }),
+        'admin-uid'
       )
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -229,7 +232,8 @@ describe('admin view', () => {
     fireEvent.click(within(dialog).getByText('Save / 保存'));
     await waitFor(() =>
       expect(createDonor).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Big Co', donor_type: 'enterprise', amount: 1000 })
+        expect.objectContaining({ name: 'Big Co', donor_type: 'enterprise', amount: 1000 }),
+        'admin-uid'
       )
     );
   });
@@ -268,7 +272,8 @@ describe('admin view', () => {
     await waitFor(() =>
       expect(updateDonor).toHaveBeenCalledWith(
         'IND_1',
-        expect.objectContaining({ name: 'Jane Zhang', amount: 275, notes: 'via check', hide_name: false })
+        expect.objectContaining({ name: 'Jane Zhang', amount: 275, notes: 'via check', hide_name: false }),
+        'admin-uid'
       )
     );
   });
@@ -304,7 +309,7 @@ describe('admin view', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/Are you sure you want to delete donor "Jane Zhang"\?/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByText('Delete / 删除'));
-    await waitFor(() => expect(deleteDonor).toHaveBeenCalledWith('IND_1'));
+    await waitFor(() => expect(deleteDonor).toHaveBeenCalledWith('IND_1', 'admin-uid'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(getAllDonors).toHaveBeenCalledTimes(2));
   });
