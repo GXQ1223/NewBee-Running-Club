@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context';
 import {
   getDonationLedger, approveDonation, dismissDonation, sendThankYou,
-  getThankYouPreview, getThankYouTemplates, createThankYouTemplate,
+  markThankYouSent, getThankYouPreview, getThankYouTemplates, createThankYouTemplate,
   updateThankYouTemplate, deleteThankYouTemplate, downloadReceipt,
   updateDonor, runGmailSync, downloadTaxReport
 } from '../api/donors';
@@ -154,6 +154,7 @@ export default function DonationLedger({ onLedgerChange }) {
   const [thankTemplates, setThankTemplates] = useState([]);
   const [thankAttach, setThankAttach] = useState(true);
   const [sendingThanks, setSendingThanks] = useState(false);
+  const [markingThankedId, setMarkingThankedId] = useState(null);
   const [ignoredOpen, setIgnoredOpen] = useState(false);
   const [receiptingId, setReceiptingId] = useState(null);
 
@@ -285,6 +286,20 @@ export default function DonationLedger({ onLedgerChange }) {
       setError('Failed to send the thank-you email. / 发送感谢邮件失败。');
     } finally {
       setSendingThanks(false);
+    }
+  };
+
+  const handleMarkThankYouSent = async (donation) => {
+    setMarkingThankedId(donation.donation_id);
+    setError('');
+    try {
+      await markThankYouSent(donation.donation_id, undefined, firebaseUid);
+      await fetchLedger();
+    } catch (err) {
+      console.error('Error marking thank-you as sent:', err);
+      setError('Failed to mark as already thanked. / 标记为已致谢失败。');
+    } finally {
+      setMarkingThankedId(null);
     }
   };
 
@@ -674,13 +689,30 @@ export default function DonationLedger({ onLedgerChange }) {
                           ✓ Sent {formatDate(donation.thank_you_sent_at)}
                         </Typography>
                       ) : (
-                        <Button
-                          size="small"
-                          onClick={() => openThankDialog(donation)}
-                          sx={{ ...pillButtonSx(false), fontSize: '0.6875rem', py: 0.25 }}
-                        >
-                          Send thank-you 发送感谢
-                        </Button>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <Button
+                            size="small"
+                            onClick={() => openThankDialog(donation)}
+                            sx={{ ...pillButtonSx(false), fontSize: '0.6875rem', py: 0.25 }}
+                          >
+                            Send thank-you 发送感谢
+                          </Button>
+                          <Tooltip title="Already thanked outside the app (call, card, prior email) — just clear this flag, no email is sent. / 已在系统外致谢过（电话、卡片、之前的邮件）——只清除此标记，不发送邮件。">
+                            <span>
+                              <Button
+                                size="small"
+                                onClick={() => handleMarkThankYouSent(donation)}
+                                disabled={markingThankedId === donation.donation_id}
+                                startIcon={markingThankedId === donation.donation_id
+                                  ? <CircularProgress size={12} sx={{ color: MUTED }} />
+                                  : undefined}
+                                sx={{ textTransform: 'none', fontSize: '0.6875rem', fontWeight: 700, color: MUTED, py: 0.25, px: 1, minWidth: 0, '&:hover': { color: GREEN, backgroundColor: 'transparent' } }}
+                              >
+                                Already sent 已发送
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        </Box>
                       )}
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', width: 130 }}>

@@ -377,6 +377,64 @@ def test_send_thank_you_502_when_email_fails(client, db_session, committee_membe
     assert donor.thank_you_sent_at is None
 
 
+def test_mark_thank_you_sent_requires_auth(client, db_session):
+    donor = seed_donation(db_session, 'C1')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/mark-thank-you-sent',
+                       json={})
+    assert resp.status_code == 401
+
+
+def test_mark_thank_you_sent_unknown_donation_404(client, committee_member):
+    resp = client.post('/api/donors/donations/99999/mark-thank-you-sent',
+                       json={}, headers=auth(committee_member))
+    assert resp.status_code == 404
+
+
+def test_mark_thank_you_sent_rejects_unconfirmed(client, db_session, committee_member):
+    donor = seed_donation(db_session, 'P1', status='pending')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/mark-thank-you-sent',
+                       json={}, headers=auth(committee_member))
+    assert resp.status_code == 400
+
+
+def test_mark_thank_you_sent_stamps_without_emailing(client, db_session, committee_member, monkeypatch):
+    import email_service
+    send_calls = []
+    monkeypatch.setattr(
+        email_service.EmailService, 'send_email',
+        staticmethod(lambda *a, **k: send_calls.append((a, k)) or True),
+    )
+
+    donor = seed_donation(db_session, 'C1', name='Kevin Gu')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/mark-thank-you-sent',
+                       json={}, headers=auth(committee_member))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body['thank_you_sent_at'] is not None
+    assert send_calls == []  # no email sent
+    assert 'Marked as already thanked' in body['notes']
+    assert 'Test Committee' in body['notes']  # committee_member.display_name
+
+
+def test_mark_thank_you_sent_appends_note_and_preserves_existing_notes(client, db_session, committee_member):
+    donor = seed_donation(db_session, 'C1', notes='Zelle Transaction #24271147625')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/mark-thank-you-sent',
+                       json={'note': 'Thanked by phone on 7/20'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 200
+    notes = resp.json()['notes']
+    assert notes.startswith('Zelle Transaction #24271147625')
+    assert 'Marked as already thanked' in notes
+    assert 'Thanked by phone on 7/20' in notes
+
+
+def test_mark_thank_you_sent_does_not_require_a_note(client, db_session, committee_member):
+    donor = seed_donation(db_session, 'C1')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/mark-thank-you-sent',
+                       json={}, headers=auth(committee_member))
+    assert resp.status_code == 200
+
+
 # ---------------------------------------------------------------- public filtering
 
 def test_pending_and_dismissed_hidden_from_public_endpoints(client, db_session):

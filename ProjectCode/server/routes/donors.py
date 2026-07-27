@@ -15,8 +15,8 @@ from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest, DonorLedgerEntry,
     DonationLedgerStats, DonationSyncStatus, DonationLedgerResponse,
-    ApproveDonationRequest, SendThankYouRequest, ThankYouTemplateCreate,
-    ThankYouTemplateUpdate, ThankYouTemplateResponse
+    ApproveDonationRequest, SendThankYouRequest, MarkThankYouSentRequest,
+    ThankYouTemplateCreate, ThankYouTemplateUpdate, ThankYouTemplateResponse
 )
 from utils.auth import get_current_admin, get_current_committee_or_admin
 
@@ -495,6 +495,47 @@ def send_thank_you(
     send_acknowledgment(db, donor, request.email,
                         subject=request.subject, message=request.message,
                         attach_receipt=request.attach_receipt)
+    db.commit()
+    db.refresh(donor)
+    return donor
+
+
+@router.post("/donations/{donation_id}/mark-thank-you-sent", response_model=DonorLedgerEntry)
+def mark_thank_you_sent(
+    donation_id: int,
+    request: MarkThankYouSentRequest,
+    db: Session = Depends(get_db),
+    current_admin: Member = Depends(get_current_committee_or_admin)
+):
+    """Stamp a donation as already thanked without sending anything from the
+    app — for donations an operator already thanked outside the system
+    (a phone call, a handwritten card, an email sent before this feature
+    existed). Only clears the "Thank-you not sent" flag; no email is sent.
+    """
+    donor = db.query(Donor).filter(Donor.donation_id == donation_id).first()
+    if not donor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Donation {donation_id} not found"
+        )
+    if donor.status != "confirmed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only confirmed donations can be marked as thanked"
+        )
+
+    admin_name = (current_admin.display_name or
+                  f"{current_admin.first_name or ''} {current_admin.last_name or ''}".strip() or
+                  current_admin.username)
+    sent_at = datetime.utcnow()
+    donor.thank_you_sent_at = sent_at
+    ack_record = (
+        f"—— Marked as already thanked 已标记为已致谢 ——\n"
+        f"By {admin_name} on {sent_at.strftime('%b %d, %Y %H:%M')} UTC"
+        + (f"\n{request.note.strip()}" if request.note and request.note.strip() else "")
+    )
+    donor.notes = f"{donor.notes}\n\n{ack_record}" if donor.notes else ack_record
+
     db.commit()
     db.refresh(donor)
     return donor
