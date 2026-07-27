@@ -173,6 +173,16 @@ def test_parse_venmo_email_prefers_transaction_id_field():
     assert parsed['transaction_number'] == '4611697894323507636'
 
 
+def test_parse_venmo_email_alphanumeric_transaction_id():
+    # The "paid $Y to your Venmo account" notification's Transaction ID is
+    # PayPal-style alphanumeric (e.g. "7R4007699Y124851X"), unlike the
+    # standard notification's purely numeric ID. A digits-only pattern here
+    # truncates it to a leading digit or two — a near-guaranteed false
+    # dedup match against unrelated donations.
+    parsed = zelle.parse_venmo_email(make_venmo_email(txn_text='7R4007699Y124851X'))
+    assert parsed['transaction_number'] == '7R4007699Y124851X'
+
+
 def test_parse_venmo_email_falls_back_to_message_id_for_dedup():
     parsed = zelle.parse_venmo_email(make_venmo_email(txn_link=None))
     assert parsed['transaction_number'] == 'venmo-abc-123@venmo.com'
@@ -404,6 +414,21 @@ def test_is_duplicate_matches_transaction_number(db_session):
     assert zelle.is_duplicate(db_session, '555000111') is True
     assert zelle.is_duplicate(db_session, '999999999') is False
     assert zelle.is_duplicate(db_session, None) is False
+
+
+def test_is_duplicate_ignores_short_transaction_numbers(db_session):
+    # A short "transaction number" is a sign a parsing regex grabbed a
+    # fragment, not a real ID — substring-matching it against notes would
+    # false-positive on almost any unrelated donation (e.g. one whose real
+    # transaction number, amount, or date happens to contain "7")
+    db_session.add(Donor(
+        donor_id='IND_1', name='Li Chen', donor_type='individual', amount=100,
+        notes='Zelle Transaction #5550700111',
+    ))
+    db_session.commit()
+
+    assert zelle.is_duplicate(db_session, '7') is False
+    assert zelle.is_duplicate(db_session, '07') is False
 
 
 def test_record_sync_status_writes_and_updates_settings(db_session, monkeypatch):
