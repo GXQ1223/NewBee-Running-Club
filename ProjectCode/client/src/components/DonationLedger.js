@@ -1002,6 +1002,8 @@ export default function DonationLedger({ onLedgerChange }) {
             {' '}<Chip size="small" label="{name}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
             {' '}<Chip size="small" label="{amount}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
             {' '}<Chip size="small" label="{date}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
+            {' '}<Chip size="small" label="{date_cn}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
+            {' '}<Chip size="small" label="{payment_method}" sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', height: 20, backgroundColor: '#e8f0fe', color: BLUE }} />
           </Typography>
 
           {templates.map((template) => (

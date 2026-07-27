@@ -33,10 +33,15 @@ export async function getDonorById(donorId) {
 /**
  * Create a new donor
  * @param {Object} donorData - Donor data
+ * @param {string} [firebaseUid] - Committee/admin Firebase UID
  * @returns {Promise<Object>} Created donor
  */
-export async function createDonor(donorData) {
-  return api.post('/api/donors', donorData);
+export async function createDonor(donorData, firebaseUid) {
+  return api.post(
+    '/api/donors',
+    donorData,
+    firebaseUid ? { 'X-Firebase-UID': firebaseUid } : {}
+  );
 }
 
 /**

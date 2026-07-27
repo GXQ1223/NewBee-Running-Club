@@ -116,6 +116,27 @@ def test_preview_renders_placeholders(client, db_session, committee_member):
     assert preview['template_name'] == 'Standard'
 
 
+def test_preview_renders_payment_method_and_chinese_date(client, db_session, committee_member):
+    seed_template(db_session, 'Standard', min_amount=0,
+                  subject='Thanks {name}!',
+                  body='{payment_method} gift of {amount} on {date_cn} ({date}).')
+    donor = seed_donation(db_session, 'D1', name='Yue Ma', amount=20,
+                          donation_date=date(2026, 7, 14), source='Venmo (Yue Ma)')
+
+    preview = client.get(f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
+                         headers=auth(committee_member)).json()
+    assert preview['body'] == 'Venmo gift of $20.00 on 2026年7月14日 (July 14, 2026).'
+
+
+def test_payment_method_defaults_to_manual_for_unrecognized_source(client, db_session, committee_member):
+    seed_template(db_session, 'Standard', min_amount=0, body='Paid via {payment_method}.')
+    donor = seed_donation(db_session, 'D1', source='Manual entry')
+
+    preview = client.get(f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
+                         headers=auth(committee_member)).json()
+    assert preview['body'] == 'Paid via Manual.'
+
+
 def test_preview_falls_back_to_builtin_without_templates(client, db_session, committee_member):
     donor = seed_donation(db_session, 'D1')
     preview = client.get(f'/api/donors/donations/{donor.donation_id}/thank-you-preview',
