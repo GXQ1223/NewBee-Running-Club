@@ -22,7 +22,7 @@ from sqlalchemy.pool import StaticPool
 import fetch_historical_data
 import migrate_donation_ledger
 import sync_zelle_donations as szd
-from database import Donor, SiteSetting
+from database import Donor, DonorDirectoryEntry, SiteSetting
 from tests.conftest import auth
 
 
@@ -197,6 +197,22 @@ def test_ledger_includes_email_excerpt_and_thank_you(client, db_session, committ
     assert entry['thank_you_sent_at'] is None
 
 
+def test_ledger_suggests_email_from_directory(client, db_session, committee_member):
+    db_session.add(DonorDirectoryEntry(name='kevin gu', email='kevin@example.com'))
+    db_session.commit()
+    seed_donation(db_session, 'C1', name='Kevin Gu')
+    resp = client.get('/api/donors/ledger', headers=auth(committee_member))
+    entry = resp.json()['donations'][0]
+    assert entry['email'] == 'kevin@example.com'
+
+
+def test_ledger_email_is_null_when_donor_not_in_directory(client, db_session, committee_member):
+    seed_donation(db_session, 'C1', name='Stranger Donor')
+    resp = client.get('/api/donors/ledger', headers=auth(committee_member))
+    entry = resp.json()['donations'][0]
+    assert entry['email'] is None
+
+
 # ---------------------------------------------------------------- approve / dismiss
 
 def test_approve_requires_auth(client, db_session):
@@ -345,6 +361,40 @@ def test_send_thank_you_sends_and_stamps(client, db_session, committee_member, m
     assert 'Sent to kevin@example.com' in body['notes']
     assert sent['subject'] in body['notes']
     assert sent['text'] in body['notes']
+
+
+def test_send_thank_you_remembers_email_for_next_time(client, db_session, committee_member, monkeypatch):
+    import email_service
+    monkeypatch.setattr(email_service.EmailService, 'send_email',
+                        staticmethod(lambda *a, **k: True))
+
+    donor = seed_donation(db_session, 'C1', name='Kevin Gu')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'kevin@example.com'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 200
+
+    entry = db_session.query(DonorDirectoryEntry).filter_by(name='kevin gu').first()
+    assert entry is not None
+    assert entry.email == 'kevin@example.com'
+
+
+def test_send_thank_you_updates_a_stale_directory_email(client, db_session, committee_member, monkeypatch):
+    import email_service
+    monkeypatch.setattr(email_service.EmailService, 'send_email',
+                        staticmethod(lambda *a, **k: True))
+    db_session.add(DonorDirectoryEntry(name='kevin gu', email='old@example.com'))
+    db_session.commit()
+
+    donor = seed_donation(db_session, 'C1', name='Kevin Gu')
+    resp = client.post(f'/api/donors/donations/{donor.donation_id}/send-thank-you',
+                       json={'email': 'new@example.com'},
+                       headers=auth(committee_member))
+    assert resp.status_code == 200
+
+    entries = db_session.query(DonorDirectoryEntry).filter_by(name='kevin gu').all()
+    assert len(entries) == 1  # updated in place, not duplicated
+    assert entries[0].email == 'new@example.com'
 
 
 def test_send_thank_you_appends_ack_to_existing_notes(client, db_session, committee_member, monkeypatch):

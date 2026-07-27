@@ -312,6 +312,27 @@ test('send dialog prefills the matched letter and sends the edited version', asy
   expect(getDonationLedger).toHaveBeenCalledTimes(2);
 });
 
+test('send dialog prefills a remembered donor email from the directory', async () => {
+  getDonationLedger.mockResolvedValue({
+    ...ledgerData,
+    donations: ledgerData.donations.map((d) =>
+      d.donation_id === 12 ? { ...d, email: 'baker@example.com' } : d
+    ),
+  });
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  await screen.findByText('✉ Send thank-you email 发送感谢邮件');
+
+  expect(screen.getByDisplayValue('baker@example.com')).toBeInTheDocument();
+  expect(screen.getByText(/Remembered from a previous thank-you/)).toBeInTheDocument();
+  // Send is already enabled — no need to retype the email
+  await screen.findByDisplayValue(/Dear donor, thank you/); // preview loaded
+  const sendBtn = screen.getByText('Send 发送').closest('button');
+  expect(sendBtn).toBeEnabled();
+});
+
 test('switching templates in the send dialog refills the letter', async () => {
   getThankYouTemplates.mockResolvedValue([
     { id: 5, name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' },

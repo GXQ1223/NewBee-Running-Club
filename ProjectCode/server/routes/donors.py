@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import os
+import re
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import List, Optional
 
-from database import get_db, Donor, Member, SiteSetting, ThankYouTemplate
+from database import get_db, Donor, Member, SiteSetting, ThankYouTemplate, DonorDirectoryEntry
 from models import (
     DonorCreate, DonorUpdate, DonorResponse, DonorsListResponse, DonationSummary,
     DonorPublicResponse, DonorLinkMemberRequest, DonorLedgerEntry,
@@ -21,6 +22,12 @@ from models import (
 from utils.auth import get_current_admin, get_current_committee_or_admin
 
 router = APIRouter(prefix="/api/donors", tags=["donors"])
+
+
+def _normalize_donor_name(name: str) -> str:
+    """Matches the normalization the Finance module's donor directory uses,
+    so a name looked up here finds entries saved from either surface."""
+    return re.sub(r"\s+", " ", (name or "").strip()).lower()
 
 
 # Main endpoint for SponsorsPage - replaces CSV fetching
@@ -165,6 +172,13 @@ def get_donation_ledger(db: Session = Depends(get_db), current_admin: Member = D
     ).all()
     # Pending reviews float to the top; sort is stable so date order is kept
     donations.sort(key=lambda d: d.status != "pending")
+
+    # Suggest a remembered email for each donor (from the Finance directory,
+    # shared with the send-thank-you dialog) — not a Donor column, so it's
+    # set as a transient attribute for the response model to pick up.
+    directory = {e.name: e.email for e in db.query(DonorDirectoryEntry).all()}
+    for d in donations:
+        d.email = directory.get(_normalize_donor_name(d.name))
 
     confirmed = [d for d in donations if d.status == "confirmed"]
     current_year = date.today().year
@@ -571,6 +585,17 @@ def send_acknowledgment(db: Session, donor, email: str, subject=None,
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to send the email — check the server email configuration"
         )
+
+    # Remember this email against the donor's name — the send-thank-you
+    # dialog prefills from this next time, and it's the same directory the
+    # Finance module uses for batch acknowledgments/year-end statements.
+    normalized_name = _normalize_donor_name(donor.name)
+    directory_entry = db.query(DonorDirectoryEntry).filter(
+        DonorDirectoryEntry.name == normalized_name).first()
+    if directory_entry:
+        directory_entry.email = email
+    else:
+        db.add(DonorDirectoryEntry(name=normalized_name, email=email))
 
     sent_at = datetime.utcnow()
     donor.thank_you_sent_at = sent_at
