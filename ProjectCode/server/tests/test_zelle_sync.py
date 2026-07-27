@@ -70,6 +70,19 @@ def test_parse_zelle_email_na_memo_ignored():
     assert parsed['memo'] is None
 
 
+def test_parse_zelle_email_handles_titlecase_sender_name():
+    # Chase doesn't consistently send names in caps — "Kanglin Yu" (Title
+    # Case) silently failed to parse before the regex was made case-insensitive
+    parsed = zelle.parse_zelle_email(make_zelle_email(sender='Kanglin Yu'))
+    assert parsed['sender_name'] == 'Kanglin Yu'
+
+
+def test_parse_zelle_email_handles_mixed_case_sender_name():
+    # "JINLING zhang" — first name caps, last name lowercase
+    parsed = zelle.parse_zelle_email(make_zelle_email(sender='JINLING zhang'))
+    assert parsed['sender_name'] == 'Jinling Zhang'
+
+
 # ---------------------------------------------------------------- record builder
 
 def test_build_donor_record_defaults_to_pending_with_excerpt():
@@ -211,6 +224,30 @@ def test_parse_venmo_email_encoded_subject():
     parsed = zelle.parse_venmo_email(msg.as_bytes())
     assert parsed['sender_name'] == '王小'
     assert parsed['amount'] == Decimal('88.00')
+
+
+def test_parse_venmo_email_alternate_subject_format():
+    # Venmo sometimes sends "X paid $Y to your Venmo account. Leave it in
+    # Venmo or transfer it to your bank account." instead of "X paid you
+    # $Y" — the body still carries a "paid you" heading either way.
+    html = """
+    <html><body>
+      <p>Chengcheng Zhao paid you $20.00 Chengcheng Zhao paid you $20.00</p>
+      <p>Chengcheng Zhao paid you</p>
+      <p>$</p><p>20</p><p>. 00</p>
+      <a href="https://venmo.com/story/4611697894995121600">See transaction</a>
+      <p>Money credited to your Venmo account.</p>
+    </body></html>
+    """
+    msg = MIMEText(html, 'html', 'utf-8')
+    msg['Subject'] = ('Chengcheng Zhao paid $20.00 to your Venmo account. '
+                      'Leave it in Venmo or transfer it to your bank account.')
+    msg['Date'] = 'Tue, 14 Jul 2026 13:57:20 -0400'
+    parsed = zelle.parse_venmo_email(msg.as_bytes())
+    assert parsed is not None
+    assert parsed['sender_name'] == 'Chengcheng Zhao'
+    assert parsed['amount'] == Decimal('20.00')
+    assert parsed['transaction_number'] == '4611697894995121600'
 
 
 def test_build_donor_record_venmo_provider_strings():

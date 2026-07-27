@@ -96,6 +96,12 @@ def search_venmo_emails(mail, since_date=None):
     """
     Search for incoming Venmo payment notification emails.
 
+    Venmo sends two different subject formats for a real incoming payment,
+    seemingly depending on where the money lands (instant transfer vs the
+    Venmo balance): "X paid you $Y" and "X paid $Y to your Venmo account.
+    Leave it in Venmo or transfer it to your bank account." — both must be
+    searched for, or the second form is silently invisible to sync.
+
     Args:
         mail: IMAP connection (with the Venmo folder selected)
         since_date: Optional date string (DD-Mon-YYYY) to filter emails
@@ -103,9 +109,10 @@ def search_venmo_emails(mail, since_date=None):
     Returns:
         List of email IDs
     """
-    criteria = '(FROM "venmo@venmo.com" SUBJECT "paid you")'
+    subject_or = '(OR (SUBJECT "paid you") (SUBJECT "to your Venmo account"))'
+    criteria = f'(FROM "venmo@venmo.com") {subject_or}'
     if since_date:
-        criteria = f'(FROM "venmo@venmo.com" SUBJECT "paid you" SINCE {since_date})'
+        criteria = f'(FROM "venmo@venmo.com") (SINCE {since_date}) {subject_or}'
 
     print(f"Searching emails with criteria: {criteria}")
     status, data = mail.search(None, criteria)
@@ -201,8 +208,11 @@ def parse_zelle_email(raw_email):
     if "sent you" not in text.lower():
         return None
 
-    # Extract sender name: "FIRSTNAME LASTNAME sent you"
-    sender_match = re.search(r'([A-Z][A-Z\s\-\'\.]+?)\s+sent\s+you', text)
+    # Extract sender name: "FIRSTNAME LASTNAME sent you". Chase doesn't
+    # consistently render this in caps — "JIAN SHEN", "Kanglin Yu", and
+    # "JINLING zhang" all occur — so the match must be case-insensitive or
+    # any non-uppercase name silently fails to parse.
+    sender_match = re.search(r'([A-Z][A-Z\s\-\'\.]+?)\s+sent\s+you', text, re.IGNORECASE)
     if not sender_match:
         return None
     sender_name = sender_match.group(1).strip().title()
@@ -313,9 +323,14 @@ def parse_venmo_email(raw_email):
     """
     Parse a raw Venmo payment notification email into structured data.
 
-    Venmo puts the payer and amount in the subject ("Xiao Yang paid you
-    $15.00") and the payment note in the body. Dedup uses the transaction id
-    from the "See transaction" link, falling back to the email Message-ID.
+    Venmo puts the payer and amount in the subject and the payment note in
+    the body. Two subject formats carry a real incoming payment — which one
+    arrives seems to depend on whether the money lands as an instant
+    transfer or in the Venmo balance: "Xiao Yang paid you $15.00", or
+    "Xiao Yang paid $15.00 to your Venmo account. Leave it in Venmo or
+    transfer it to your bank account." Both must be tried, or the second
+    form silently returns no donation. Dedup uses the transaction id from
+    the "See transaction" link, falling back to the email Message-ID.
 
     Args:
         raw_email: Raw email bytes
@@ -327,6 +342,10 @@ def parse_venmo_email(raw_email):
 
     subject = _decode_subject(msg)
     subject_match = re.search(r'(.+?)\s+paid\s+you\s+\$([\d,]+\.?\d*)', subject)
+    if not subject_match:
+        subject_match = re.search(
+            r'(.+?)\s+paid\s+\$([\d,]+\.?\d*)\s+to\s+your\s+Venmo\s+account', subject
+        )
     if not subject_match:
         return None
     sender_name = subject_match.group(1).strip()
