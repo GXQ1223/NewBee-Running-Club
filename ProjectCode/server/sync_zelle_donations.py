@@ -356,8 +356,14 @@ def parse_venmo_email(raw_email):
     memo = _extract_venmo_memo(text) if text else None
 
     # Transaction id: the "Transaction ID" field in the body, else the id in
-    # the "See transaction" link, else the email Message-ID
-    txn_match = re.search(r'Transaction\s+ID\s*\n\s*(\d+)', text, re.IGNORECASE)
+    # the "See transaction" link, else the email Message-ID. IDs are
+    # numeric on the standard "paid you" notification but alphanumeric
+    # (PayPal-style, e.g. "7R4007699Y124851X") on the "paid $Y to your
+    # Venmo account" notification — a digits-only pattern here truncates
+    # the latter to its leading digit or two, which then spuriously
+    # dedup-matches against unrelated donations sharing that short digit
+    # string in their notes.
+    txn_match = re.search(r'Transaction\s+ID\s*\n\s*([A-Za-z0-9]+)', text, re.IGNORECASE)
     if not txn_match:
         txn_match = re.search(
             r'venmo\.com/(?:story|payment)s?/([A-Za-z0-9_\-]+)', body or ''
@@ -398,6 +404,13 @@ def auto_ignore_keyword(memo):
     return None
 
 
+#  Real transaction numbers are always well above this — Zelle ~11 digits,
+# Venmo numeric IDs ~19 digits, Venmo alphanumeric IDs ~17 chars. A short
+# value here means a parsing regex grabbed a fragment, not a real ID; used
+# for substring dedup, a short value matches almost any unrelated note.
+MIN_TRANSACTION_NUMBER_LENGTH = 6
+
+
 def is_duplicate(session, transaction_number):
     """
     Check if a donation with this transaction number already exists.
@@ -409,7 +422,7 @@ def is_duplicate(session, transaction_number):
     Returns:
         True if duplicate found
     """
-    if not transaction_number:
+    if not transaction_number or len(transaction_number) < MIN_TRANSACTION_NUMBER_LENGTH:
         return False
 
     existing = session.query(Donor).filter(
