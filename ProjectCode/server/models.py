@@ -87,6 +87,9 @@ class DonorLedgerEntry(DonorResponse):
     status: str = "confirmed"  # pending | confirmed | dismissed
     thank_you_sent_at: Optional[datetime] = None
     email_excerpt: Optional[str] = None
+    # Remembered from the donor directory (name -> email), for prefilling
+    # the send-thank-you dialog — not a Donor column, set dynamically
+    email: Optional[str] = None
     # Two-layer bookkeeping (finance module)
     income_type: Optional[str] = None  # donation | event_revenue | pass_through | NULL=unclassified
     event_code: Optional[int] = None

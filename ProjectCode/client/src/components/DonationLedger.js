@@ -233,7 +233,7 @@ export default function DonationLedger({ onLedgerChange }) {
 
   const openThankDialog = async (donation) => {
     setThankTarget(donation);
-    setThankEmail('');
+    setThankEmail(donation.email || '');
     setThankSubject('');
     setThankMessage('');
     setThankTemplateId(0);
@@ -957,7 +957,9 @@ export default function DonationLedger({ onLedgerChange }) {
             fullWidth
             value={thankEmail}
             onChange={(e) => setThankEmail(e.target.value)}
-            helperText="Payment emails don't include the donor's address — enter it here. / 付款邮件不含捐赠者邮箱，请填写。"
+            helperText={thankTarget?.email
+              ? 'Remembered from a previous thank-you — edit if it changed. / 已记住上次填写的邮箱，如有变化可修改。'
+              : "Payment emails don't include the donor's address — enter it here. It's remembered for next time. / 付款邮件不含捐赠者邮箱，请填写；系统会记住以便下次使用。"}
           />
           <FormControlLabel
             control={
