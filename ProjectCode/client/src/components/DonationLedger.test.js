@@ -6,6 +6,7 @@ import {
   approveDonation,
   dismissDonation,
   sendThankYou,
+  markThankYouSent,
   getThankYouPreview,
   getThankYouTemplates,
   createThankYouTemplate,
@@ -30,6 +31,7 @@ jest.mock('../api/donors', () => ({
   approveDonation: jest.fn(),
   dismissDonation: jest.fn(),
   sendThankYou: jest.fn(),
+  markThankYouSent: jest.fn(),
   getThankYouPreview: jest.fn(),
   getThankYouTemplates: jest.fn(),
   createThankYouTemplate: jest.fn(),
@@ -123,6 +125,7 @@ beforeEach(() => {
   approveDonation.mockResolvedValue({});
   dismissDonation.mockResolvedValue({});
   sendThankYou.mockResolvedValue({});
+  markThankYouSent.mockResolvedValue({});
   getThankYouPreview.mockResolvedValue({
     subject: 'Thank you for supporting NewBee Running Club!',
     body: 'Dear donor, thank you for your generous donation.',
@@ -249,6 +252,25 @@ test('thank-you column shows sent state or an enabled send button', async () => 
   expect(sendButton).toBeEnabled();
 });
 
+test('the "Already sent" button marks a donation as thanked without opening the send dialog', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+
+  fireEvent.click(screen.getByText('Already sent 已发送'));
+  await waitFor(() => expect(markThankYouSent).toHaveBeenCalledWith(12, undefined, 'admin-uid'));
+  expect(screen.queryByText('✉ Send thank-you email 发送感谢邮件')).not.toBeInTheDocument();
+  await waitFor(() => expect(getDonationLedger).toHaveBeenCalledTimes(2));
+});
+
+test('shows an error when marking a donation as already-thanked fails', async () => {
+  markThankYouSent.mockRejectedValue(new Error('boom'));
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+
+  fireEvent.click(screen.getByText('Already sent 已发送'));
+  expect(await screen.findByText('Failed to mark as already thanked. / 标记为已致谢失败。')).toBeInTheDocument();
+});
+
 test('send dialog prefills the matched letter and sends the edited version', async () => {
   render(<DonationLedger />);
   await screen.findByText('Golden Wheat Bakery');
@@ -270,6 +292,9 @@ test('send dialog prefills the matched letter and sends the edited version', asy
   expect(sendBtn).toBeEnabled();
 
   // Edit the letter before sending
+  fireEvent.change(screen.getByLabelText(/Subject 邮件标题/), {
+    target: { value: 'Edited subject line' },
+  });
   fireEvent.change(screen.getByLabelText(/Message 正文/), {
     target: { value: 'Edited letter body' },
   });
@@ -277,7 +302,7 @@ test('send dialog prefills the matched letter and sends the edited version', asy
   fireEvent.click(sendBtn);
   await waitFor(() => expect(sendThankYou).toHaveBeenCalledWith(12, {
     email: 'baker@example.com',
-    subject: 'Thank you for supporting NewBee Running Club!',
+    subject: 'Edited subject line',
     message: 'Edited letter body',
     attachReceipt: true,
   }, 'admin-uid'));
@@ -562,6 +587,228 @@ test('shows an error when the tax download fails', async () => {
   fireEvent.click(screen.getByText('Generate Tax File 生成税务文件'));
   fireEvent.click(screen.getByText('⬇ Generate & Download 生成并下载'));
   expect(await screen.findByText(/Failed to generate tax file/)).toBeInTheDocument();
+});
+
+test('cancel closes the send thank-you dialog without sending', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  await screen.findByText('✉ Send thank-you email 发送感谢邮件');
+  await screen.findByDisplayValue(/Dear donor, thank you/); // preview loaded
+
+  fireEvent.click(screen.getByText('Cancel 取消'));
+  await waitFor(() =>
+    expect(screen.queryByText('✉ Send thank-you email 发送感谢邮件')).not.toBeInTheDocument()
+  );
+  expect(sendThankYou).not.toHaveBeenCalled();
+});
+
+test('shows an error when the letter preview fails to load', async () => {
+  getThankYouPreview.mockRejectedValue(new Error('boom'));
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  expect(await screen.findByText('Failed to load the letter preview. / 加载感谢信预览失败。')).toBeInTheDocument();
+});
+
+test('shows an error when switching templates fails', async () => {
+  getThankYouTemplates.mockResolvedValue([
+    { id: 5, name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' },
+  ]);
+  getThankYouPreview
+    .mockResolvedValueOnce({
+      subject: 'Auto subject', body: 'Auto body', template_name: null, template_id: 0,
+    })
+    .mockRejectedValueOnce(new Error('boom'));
+
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  await screen.findByDisplayValue('Auto body');
+
+  fireEvent.mouseDown(screen.getByLabelText('Template 模板').closest('[role="combobox"]') || screen.getAllByRole('combobox')[0]);
+  fireEvent.click(await screen.findByText(/Major donor · ≥ \$300\.00/));
+
+  expect(await screen.findByText('Failed to load that template. / 切换模板失败。')).toBeInTheDocument();
+});
+
+test('shows an error when the receipt download fails', async () => {
+  downloadReceipt.mockRejectedValue(new Error('boom'));
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getAllByLabelText('Receipt 收据')[0]);
+  expect(await screen.findByText('Failed to generate the receipt. / 生成收据失败。')).toBeInTheDocument();
+});
+
+test('close button closes the templates dialog', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  await screen.findByText('✉ Thank-you templates 感谢信模板');
+  fireEvent.click(screen.getByText('Close 关闭'));
+  await waitFor(() =>
+    expect(screen.queryByText('✉ Thank-you templates 感谢信模板')).not.toBeInTheDocument()
+  );
+});
+
+test('shows an error when the templates list fails to load', async () => {
+  getThankYouTemplates.mockRejectedValue(new Error('boom'));
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  expect(await screen.findByText('Failed to load templates. / 加载模板失败。')).toBeInTheDocument();
+});
+
+test('edit button opens the template form pre-filled; cancel discards it', async () => {
+  getThankYouTemplates.mockResolvedValue([
+    { id: 5, name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' },
+  ]);
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  fireEvent.click(await screen.findByText('✎ Edit 编辑'));
+  expect(screen.getByDisplayValue('Major donor')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByText('Cancel 取消'));
+  expect(screen.queryByDisplayValue('Major donor')).not.toBeInTheDocument();
+});
+
+test('editing an existing template saves via update, not create', async () => {
+  getThankYouTemplates.mockResolvedValue([
+    { id: 5, name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' },
+  ]);
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  fireEvent.click(await screen.findByText('✎ Edit 编辑'));
+
+  fireEvent.change(screen.getByLabelText(/Template name 模板名称/), { target: { value: 'Major donor v2' } });
+  fireEvent.click(screen.getByText('Save 保存'));
+
+  await waitFor(() => expect(updateThankYouTemplate).toHaveBeenCalledWith(
+    5, { name: 'Major donor v2', min_amount: '300', subject: 'S', body: 'B' }, 'admin-uid'
+  ));
+  expect(createThankYouTemplate).not.toHaveBeenCalled();
+});
+
+test('shows an error when saving a template fails', async () => {
+  createThankYouTemplate.mockRejectedValue(new Error('boom'));
+  getThankYouTemplates.mockResolvedValue([]);
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  fireEvent.click(await screen.findByText('＋ Add template 添加模板'));
+  fireEvent.change(screen.getByLabelText(/Template name 模板名称/), { target: { value: 'Major donor' } });
+  fireEvent.change(screen.getByLabelText(/Subject 邮件标题/), { target: { value: 'S' } });
+  fireEvent.change(screen.getByLabelText(/Body 正文/), { target: { value: 'B' } });
+  fireEvent.click(screen.getByText('Save 保存'));
+  expect(await screen.findByText('Failed to save the template. / 保存模板失败。')).toBeInTheDocument();
+});
+
+test('shows an error when deleting a template fails', async () => {
+  deleteThankYouTemplate.mockRejectedValue(new Error('boom'));
+  getThankYouTemplates.mockResolvedValue([
+    { id: 5, name: 'Major donor', min_amount: '300', subject: 'S', body: 'B' },
+  ]);
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  fireEvent.click(await screen.findByText('Delete 删除'));
+  expect(await screen.findByText('Failed to delete the template. / 删除模板失败。')).toBeInTheDocument();
+});
+
+test('cancel discards notes edits without saving', async () => {
+  render(<DonationLedger />);
+  const row = (await screen.findByText('Ming Zhao')).closest('tr');
+  fireEvent.click(row);
+  fireEvent.click(await screen.findByText('✎ Edit 编辑'));
+  fireEvent.change(screen.getByLabelText('Notes 备注'), { target: { value: 'draft that should be discarded' } });
+  fireEvent.click(screen.getByText('Cancel 取消'));
+  expect(screen.queryByLabelText('Notes 备注')).not.toBeInTheDocument();
+  expect(updateDonor).not.toHaveBeenCalled();
+});
+
+test('shows an error when saving notes fails', async () => {
+  updateDonor.mockRejectedValue(new Error('boom'));
+  render(<DonationLedger />);
+  const row = (await screen.findByText('Ming Zhao')).closest('tr');
+  fireEvent.click(row);
+  fireEvent.click(await screen.findByText('✎ Edit 编辑'));
+  fireEvent.change(screen.getByLabelText('Notes 备注'), { target: { value: 'updated note' } });
+  fireEvent.click(screen.getByText('Save 保存'));
+  expect(await screen.findByText('Failed to save notes. / 保存备注失败。')).toBeInTheDocument();
+});
+
+test('editing the tax date range updates the from/to fields', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Ming Zhao');
+  fireEvent.click(screen.getByText('Generate Tax File 生成税务文件'));
+  await screen.findByText(/Time range 时间范围/);
+
+  fireEvent.change(screen.getByLabelText('From 从'), { target: { value: `${currentYear - 3}-02-01` } });
+  fireEvent.change(screen.getByLabelText('To 至'), { target: { value: `${currentYear - 3}-02-28` } });
+  fireEvent.click(screen.getByText('⬇ Generate & Download 生成并下载'));
+
+  await waitFor(() => expect(downloadTaxReport).toHaveBeenCalledWith(
+    { startDate: `${currentYear - 3}-02-01`, endDate: `${currentYear - 3}-02-28`, format: 'pdf' },
+    'admin-uid'
+  ));
+});
+
+test('cancel closes the tax dialog without generating a report', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Ming Zhao');
+  fireEvent.click(screen.getByText('Generate Tax File 生成税务文件'));
+  await screen.findByText(/Time range 时间范围/);
+
+  fireEvent.click(screen.getByText('Cancel 取消'));
+  await waitFor(() => expect(screen.queryByText(/Time range 时间范围/)).not.toBeInTheDocument());
+  expect(downloadTaxReport).not.toHaveBeenCalled();
+});
+
+test('the error alert can be dismissed', async () => {
+  approveDonation.mockRejectedValue(new Error('nope'));
+  render(<DonationLedger />);
+  await screen.findByText('Ming Zhao');
+  fireEvent.click(screen.getAllByText('Approve 确认')[0]);
+  expect(await screen.findByText(/Failed to approve donation/)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByLabelText('Close'));
+  expect(screen.queryByText(/Failed to approve donation/)).not.toBeInTheDocument();
+});
+
+test('pressing Escape closes the send thank-you dialog', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('Send thank-you 发送感谢'));
+  await screen.findByText('✉ Send thank-you email 发送感谢邮件');
+
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+  await waitFor(() =>
+    expect(screen.queryByText('✉ Send thank-you email 发送感谢邮件')).not.toBeInTheDocument()
+  );
+});
+
+test('pressing Escape closes the templates dialog', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Golden Wheat Bakery');
+  fireEvent.click(screen.getByText('✉ Templates 模板'));
+  await screen.findByText('✉ Thank-you templates 感谢信模板');
+
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+  await waitFor(() =>
+    expect(screen.queryByText('✉ Thank-you templates 感谢信模板')).not.toBeInTheDocument()
+  );
+});
+
+test('pressing Escape closes the tax dialog', async () => {
+  render(<DonationLedger />);
+  await screen.findByText('Ming Zhao');
+  fireEvent.click(screen.getByText('Generate Tax File 生成税务文件'));
+  await screen.findByText(/Time range 时间范围/);
+
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+  await waitFor(() => expect(screen.queryByText(/Time range 时间范围/)).not.toBeInTheDocument());
 });
 
 test('renders nothing to fetch without a logged-in user', () => {

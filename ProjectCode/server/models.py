@@ -143,6 +143,13 @@ class SendThankYouRequest(BaseModel):
     attach_receipt: bool = False
 
 
+class MarkThankYouSentRequest(BaseModel):
+    """Stamp a donation as already thanked (e.g. a committee member sent a
+    physical card or an off-system email) without sending anything from
+    the app. Optional note is appended to the audit trail."""
+    note: Optional[str] = Field(None, max_length=1000)
+
+
 class ThankYouTemplateBase(BaseModel):
     """Thank-you letter template, tiered by donation amount"""
     name: str = Field(..., max_length=100)

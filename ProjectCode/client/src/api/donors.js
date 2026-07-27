@@ -180,6 +180,22 @@ export async function sendThankYou(donationId, { email, subject, message, attach
 }
 
 /**
+ * Mark a donation as already thanked (e.g. a card mailed or a call made
+ * outside the app) without sending an email. Just stamps thank_you_sent_at.
+ * @param {number} donationId - Donation ID
+ * @param {string} [note] - Optional note for the audit trail
+ * @param {string} firebaseUid - Committee/admin Firebase UID
+ * @returns {Promise<Object>} Updated ledger entry
+ */
+export async function markThankYouSent(donationId, note, firebaseUid) {
+  return api.post(`/api/donors/donations/${donationId}/mark-thank-you-sent`, {
+    note: note || undefined,
+  }, {
+    'X-Firebase-UID': firebaseUid,
+  });
+}
+
+/**
  * The rendered letter for a donation, for review/editing in the send dialog.
  * Auto-matches a template by amount; pass templateId to render a specific
  * one (0 = built-in default).
