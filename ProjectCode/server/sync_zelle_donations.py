@@ -212,7 +212,16 @@ def parse_zelle_email(raw_email):
     # consistently render this in caps — "JIAN SHEN", "Kanglin Yu", and
     # "JINLING zhang" all occur — so the match must be case-insensitive or
     # any non-uppercase name silently fails to parse.
-    sender_match = re.search(r'([A-Z][A-Z\s\-\'\.]+?)\s+sent\s+you', text, re.IGNORECASE)
+    #
+    # The character class uses a literal space, NOT \s, deliberately: every
+    # real email's body reads "Zelle (r) payment\n{NAME} sent you money" —
+    # with \s (which matches newlines) and IGNORECASE together, "payment"
+    # itself satisfies [A-Z], and since re.search returns the leftmost
+    # match, the engine prefers starting at "payment" and bridges the
+    # newline straight into the real name (e.g. "Payment\n Juan Du"
+    # instead of "Juan Du"). A newline can never appear inside a real
+    # sender name, so excluding it keeps the match on a single line.
+    sender_match = re.search(r'([A-Z][A-Z \-\'\.]+?)\s+sent\s+you', text, re.IGNORECASE)
     if not sender_match:
         return None
     sender_name = sender_match.group(1).strip().title()
