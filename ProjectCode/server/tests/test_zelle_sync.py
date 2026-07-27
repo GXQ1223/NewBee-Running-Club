@@ -83,6 +83,27 @@ def test_parse_zelle_email_handles_mixed_case_sender_name():
     assert parsed['sender_name'] == 'Jinling Zhang'
 
 
+def test_parse_zelle_email_does_not_leak_payment_heading_into_name():
+    # Real Chase emails read "Zelle (r) payment\n{NAME} sent you money" —
+    # with the sender regex case-insensitive, "payment" itself satisfies
+    # [A-Z], and since re.search takes the leftmost match, an \s-based
+    # character class (which also matches \n) bridges straight from
+    # "payment" across the newline into the real name, corrupting it to
+    # "Payment\n Juan Du" instead of "Juan Du".
+    text = (
+        'zelle_auto_accept_receiver_chase_email \n'
+        ' Zelle ® payment\n'
+        ' JUAN DU sent you money\n'
+        ' Here are the details:\n'
+        ' Amount\n $200.00\n'
+        ' Sent on\n May 18, 2026\n'
+        ' Transaction number\n 29265937883\n'
+    )
+    msg = MIMEText(text, 'plain')
+    parsed = zelle.parse_zelle_email(msg.as_bytes())
+    assert parsed['sender_name'] == 'Juan Du'
+
+
 # ---------------------------------------------------------------- record builder
 
 def test_build_donor_record_defaults_to_pending_with_excerpt():
