@@ -104,6 +104,10 @@ python main.py                                    # Run on localhost:8000
 - `GET /api/results/women-records` - Top 10 women's times
 - `GET /api/results/all-races` - All race names
 
+### Heylo Activity Sync (sync POST is committee/admin, X-Firebase-UID header)
+- `GET /api/heylo/synced` - Website events synced from Heylo (`event_type='heylo'`), for pre-sync diffing
+- `POST /api/heylo/sync` - Bulk upsert of Heylo activities as website events. Dedup key is the Heylo event URL in `signup_link`; fields sent as null leave existing values untouched; status is derived from the date unless sent explicitly. Powers the weekly (Monday) Heylo → website sync — Heylo has no public API, so an external checker reads the group and pushes activities here.
+
 ### Race Record Submissions (X-Firebase-UID header)
 - `POST /api/race-submissions` - Member submits a PR from a non-NYRR race (creates the race: name/date/distance + time + proof URL + photo)
 - `GET /api/race-submissions/mine` - Member's own submissions (any status)
