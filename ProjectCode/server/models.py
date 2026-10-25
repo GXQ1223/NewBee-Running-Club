@@ -576,6 +576,62 @@ class EventResponse(EventBase):
         from_attributes = True
 
 
+# Heylo Sync Schemas
+class HeyloActivityItem(BaseModel):
+    """One activity (event) as read from the club's Heylo group.
+
+    `signup_link` is the Heylo event page URL and doubles as the sync
+    dedup key: re-syncing the same Heylo event updates the existing
+    website event instead of creating a duplicate. Optional fields left
+    as None are treated as "not provided" — on update they leave the
+    existing value untouched (so manual edits made on the website, e.g.
+    an image added in the composer, survive a re-sync).
+    """
+    name: str = Field(..., max_length=255)
+    chinese_name: Optional[str] = Field(None, max_length=255)
+    date: dt.date
+    time: Optional[str] = Field(None, max_length=50)
+    location: Optional[str] = Field(None, max_length=255)
+    chinese_location: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    chinese_description: Optional[str] = None
+    image: Optional[str] = Field(None, max_length=500)
+    signup_link: str = Field(..., min_length=1, max_length=500)
+    heylo_embed: Optional[str] = None
+    status: Optional[EventStatus] = None  # derived from date when omitted
+
+
+class HeyloSyncRequest(BaseModel):
+    activities: List[HeyloActivityItem] = Field(..., min_length=1, max_length=200)
+
+
+class HeyloSyncItemResult(BaseModel):
+    signup_link: str
+    event_id: int
+    action: str  # 'created' | 'updated' | 'unchanged'
+
+
+class HeyloSyncResponse(BaseModel):
+    created: int
+    updated: int
+    unchanged: int
+    results: List[HeyloSyncItemResult]
+
+
+class HeyloSyncedEvent(BaseModel):
+    """Minimal view of a website event that came from Heylo (for diffing)."""
+    id: int
+    name: str
+    date: dt.date
+    time: Optional[str] = None
+    location: Optional[str] = None
+    status: str
+    signup_link: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # Meeting Minutes Schemas
 class MeetingMinutesBase(BaseModel):
     title: str = Field(..., max_length=255)

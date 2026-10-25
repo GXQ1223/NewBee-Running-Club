@@ -26,6 +26,7 @@ from routes import (
     members,
     activities,
     events,
+    heylo_sync,
     meeting_minutes,
     club_rules,
     engagement,
@@ -198,6 +199,7 @@ app.include_router(finance.router)
 app.include_router(members.router)
 app.include_router(activities.router)
 app.include_router(events.router)
+app.include_router(heylo_sync.router)
 app.include_router(meeting_minutes.router)
 app.include_router(club_rules.router)
 app.include_router(engagement.router)
