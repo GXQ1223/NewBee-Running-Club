@@ -734,7 +734,7 @@ describe('banners tab', () => {
 
     const img = screen.getByAltText('B1');
     fireEvent.error(img);
-    expect(img.src).toContain('/master-image-1.jpg');
+    expect(img.src).toContain('/master-image-1-800.jpg');
   });
 
   test('creates a banner with defaulted display order', async () => {
