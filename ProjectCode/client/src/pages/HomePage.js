@@ -54,7 +54,7 @@ import { parseBubbleDate as parseEventDate } from '../helpers/eventDate';
 const fallbackCarouselImages = [
   {
     id: 1,
-    image_url: '/master-image-1.jpg',
+    image_url: '/master-image-1-1200.webp',
     alt_text: 'NewBee Running Club - About Us',
     link_path: '/about',
     label_en: 'About Us',
@@ -586,7 +586,7 @@ export default function HomePage() {
           component="img"
           src="/master-image-2.jpg"
           alt="NewBee Running Club"
-          onError={(e) => { e.target.src = '/master-image-1.jpg'; }}
+          onError={(e) => { e.target.src = '/master-image-1-1920.jpg'; }}
           sx={{
             width: '100%',
             height: '100%',
@@ -704,7 +704,7 @@ export default function HomePage() {
                     filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
                   }}
                   onError={(e) => {
-                    e.target.src = '/master-image-1.jpg';
+                    e.target.src = '/master-image-1-1200.jpg';
                   }}
                 />
               ))}

@@ -159,7 +159,7 @@ describe('hero banner and loading', () => {
     expect(screen.getByRole('heading', { name: 'NewBee Running Club' })).toBeInTheDocument();
     const hero = screen.getByAltText('NewBee Running Club');
     fireEvent.error(hero);
-    expect(hero.src).toContain('/master-image-1.jpg');
+    expect(hero.src).toContain('/master-image-1-1920.jpg');
   });
 
   test('shows loading placeholders while the APIs are pending', () => {
@@ -226,7 +226,7 @@ describe('carousel', () => {
     await renderHome();
     const img = screen.getByAltText('Banner Two');
     fireEvent.error(img);
-    expect(img.src).toContain('/master-image-1.jpg');
+    expect(img.src).toContain('/master-image-1-1200.jpg');
   });
 });
 
