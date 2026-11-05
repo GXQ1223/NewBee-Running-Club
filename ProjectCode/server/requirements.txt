@@ -11,6 +11,7 @@ openpyxl
 xlrd
 requests
 certifi>=2026.10.19
+urllib3>=2.8.0
 aiosmtplib
 email-validator
 python-multipart
