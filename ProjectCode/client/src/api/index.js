@@ -83,3 +83,4 @@ export {
   updateSetting,
   createSetting
 } from './settings';
+export { syncHeyloNow, getSyncedHeyloEvents } from './heylo';

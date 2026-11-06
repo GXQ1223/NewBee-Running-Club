@@ -618,6 +618,18 @@ class HeyloSyncResponse(BaseModel):
     results: List[HeyloSyncItemResult]
 
 
+class HeyloSyncNowChange(BaseModel):
+    """One activity created/updated by a /sync-now run, for UI display."""
+    name: str
+    date: dt.date
+    action: str  # 'created' | 'updated'
+
+
+class HeyloSyncNowResponse(HeyloSyncResponse):
+    """Sync result plus the names/dates of what actually changed."""
+    changes: List[HeyloSyncNowChange] = []
+
+
 class HeyloSyncedEvent(BaseModel):
     """Minimal view of a website event that came from Heylo (for diffing)."""
     id: int
