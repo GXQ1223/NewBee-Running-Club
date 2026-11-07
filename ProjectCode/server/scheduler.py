@@ -4,6 +4,7 @@ Event Scheduler
 This module handles scheduled background jobs using APScheduler:
 1. Daily (2 AM): Generate recurring event instances from active recurrence rules
 2. Weekly (Monday 3 AM): Transition past Upcoming events to Past (Memories)
+3. Daily (11 AM UTC): Sync the club's Heylo activities to the website
 
 The past events transition also runs once on startup to catch any stale events.
 """
@@ -401,6 +402,47 @@ def sync_zelle_donations_job():
         logger.error(f"Donation sync failed: {e}")
 
 
+def sync_heylo_activities_job():
+    """
+    Daily job to sync the club's Heylo activities to the website.
+
+    Runs the same fetch -> parse -> upsert pipeline as the admin
+    "Sync Heylo events" button (routes/heylo_sync.py), called directly
+    in-process — no committee sign-in is involved. The fetch completes
+    before anything is written and the apply is a single transaction,
+    so a Heylo outage or parse failure is logged and leaves the
+    website untouched.
+    """
+    logger.info("Starting daily Heylo activity sync job...")
+    try:
+        from routes.heylo_sync import _fetch_heylo_activities, _apply_sync
+    except Exception as e:
+        logger.error(f"Heylo sync: failed to import heylo_sync module: {e}")
+        return
+
+    try:
+        activities = _fetch_heylo_activities()
+    except Exception as e:
+        logger.error(f"Heylo sync failed: could not read Heylo: {e}")
+        return
+
+    if not activities:
+        logger.info("Heylo sync: no upcoming activities on Heylo; nothing to sync.")
+        return
+
+    try:
+        with get_db_session() as db:
+            result = _apply_sync(db, activities)
+    except Exception as e:
+        logger.error(f"Heylo sync failed while saving: {e}")
+        return
+
+    logger.info(
+        f"Heylo sync complete: {result.created} created, "
+        f"{result.updated} updated, {result.unchanged} unchanged."
+    )
+
+
 def auto_ack_job():
     """
     Weekly job: batch-send donation acknowledgments when the committee has
@@ -486,12 +528,26 @@ def start_scheduler():
         max_instances=1
     )
 
+    # Daily Heylo activity sync — 11 AM UTC, i.e. 6 AM EST / 7 AM EDT in
+    # New York (like the other jobs this uses a plain trigger on the
+    # host clock; on the UTC production host it drifts one hour with
+    # US daylight saving). Early enough that the day's activities are
+    # on the website before members check in the morning.
+    scheduler.add_job(
+        sync_heylo_activities_job,
+        CronTrigger(hour=11, minute=0),
+        id='sync_heylo_activities',
+        replace_existing=True,
+        max_instances=1
+    )
+
     # Start the scheduler
     scheduler.start()
     logger.info(
         "Scheduler started - recurring events job (daily 2 AM), past events "
         "transition (weekly Mon 3 AM), NYRR results sync (weekly Mon 4 AM UTC), "
-        "Zelle donation sync (weekly Mon 4:30 AM UTC), auto-ack (weekly Mon 5 AM UTC)"
+        "Zelle donation sync (weekly Mon 4:30 AM UTC), auto-ack (weekly Mon 5 AM UTC), "
+        "Heylo activity sync (daily 11 AM UTC)"
     )
 
     # Run transition immediately on startup to catch any stale events
@@ -541,6 +597,15 @@ def run_donation_sync_now():
     """
     logger.info("Manually triggering Zelle donation sync...")
     sync_zelle_donations_job()
+
+
+def run_heylo_sync_now():
+    """
+    Manually trigger the daily Heylo activity sync job.
+    Useful for testing or administrative purposes.
+    """
+    logger.info("Manually triggering Heylo activity sync...")
+    sync_heylo_activities_job()
 
 
 if __name__ == "__main__":
