@@ -416,8 +416,9 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
 
     start_scheduler()
 
-    assert fake.add_job.call_count == 5
-    (recurring_call, transition_call, nyrr_call, zelle_call, ack_call) = fake.add_job.call_args_list
+    assert fake.add_job.call_count == 6
+    (recurring_call, transition_call, nyrr_call, zelle_call, ack_call,
+     heylo_call) = fake.add_job.call_args_list
 
     assert recurring_call.args[0] is scheduler_mod.generate_recurring_events
     assert recurring_call.kwargs['id'] == 'generate_recurring_events'
@@ -449,6 +450,13 @@ def test_start_scheduler_registers_jobs_and_runs_transition(monkeypatch):
     assert "day_of_week='mon'" in str(zelle_call.args[1])
     assert "hour='4'" in str(zelle_call.args[1])
     assert "minute='30'" in str(zelle_call.args[1])
+
+    assert heylo_call.args[0] is scheduler_mod.sync_heylo_activities_job
+    assert heylo_call.kwargs['id'] == 'sync_heylo_activities'
+    assert heylo_call.kwargs['max_instances'] == 1
+    assert isinstance(heylo_call.args[1], CronTrigger)
+    assert "hour='11'" in str(heylo_call.args[1])  # daily, no day_of_week
+    assert "day_of_week" not in str(heylo_call.args[1])
 
     fake.start.assert_called_once()
     # Transition also runs once immediately on startup
@@ -666,4 +674,75 @@ def test_run_donation_sync_now(monkeypatch):
     calls = []
     monkeypatch.setattr(scheduler_mod, 'sync_zelle_donations_job', lambda: calls.append(True))
     scheduler_mod.run_donation_sync_now()
+    assert calls == [True]
+
+
+# ---------------------------------------------------------------------------
+# daily Heylo activity sync job (fetch mocked — no network)
+# ---------------------------------------------------------------------------
+
+def _heylo_item(**overrides):
+    from models import HeyloActivityItem
+    defaults = dict(
+        name='Saturday Central Park Run',
+        date=TODAY + timedelta(days=2),
+        time='7:30 AM',
+        location='Central Park',
+        description='Easy miles with the crew.',
+        signup_link='https://www.heylo.com/event/sat-run',
+    )
+    defaults.update(overrides)
+    return HeyloActivityItem(**defaults)
+
+
+def test_sync_heylo_activities_job_syncs_and_is_idempotent(job_db, monkeypatch, caplog):
+    from routes import heylo_sync
+    monkeypatch.setattr(heylo_sync, '_fetch_heylo_activities', lambda: [_heylo_item()])
+
+    with caplog.at_level('INFO', logger='scheduler'):
+        scheduler_mod.sync_heylo_activities_job()
+        scheduler_mod.sync_heylo_activities_job()  # second run must be a no-op
+
+    job_db.expire_all()
+    events = job_db.query(Event).all()
+    assert len(events) == 1
+    assert events[0].event_type == 'heylo'
+
+    summaries = [r.message for r in caplog.records if 'Heylo sync complete' in r.message]
+    assert len(summaries) == 2
+    assert '1 created, 0 updated, 0 unchanged' in summaries[0]
+    assert '0 created, 0 updated, 1 unchanged' in summaries[1]
+
+
+def test_sync_heylo_activities_job_fetch_failure_writes_nothing(job_db, monkeypatch, caplog):
+    import requests
+    from routes import heylo_sync
+
+    def boom():
+        raise requests.ConnectionError('heylo unreachable')
+
+    monkeypatch.setattr(heylo_sync, '_fetch_heylo_activities', boom)
+
+    with caplog.at_level('ERROR', logger='scheduler'):
+        scheduler_mod.sync_heylo_activities_job()  # must not raise
+
+    job_db.expire_all()
+    assert job_db.query(Event).count() == 0
+    assert any('could not read Heylo' in r.message for r in caplog.records)
+
+
+def test_sync_heylo_activities_job_no_activities_is_quiet_noop(job_db, monkeypatch):
+    from routes import heylo_sync
+    monkeypatch.setattr(heylo_sync, '_fetch_heylo_activities', lambda: [])
+
+    scheduler_mod.sync_heylo_activities_job()  # must not raise
+
+    job_db.expire_all()
+    assert job_db.query(Event).count() == 0
+
+
+def test_run_heylo_sync_now(monkeypatch):
+    calls = []
+    monkeypatch.setattr(scheduler_mod, 'sync_heylo_activities_job', lambda: calls.append(True))
+    scheduler_mod.run_heylo_sync_now()
     assert calls == [True]
