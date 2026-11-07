@@ -12,6 +12,16 @@ duplicating it. Optional fields sent as null mean "not provided" and
 leave the existing value untouched, so manual edits made on the
 website survive a re-sync.
 
+Dedup is hardened in layers, all inside `_apply_sync`: each payload
+is deduplicated before it is applied (repeated Heylo URLs — or, for
+link-less items, repeated date + normalized title — are merged
+keeping the most complete record); an item pushed without a link
+falls back to matching an existing event on date + normalized title
+instead of blindly inserting; and the whole apply runs serialized
+under a process-wide lock in a single transaction, so the button, the
+manual endpoint and the daily scheduler job cannot race each other
+into creating duplicates.
+
 POST /sync-now is the server-side variant used by the Admin Panel
 button: this module fetches the Heylo group page itself (the pages are
 server-rendered Next.js and embed their data as JSON in a
@@ -22,6 +32,7 @@ upsert logic as POST /sync.
 """
 import json
 import re
+import threading
 from datetime import date as date_type, datetime
 from typing import List, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -50,6 +61,15 @@ _SYNC_FIELDS = (
     'name', 'chinese_name', 'date', 'time', 'location', 'chinese_location',
     'description', 'chinese_description', 'image', 'heylo_embed',
 )
+
+# Serializes _apply_sync within this process. The button-triggered
+# /sync-now, the manual /sync endpoint and the daily scheduler job can
+# all fire at once, and check-then-insert only stays duplicate-free if
+# the existence check, the write and the commit happen atomically
+# in-process. (Residual risk: a deployment running multiple server
+# processes would need a database unique constraint for the same
+# guarantee — see the PR notes; the app runs as a single process.)
+_APPLY_LOCK = threading.Lock()
 
 
 def _status_pair(item) -> Tuple[str, Optional[bool]]:
@@ -88,67 +108,167 @@ def sync_heylo_activities(
     return _apply_sync(db, payload.activities)
 
 
-def _apply_sync(db: Session, activities: List[HeyloActivityItem]) -> HeyloSyncResponse:
-    """Upsert Heylo activities as website events (shared by /sync and /sync-now)."""
-    created = updated = unchanged = 0
-    results: List[HeyloSyncItemResult] = []
+def _normalize_link(link) -> Optional[str]:
+    """Canonical form of a sync item's signup link (blank -> None)."""
+    if not isinstance(link, str):
+        return None
+    return link.strip() or None
 
+
+def _normalize_name(name) -> str:
+    """Title comparison key: whitespace-collapsed and case-folded."""
+    return ' '.join((name or '').split()).casefold()
+
+
+def _completeness(item) -> int:
+    """How much data an item carries — decides which duplicate is kept."""
+    score = sum(1 for field in _SYNC_FIELDS if getattr(item, field) is not None)
+    return score + (1 if item.status is not None else 0)
+
+
+def _merge_items(base, extra):
+    """Fill base's not-provided (None) fields from extra; base wins otherwise."""
+    fills = {
+        field: getattr(extra, field)
+        for field in _SYNC_FIELDS + ('status',)
+        if getattr(base, field) is None and getattr(extra, field) is not None
+    }
+    return base.model_copy(update=fills) if fills else base
+
+
+def _dedupe_activities(
+    activities: List[HeyloActivityItem],
+) -> List[HeyloActivityItem]:
+    """Collapse repeated activities inside one sync list.
+
+    The same Heylo event can appear twice in a single payload (a
+    checker re-reading the group, the group listing an event twice).
+    Items are keyed by signup link — or, for link-less items, by date
+    + normalized title — and duplicates are merged keeping the most
+    complete record, so one list can never create two rows (or two
+    result entries) for the same activity.
+    """
+    by_key = {}
+    order = []
     for item in activities:
-        status_value, highlight_value = _status_pair(item)
-        updates = {
-            field: getattr(item, field)
-            for field in _SYNC_FIELDS
-            if getattr(item, field) is not None
-        }
+        link = _normalize_link(item.signup_link)
+        if link:
+            key = ('link', link)
+        else:
+            key = ('title', item.date, _normalize_name(item.name))
+        if key not in by_key:
+            by_key[key] = item
+            order.append(key)
+            continue
+        kept = by_key[key]
+        if _completeness(item) > _completeness(kept):
+            kept, item = item, kept
+        by_key[key] = _merge_items(kept, item)
+    return [by_key[key] for key in order]
 
-        existing = (
+
+def _find_existing(db: Session, item, link: Optional[str]):
+    """Locate the website event a sync item refers to, if any.
+
+    Primary key is the Heylo URL (`signup_link`). Link-less items fall
+    back to the same date + normalized title among heylo events, so a
+    re-push without a link updates the existing event instead of
+    duplicating it.
+    """
+    if link:
+        return (
             db.query(Event)
             .filter(
                 Event.event_type == 'heylo',
-                Event.signup_link == item.signup_link,
+                Event.signup_link == link,
             )
             .first()
         )
+    target = _normalize_name(item.name)
+    candidates = (
+        db.query(Event)
+        .filter(Event.event_type == 'heylo', Event.date == item.date)
+        .order_by(Event.id)
+        .all()
+    )
+    return next(
+        (e for e in candidates if _normalize_name(e.name) == target), None
+    )
 
-        if existing is None:
-            event = Event(
-                event_type='heylo',
-                signup_link=item.signup_link,
-                status=status_value,
-                is_highlight=bool(highlight_value),
-                **updates,
-            )
-            db.add(event)
-            db.flush()
-            created += 1
-            results.append(HeyloSyncItemResult(
-                signup_link=item.signup_link, event_id=event.id, action='created',
-            ))
-            continue
 
-        changed = False
-        for field, value in updates.items():
-            if getattr(existing, field) != value:
-                setattr(existing, field, value)
+def _apply_sync(db: Session, activities: List[HeyloActivityItem]) -> HeyloSyncResponse:
+    """Upsert Heylo activities as website events (shared by /sync and /sync-now).
+
+    The payload is deduplicated first, then applied in a single
+    transaction — any failure rolls the whole batch back — under a
+    process-wide lock that serializes the existence check + write
+    against overlapping callers.
+    """
+    with _APPLY_LOCK:
+        return _apply_sync_deduped(db, _dedupe_activities(activities))
+
+
+def _apply_sync_deduped(
+    db: Session, activities: List[HeyloActivityItem]
+) -> HeyloSyncResponse:
+    created = updated = unchanged = 0
+    results: List[HeyloSyncItemResult] = []
+
+    try:
+        for item in activities:
+            link = _normalize_link(item.signup_link)
+            status_value, highlight_value = _status_pair(item)
+            updates = {
+                field: getattr(item, field)
+                for field in _SYNC_FIELDS
+                if getattr(item, field) is not None
+            }
+
+            existing = _find_existing(db, item, link)
+
+            if existing is None:
+                event = Event(
+                    event_type='heylo',
+                    signup_link=link,
+                    status=status_value,
+                    is_highlight=bool(highlight_value),
+                    **updates,
+                )
+                db.add(event)
+                db.flush()
+                created += 1
+                results.append(HeyloSyncItemResult(
+                    signup_link=link, event_id=event.id, action='created',
+                ))
+                continue
+
+            changed = False
+            for field, value in updates.items():
+                if getattr(existing, field) != value:
+                    setattr(existing, field, value)
+                    changed = True
+            if existing.status != status_value:
+                existing.status = status_value
                 changed = True
-        if existing.status != status_value:
-            existing.status = status_value
-            changed = True
-        if highlight_value is not None and existing.is_highlight != highlight_value:
-            existing.is_highlight = highlight_value
-            changed = True
+            if highlight_value is not None and existing.is_highlight != highlight_value:
+                existing.is_highlight = highlight_value
+                changed = True
 
-        if changed:
-            updated += 1
-            action = 'updated'
-        else:
-            unchanged += 1
-            action = 'unchanged'
-        results.append(HeyloSyncItemResult(
-            signup_link=item.signup_link, event_id=existing.id, action=action,
-        ))
+            if changed:
+                updated += 1
+                action = 'updated'
+            else:
+                unchanged += 1
+                action = 'unchanged'
+            results.append(HeyloSyncItemResult(
+                signup_link=link if link is not None else existing.signup_link,
+                event_id=existing.id, action=action,
+            ))
 
-    db.commit()
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return HeyloSyncResponse(
         created=created, updated=updated, unchanged=unchanged, results=results,
     )
@@ -318,7 +438,7 @@ def sync_heylo_now(
         )
 
     result = _apply_sync(db, activities)
-    by_link = {item.signup_link: item for item in activities}
+    by_link = {_normalize_link(item.signup_link): item for item in activities}
     changes = [
         HeyloSyncNowChange(
             name=by_link[r.signup_link].name,

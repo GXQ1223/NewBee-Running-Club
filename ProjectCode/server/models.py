@@ -582,10 +582,11 @@ class HeyloActivityItem(BaseModel):
 
     `signup_link` is the Heylo event page URL and doubles as the sync
     dedup key: re-syncing the same Heylo event updates the existing
-    website event instead of creating a duplicate. Optional fields left
-    as None are treated as "not provided" — on update they leave the
-    existing value untouched (so manual edits made on the website, e.g.
-    an image added in the composer, survive a re-sync).
+    website event instead of creating a duplicate. Items pushed without
+    a link are matched on date + normalized title instead. Optional
+    fields left as None are treated as "not provided" — on update they
+    leave the existing value untouched (so manual edits made on the
+    website, e.g. an image added in the composer, survive a re-sync).
     """
     name: str = Field(..., max_length=255)
     chinese_name: Optional[str] = Field(None, max_length=255)
@@ -596,7 +597,7 @@ class HeyloActivityItem(BaseModel):
     description: Optional[str] = None
     chinese_description: Optional[str] = None
     image: Optional[str] = Field(None, max_length=500)
-    signup_link: str = Field(..., min_length=1, max_length=500)
+    signup_link: Optional[str] = Field(None, max_length=500)
     heylo_embed: Optional[str] = None
     status: Optional[EventStatus] = None  # derived from date when omitted
 
@@ -606,7 +607,7 @@ class HeyloSyncRequest(BaseModel):
 
 
 class HeyloSyncItemResult(BaseModel):
-    signup_link: str
+    signup_link: Optional[str] = None  # None when the item was pushed link-less
     event_id: int
     action: str  # 'created' | 'updated' | 'unchanged'
 
