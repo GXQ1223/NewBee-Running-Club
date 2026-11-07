@@ -11,17 +11,32 @@ Re-syncing the same Heylo event updates the existing row instead of
 duplicating it. Optional fields sent as null mean "not provided" and
 leave the existing value untouched, so manual edits made on the
 website survive a re-sync.
-"""
-from datetime import date as date_type
-from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, Depends
+POST /sync-now is the server-side variant used by the Admin Panel
+button: this module fetches the Heylo group page itself (the pages are
+server-rendered Next.js and embed their data as JSON in a
+`__NEXT_DATA__` script tag, so a plain HTTP GET suffices — no browser
+or Heylo login needed), follows each listed event to its own page for
+location/description, and feeds the parsed activities through the same
+upsert logic as POST /sync.
+"""
+import json
+import re
+from datetime import date as date_type, datetime
+from typing import List, Optional, Tuple
+from zoneinfo import ZoneInfo
+
+import requests
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db, Event, Member
 from models import (
+    HeyloActivityItem,
     HeyloSyncRequest,
     HeyloSyncResponse,
+    HeyloSyncNowChange,
+    HeyloSyncNowResponse,
     HeyloSyncItemResult,
     HeyloSyncedEvent,
 )
@@ -70,10 +85,15 @@ def sync_heylo_activities(
     current_user: Member = Depends(get_current_committee_or_admin),
 ):
     """Create or update website events from Heylo activities (committee/admin)."""
+    return _apply_sync(db, payload.activities)
+
+
+def _apply_sync(db: Session, activities: List[HeyloActivityItem]) -> HeyloSyncResponse:
+    """Upsert Heylo activities as website events (shared by /sync and /sync-now)."""
     created = updated = unchanged = 0
     results: List[HeyloSyncItemResult] = []
 
-    for item in payload.activities:
+    for item in activities:
         status_value, highlight_value = _status_pair(item)
         updates = {
             field: getattr(item, field)
@@ -131,4 +151,187 @@ def sync_heylo_activities(
     db.commit()
     return HeyloSyncResponse(
         created=created, updated=updated, unchanged=unchanged, results=results,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Server-side Heylo fetch + parse (backs POST /sync-now)
+#
+# Heylo pages are Next.js: the data the page renders is embedded in a
+# <script id="__NEXT_DATA__"> JSON blob. The group page's blob lists the
+# group's events (id, name, timestamp, image, deepLink); each event
+# page's blob carries the full event (location, notes, timezone, ...).
+# ---------------------------------------------------------------------------
+
+HEYLO_BASE_URL = 'https://www.heylo.com'
+HEYLO_GROUP_ID = 'b7bf1310-ca40-4d4d-9da5-2b7f4f3c197e'
+HEYLO_GROUP_URL = f'{HEYLO_BASE_URL}/g/{HEYLO_GROUP_ID}'
+HEYLO_CLUB_TIMEZONE = 'America/New_York'
+
+_FETCH_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+    ),
+}
+_FETCH_TIMEOUT_SECONDS = 15
+
+_NEXT_DATA_RE = re.compile(
+    r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+    re.DOTALL,
+)
+
+
+class HeyloFetchError(Exception):
+    """Heylo could not be fetched or its pages could not be parsed."""
+
+
+def _fetch_html(url: str) -> str:
+    response = requests.get(url, headers=_FETCH_HEADERS, timeout=_FETCH_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    return response.text
+
+
+def _next_data_queries(html: str) -> list:
+    """The react-query payloads embedded in a Heylo page (list of state dicts)."""
+    match = _NEXT_DATA_RE.search(html)
+    if not match:
+        return []
+    try:
+        data = json.loads(match.group(1))
+        return data['props']['pageProps']['dehydratedState']['queries']
+    except (ValueError, KeyError, TypeError):
+        return []
+
+
+def _parse_group_event_summaries(html: str) -> list:
+    """Event summaries listed on the Heylo group page ([] when unparseable)."""
+    for query in _next_data_queries(html):
+        data = (query.get('state') or {}).get('data')
+        if isinstance(data, dict) and isinstance(data.get('events'), list):
+            return [e for e in data['events'] if isinstance(e, dict) and e.get('id')]
+    return []
+
+
+def _parse_event_detail(html: str) -> Optional[dict]:
+    """The full event object embedded in a Heylo event page, or None."""
+    for query in _next_data_queries(html):
+        data = (query.get('state') or {}).get('data')
+        if isinstance(data, dict) and isinstance(data.get('event'), dict):
+            return data['event']
+    return None
+
+
+def _clean(value) -> Optional[str]:
+    """Strip a Heylo text field; empty strings become None ('not provided')."""
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None
+
+
+def _event_to_item(event: dict, event_id: str) -> HeyloActivityItem:
+    """Convert one Heylo event object into a sync item.
+
+    Heylo gives a millisecond epoch `timestamp` plus an IANA `timezone`;
+    the website wants a local date and a 12-hour start time ('7:30 AM',
+    matching how event times are stored elsewhere). Heylo's free-text
+    `location` and `notes` map to the website's location/description.
+    """
+    tz = ZoneInfo(event.get('timezone') or HEYLO_CLUB_TIMEZONE)
+    start = datetime.fromtimestamp(event['timestamp'] / 1000, tz=tz)
+    hour = start.strftime('%I').lstrip('0') or '12'
+    image = _clean(event.get('image'))
+    cancelled = any(
+        event.get(key) for key in ('isCancelled', 'cancelled', 'isCanceled', 'canceled')
+    )
+    return HeyloActivityItem(
+        name=str(event.get('name') or '').strip()[:255],
+        date=start.date(),
+        time=f'{hour}:{start:%M} {start:%p}',
+        location=(_clean(event.get('location')) or '')[:255] or None,
+        description=_clean(event.get('notes')),
+        image=image if image and len(image) <= 500 else None,
+        signup_link=f'{HEYLO_BASE_URL}/event/{event_id}',
+        status='Cancelled' if cancelled else None,
+    )
+
+
+def _fetch_heylo_activities(today: Optional[date_type] = None) -> List[HeyloActivityItem]:
+    """Fetch the club's upcoming Heylo activities, ready for _apply_sync.
+
+    Follows each event listed on the group page to its own page for the
+    fields the listing lacks (location, description). Drafts and events
+    whose local date has passed are skipped. Raises HeyloFetchError (or
+    lets requests exceptions bubble) on any fetch/parse failure — the
+    caller writes nothing in that case.
+    """
+    if today is None:
+        today = datetime.now(ZoneInfo(HEYLO_CLUB_TIMEZONE)).date()
+
+    group_html = _fetch_html(HEYLO_GROUP_URL)
+    summaries = _parse_group_event_summaries(group_html)
+    if not summaries:
+        raise HeyloFetchError('No events found on the Heylo group page.')
+
+    items: List[HeyloActivityItem] = []
+    seen_ids = set()
+    for summary in summaries:
+        event_id = summary['id']
+        if event_id in seen_ids:
+            continue
+        seen_ids.add(event_id)
+        detail_html = _fetch_html(f'{HEYLO_BASE_URL}/event/{event_id}')
+        event = _parse_event_detail(detail_html)
+        if event is None:
+            raise HeyloFetchError(f'Could not parse Heylo event {event_id}.')
+        if event.get('isDraft'):
+            continue
+        item = _event_to_item(event, event_id)
+        if item.date < today:
+            continue
+        items.append(item)
+    return items
+
+
+@router.post("/sync-now", response_model=HeyloSyncNowResponse)
+def sync_heylo_now(
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_committee_or_admin),
+):
+    """Fetch the Heylo group server-side and sync it now (committee/admin).
+
+    Backs the Admin Panel 'Sync Heylo events' button. On any fetch or
+    parse failure — including finding no upcoming activities — returns
+    502 and writes nothing.
+    """
+    try:
+        activities = _fetch_heylo_activities()
+    except (HeyloFetchError, requests.RequestException) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f'Failed to read Heylo: {exc}',
+        )
+    if not activities:
+        raise HTTPException(
+            status_code=502,
+            detail='No upcoming Heylo activities found; nothing was synced.',
+        )
+
+    result = _apply_sync(db, activities)
+    by_link = {item.signup_link: item for item in activities}
+    changes = [
+        HeyloSyncNowChange(
+            name=by_link[r.signup_link].name,
+            date=by_link[r.signup_link].date,
+            action=r.action,
+        )
+        for r in result.results
+        if r.action in ('created', 'updated')
+    ]
+    return HeyloSyncNowResponse(
+        created=result.created,
+        updated=result.updated,
+        unchanged=result.unchanged,
+        results=result.results,
+        changes=changes,
     )

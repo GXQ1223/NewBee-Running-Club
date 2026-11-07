@@ -47,6 +47,7 @@ import { getAllSections, createSection, updateSection, deleteSection } from '../
 import { getPendingActivities, verifyActivity, getMemberActivities } from '../api/activities';
 import { getPendingRaceSubmissions, reviewRaceSubmission } from '../api/raceSubmissions';
 import { getSettingsByCategory, updateSetting } from '../api/settings';
+import { syncHeyloNow } from '../api/heylo';
 import { useSocialLinks } from '../context';
 import { committeeMembers } from '../data/committeeMembers';
 import EditIcon from '@mui/icons-material/Edit';
@@ -62,6 +63,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import ImageIcon from '@mui/icons-material/Image';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
+import SyncIcon from '@mui/icons-material/Sync';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -119,6 +121,9 @@ export default function AdminPanelPage() {
   const [pendingMembers, setPendingMembers] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [events, setEvents] = useState([]);
+  const [heyloSyncing, setHeyloSyncing] = useState(false);
+  const [heyloSyncResult, setHeyloSyncResult] = useState(null);
+  const [heyloSyncError, setHeyloSyncError] = useState('');
   const [donationStats, setDonationStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -434,6 +439,26 @@ export default function AdminPanelPage() {
 
   const handleDeleteEvent = (eventId, eventName) => {
     setConfirmDialog({ open: true, action: 'deleteEvent', id: eventId, name: eventName });
+  };
+
+  // Heylo sync: the server fetches the club's Heylo group and upserts
+  // its upcoming activities as events (POST /api/heylo/sync-now).
+  const handleHeyloSync = async () => {
+    setHeyloSyncing(true);
+    setHeyloSyncError('');
+    setHeyloSyncResult(null);
+    try {
+      const result = await syncHeyloNow(currentUser.uid);
+      setHeyloSyncResult(result);
+      await handleEventSaved();
+    } catch (err) {
+      console.error('Error syncing Heylo events:', err);
+      setHeyloSyncError(
+        (err.data && err.data.detail) || err.message || 'Heylo sync failed. / Heylo 同步失败。'
+      );
+    } finally {
+      setHeyloSyncing(false);
+    }
   };
 
   // Banner form handlers
@@ -1169,6 +1194,55 @@ export default function AdminPanelPage() {
               + Create Event
             </Button>
           </Box>
+
+          {/* Heylo sync */}
+          <Paper elevation={0} sx={{ ...panelSx, p: 2.5, mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Heylo Sync / Heylo 同步
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Pull the club's upcoming Heylo activities into the events list.
+                  <br />
+                  将 Heylo 上即将举行的活动同步到活动列表。
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                startIcon={heyloSyncing ? <CircularProgress size={14} sx={{ color: ORANGE }} /> : <SyncIcon />}
+                onClick={handleHeyloSync}
+                disabled={heyloSyncing}
+                sx={{
+                  textTransform: 'none', fontWeight: 700, borderRadius: '99px', px: 2,
+                  border: `1.5px solid ${ORANGE}`, color: ORANGE_DARK, boxShadow: 'none',
+                  '&:hover': { backgroundColor: ORANGE, color: 'white', border: `1.5px solid ${ORANGE}` },
+                }}
+              >
+                Sync Heylo events 同步 Heylo 活动
+              </Button>
+            </Box>
+            {heyloSyncError && (
+              <Alert severity="error" sx={{ mt: 2 }} onClose={() => setHeyloSyncError('')}>
+                {heyloSyncError}
+              </Alert>
+            )}
+            {heyloSyncResult && (
+              <Alert severity="success" sx={{ mt: 2 }} onClose={() => setHeyloSyncResult(null)}>
+                Synced from Heylo: {heyloSyncResult.created} created, {heyloSyncResult.updated} updated, {heyloSyncResult.unchanged} unchanged.
+                {' '}同步完成：新建 {heyloSyncResult.created} 个，更新 {heyloSyncResult.updated} 个，未变化 {heyloSyncResult.unchanged} 个。
+                {heyloSyncResult.changes && heyloSyncResult.changes.length > 0 && (
+                  <Box component="ul" sx={{ m: 0, mt: 1, pl: 2.5 }}>
+                    {heyloSyncResult.changes.map((change) => (
+                      <li key={`${change.date}-${change.name}`}>
+                        {change.date} — {change.name} ({change.action === 'created' ? '新建' : '更新'})
+                      </li>
+                    ))}
+                  </Box>
+                )}
+              </Alert>
+            )}
+          </Paper>
 
           <TableContainer component={Paper} elevation={0} sx={panelSx}>
             <Table>
