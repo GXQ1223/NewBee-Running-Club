@@ -366,6 +366,9 @@ export default function HomePage() {
   const [carouselPositionEditing, setCarouselPositionEditing] = useState(false);
   const [sectionPositionEditing, setSectionPositionEditing] = useState(null);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [pastEvents, setPastEvents] = useState([]);
+  const [pastEventsChecked, setPastEventsChecked] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
   const navigate = useNavigate();
 
@@ -391,8 +394,44 @@ export default function HomePage() {
 
     getEventsByStatus('Upcoming')
       .then(data => setUpcomingEvents(data || []))
-      .catch(() => setUpcomingEvents([]));
+      .catch(() => setUpcomingEvents([]))
+      .finally(() => setEventsLoaded(true));
   }, []);
+
+  // "Latest Events" panel data — real events, not carousel banners.
+  // The status endpoint sorts by date DESC and its rows are not guaranteed
+  // to all be upcoming, so filter and sort here: upcoming events only
+  // (status 'Upcoming', dated today or later), soonest first.
+  const todayLocalStr = (() => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${mm}-${dd}`;
+  })();
+  const byDateAsc = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  const byDateDesc = (a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0);
+  const upcomingPanelEvents = (upcomingEvents || [])
+    .filter((ev) => ev && ev.status === 'Upcoming' && ev.date && ev.date >= todayLocalStr)
+    .sort(byDateAsc)
+    .slice(0, 5);
+  const pastPanelEvents = (pastEvents || [])
+    .filter((ev) => ev && ev.status === 'Past' && ev.date)
+    .sort(byDateDesc)
+    .slice(0, 5);
+  const latestPanelEvents = upcomingPanelEvents.length > 0 ? upcomingPanelEvents : pastPanelEvents;
+
+  // When there is nothing upcoming to show, fall back to the most recent
+  // past events so the panel never sits blank.
+  useEffect(() => {
+    if (!eventsLoaded || upcomingPanelEvents.length > 0) return;
+    let cancelled = false;
+    getEventsByStatus('Past')
+      .then((data) => { if (!cancelled) setPastEvents(data || []); })
+      .catch(() => { if (!cancelled) setPastEvents([]); })
+      .finally(() => { if (!cancelled) setPastEventsChecked(true); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventsLoaded, upcomingPanelEvents.length]);
 
   // Auto-rotate carousel
   useEffect(() => {
@@ -834,87 +873,94 @@ export default function HomePage() {
                 </Box>
               </Typography>
 
-              {carouselImages.slice(0, 5).map((banner, index) => {
-                const date = parseEventDate(banner.event_date);
-                const isActive = index === currentImageIndex;
-                return (
-                  <Box
-                    key={banner.id || index}
-                    onClick={() => {
-                      setCurrentImageIndex(index);
-                      openBanner(banner);
-                    }}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      py: 1.25,
-                      px: 0.75,
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      backgroundColor: isActive ? ORANGE_BG : 'transparent',
-                      borderTop: index > 0 ? `1px solid ${LINE}` : 'none',
-                      transition: 'background-color 0.15s ease',
-                      '&:hover': { backgroundColor: ORANGE_BG },
-                      '&:hover .go-arrow': { opacity: 1 },
-                    }}
-                  >
-                    {date ? (
-                      <Box
-                        sx={{
-                          width: 46,
-                          height: 46,
-                          borderRadius: '12px',
-                          backgroundColor: ORANGE_BG,
-                          flexShrink: 0,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: ORANGE, lineHeight: 1.1 }}>
-                          {date.day}
+              {latestPanelEvents.length > 0 ? (
+                latestPanelEvents.map((event, index) => {
+                  const date = parseEventDate(event.date);
+                  const thumb = event.image_url || event.poster_url;
+                  return (
+                    <Box
+                      key={event.id || index}
+                      onClick={() => navigate('/calendar')}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        py: 1.25,
+                        px: 0.75,
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        backgroundColor: 'transparent',
+                        borderTop: index > 0 ? `1px solid ${LINE}` : 'none',
+                        transition: 'background-color 0.15s ease',
+                        '&:hover': { backgroundColor: ORANGE_BG },
+                        '&:hover .go-arrow': { opacity: 1 },
+                      }}
+                    >
+                      {date ? (
+                        <Box
+                          sx={{
+                            width: 46,
+                            height: 46,
+                            borderRadius: '12px',
+                            backgroundColor: ORANGE_BG,
+                            flexShrink: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: ORANGE, lineHeight: 1.1 }}>
+                            {date.day}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.59rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED }}>
+                            {date.month}
+                          </Typography>
+                        </Box>
+                      ) : thumb ? (
+                        <Box
+                          component="img"
+                          src={thumb}
+                          alt=""
+                          sx={{ width: 46, height: 46, borderRadius: '12px', objectFit: 'cover', flexShrink: 0 }}
+                          onError={(e) => { e.target.style.visibility = 'hidden'; }}
+                        />
+                      ) : (
+                        <Box sx={{ width: 46, height: 46, borderRadius: '12px', backgroundColor: ORANGE_BG, flexShrink: 0 }} />
+                      )}
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          sx={{
+                            fontSize: '0.84rem',
+                            fontWeight: 600,
+                            lineHeight: 1.3,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                          }}
+                        >
+                          {event.name}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.59rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED }}>
-                          {date.month}
+                        <Typography sx={{ fontSize: '0.72rem', color: MUTED }} noWrap>
+                          {event.chinese_name || ''}
                         </Typography>
                       </Box>
-                    ) : (
-                      <Box
-                        component="img"
-                        src={banner.image_url}
-                        alt=""
-                        sx={{ width: 46, height: 46, borderRadius: '12px', objectFit: 'cover', flexShrink: 0 }}
-                        onError={(e) => { e.target.style.visibility = 'hidden'; }}
+                      <ArrowForwardIcon
+                        className="go-arrow"
+                        sx={{ ml: 'auto', color: ORANGE, fontSize: '1rem', opacity: 0, transition: 'opacity 0.15s ease', flexShrink: 0 }}
                       />
-                    )}
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography
-                        sx={{
-                          fontSize: '0.84rem',
-                          fontWeight: 600,
-                          lineHeight: 1.3,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        {banner.label_en || banner.event_name}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.72rem', color: MUTED }} noWrap>
-                        {banner.label_cn || banner.event_chinese_name}
-                      </Typography>
                     </Box>
-                    <ArrowForwardIcon
-                      className="go-arrow"
-                      sx={{ ml: 'auto', color: ORANGE, fontSize: '1rem', opacity: 0, transition: 'opacity 0.15s ease', flexShrink: 0 }}
-                    />
-                  </Box>
-                );
-              })}
+                  );
+                })
+              ) : (
+                eventsLoaded && pastEventsChecked && (
+                  <Typography sx={{ fontSize: '0.84rem', color: MUTED, py: 1.25 }}>
+                    No upcoming events 暂无活动
+                  </Typography>
+                )
+              )}
 
               <Button
                 onClick={() => navigate('/calendar')}

@@ -231,44 +231,91 @@ describe('carousel', () => {
 });
 
 describe('Latest Events panel', () => {
-  test('shows a date bubble for banners with event_date and a thumbnail otherwise', async () => {
+  const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  // Dates relative to today so Upcoming/Past filtering is deterministic
+  const dateParts = (offsetDays) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return { str: `${d.getFullYear()}-${mm}-${dd}`, day: d.getDate(), month: MONTH_ABBR[d.getMonth()] };
+  };
+  const ev = (id, name, chineseName, offsetDays, status) => ({
+    id,
+    name,
+    chinese_name: chineseName,
+    date: dateParts(offsetDays).str,
+    status,
+  });
+  const mockByStatus = (byStatus) =>
+    getEventsByStatus.mockImplementation(async (status) => byStatus[status] || []);
+  const rowOf = (titleEl) => titleEl.parentElement.parentElement;
+
+  test('renders upcoming events soonest-first, excluding Past-status and past-dated items', async () => {
+    const soon = dateParts(2);
+    mockByStatus({
+      Upcoming: [
+        ev(3, 'Later Run', '较晚的跑', 9, 'Upcoming'),
+        ev(4, 'Stale Past Run', '过期活动', 5, 'Past'),
+        ev(5, 'Expired Run', '已过期', -3, 'Upcoming'),
+        ev(2, 'Soon Run', '最近的跑', 2, 'Upcoming'),
+        ev(6, 'No Chinese Name Run', null, 4, 'Upcoming'),
+      ],
+    });
     await renderHome();
-    // Banner One: 2026-07-04 -> day 4, month JUL
-    expect(screen.getByText('4')).toBeInTheDocument();
-    expect(screen.getByText('JUL')).toBeInTheDocument();
-    // Banner Two (no date) and Banner Three (invalid date) -> image thumbnails
-    const thumbTwo = document.querySelectorAll('img[src="/img/two.jpg"]');
-    expect(thumbTwo.length).toBe(2); // carousel slide + list thumbnail
-    const thumbThree = document.querySelectorAll('img[src="/img/three.jpg"]');
-    expect(thumbThree.length).toBe(2);
-    // Thumbnail error hides it
-    fireEvent.error(thumbTwo[1]);
-    expect(thumbTwo[1]).toHaveStyle('visibility: hidden');
+
+    const soonEl = await screen.findByText('Soon Run');
+    const laterEl = screen.getByText('Later Run');
+    // Soonest first
+    expect(soonEl.compareDocumentPosition(laterEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('No Chinese Name Run')).toBeInTheDocument();
+    // Past-status rows and already-past rows are not shown
+    expect(screen.queryByText('Stale Past Run')).not.toBeInTheDocument();
+    expect(screen.queryByText('Expired Run')).not.toBeInTheDocument();
+    // Chinese subtitle and date badge come from the event itself
+    expect(screen.getByText('最近的跑')).toBeInTheDocument();
+    const soonRow = rowOf(soonEl);
+    expect(within(soonRow).getByText(String(soon.day))).toBeInTheDocument();
+    expect(within(soonRow).getByText(soon.month)).toBeInTheDocument();
+    // Panel rows no longer mirror the carousel banners
+    expect(screen.queryByText('Banner One')).toBeInTheDocument(); // carousel overlay only
+    expect(getEventsByStatus).not.toHaveBeenCalledWith('Past');
   });
 
-  test('clicking an event-linked item opens the EventModal probe and it can be closed', async () => {
+  test('clicking a panel row navigates to /calendar without opening the banner modal', async () => {
+    mockByStatus({ Upcoming: [ev(2, 'Soon Run', '最近的跑', 2, 'Upcoming')] });
     await renderHome();
-    // Initially the overlay heading shows Banner One, so this text is the list item
-    fireEvent.click(screen.getByText('Banner Two'));
-    const modal = screen.getByTestId('event-modal');
-    expect(within(modal).getByText('Banner Two')).toBeInTheDocument();
 
-    fireEvent.click(within(modal).getByText('close-event-modal'));
+    fireEvent.click(await screen.findByText('Soon Run'));
+    expect(mockNavigate).toHaveBeenCalledWith('/calendar');
     expect(screen.queryByTestId('event-modal')).not.toBeInTheDocument();
   });
 
-  test('clicking a link item navigates and selects it in the carousel', async () => {
+  test('falls back to the most recent past events when nothing is upcoming', async () => {
+    mockByStatus({
+      Upcoming: [ev(4, 'Stale Past Run', '过期活动', 5, 'Past')],
+      Past: [
+        ev(8, 'Older Past Run', '更早的活动', -30, 'Past'),
+        ev(7, 'Recent Past Run', '最近的往期活动', -4, 'Past'),
+        ev(9, 'Cancelled Run', '取消活动', -2, 'Cancelled'),
+      ],
+    });
     await renderHome();
-    const listItem = screen.getAllByText('Banner One')[1]; // [0] is the overlay heading
-    fireEvent.click(listItem);
-    expect(mockNavigate).toHaveBeenCalledWith('/about');
+
+    const recentEl = await screen.findByText('Recent Past Run');
+    const olderEl = screen.getByText('Older Past Run');
+    // Most recent first, non-Past statuses excluded
+    expect(recentEl.compareDocumentPosition(olderEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('Cancelled Run')).not.toBeInTheDocument();
+    expect(getEventsByStatus).toHaveBeenCalledWith('Past');
   });
 
-  test('items without event or link do nothing on click', async () => {
+  test('shows the empty-state line when there are no events at all', async () => {
+    mockByStatus({ Upcoming: [], Past: [] });
     await renderHome();
-    fireEvent.click(screen.getByText('Banner Three'));
-    expect(mockNavigate).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('event-modal')).not.toBeInTheDocument();
+
+    expect(await screen.findByText(/No upcoming events/)).toBeInTheDocument();
+    expect(screen.getByText(/暂无活动/)).toBeInTheDocument();
   });
 
   test('View Calendar button navigates to /calendar', async () => {
