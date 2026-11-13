@@ -162,6 +162,14 @@ describe('hero banner and loading', () => {
     expect(hero.src).toContain('/master-image-1-1920.jpg');
   });
 
+  test('hero banner links to the Winter League site and names the ongoing event', async () => {
+    await renderHome();
+    const heroLink = screen.getByRole('link', { name: /冬季联赛/ });
+    expect(heroLink).toHaveAttribute('href', 'https://newbeeevent.org');
+    expect(heroLink).toHaveAttribute('target', '_blank');
+    expect(screen.getByText(/新蜂冬季联赛进行中/)).toBeInTheDocument();
+  });
+
   test('shows loading placeholders while the APIs are pending', () => {
     getCarouselBanners.mockReturnValue(new Promise(() => {}));
     getActiveSections.mockReturnValue(new Promise(() => {}));
