@@ -619,8 +619,15 @@ export default function HomePage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Full-width club photo banner */}
-      <Box sx={{ position: 'relative', height: { xs: '220px', sm: '300px', md: '420px' }, overflow: 'hidden' }}>
+      {/* Full-width club photo banner — whole banner links to the current featured event (Winter League) */}
+      <Box
+        component="a"
+        href="https://newbeeevent.org"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="新蜂冬季联赛 NewBee Winter League"
+        sx={{ position: 'relative', display: 'block', height: { xs: '220px', sm: '300px', md: '420px' }, overflow: 'hidden', cursor: 'pointer', textDecoration: 'none' }}
+      >
         <Box
           component="img"
           src="/master-image-2.jpg"
@@ -676,6 +683,27 @@ export default function HomePage() {
             纽约新蜂跑团 · 一起奔跑，一起成长
           </Typography>
           <Box sx={{ width: 64, height: 4, borderRadius: 2, backgroundColor: ORANGE, mt: 2.25 }} />
+          <Box
+            sx={{
+              mt: 2.5,
+              px: 2.25,
+              py: 0.875,
+              borderRadius: 999,
+              backgroundColor: 'rgba(0,0,0,0.45)',
+              border: '1.5px solid rgba(255,255,255,0.85)',
+            }}
+          >
+            <Typography
+              sx={{
+                color: 'white',
+                fontWeight: 700,
+                fontSize: { xs: '0.8125rem', md: '1rem' },
+                textShadow: '1px 1px 4px rgba(0,0,0,0.6)',
+              }}
+            >
+              ❄️ 新蜂冬季联赛进行中 · Winter League is on — 点击进入 ↗
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
