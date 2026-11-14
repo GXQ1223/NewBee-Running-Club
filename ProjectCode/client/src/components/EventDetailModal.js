@@ -19,6 +19,8 @@ import CollectionsIcon from '@mui/icons-material/Collections';
 import EditIcon from '@mui/icons-material/Edit';
 import ShareIcon from '@mui/icons-material/Share';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import ImagePositionEditor from './ImagePositionEditor';
@@ -30,6 +32,7 @@ import CommentSection from './CommentSection';
 import AdminModerationPanel from './AdminModerationPanel';
 import EventGalleryPreview from './EventGalleryPreview';
 import { FALLBACK_EVENT_IMAGE } from '../theme/tokens';
+import { googleCalendarUrl, downloadIcs } from '../helpers/calendarExport';
 
 export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const navigate = useNavigate();
@@ -127,6 +130,25 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
   const [imagePosition, setImagePosition] = useState('center center');
   const eventTitle = event?.name || event?.title;
   const eventChineseTitle = event?.chineseName || event?.chineseTitle;
+  // "Add to Calendar" export built from the fields already on the event;
+  // null when the date can't be parsed, which hides the buttons.
+  const calendarEvent = {
+    id: event?.id,
+    title: eventTitle,
+    date: event?.date,
+    time: event?.time,
+    location: event?.location,
+    description: event?.description,
+    signupLink: event?.signupLink || event?.signup_link,
+  };
+  const gcalUrl = googleCalendarUrl(calendarEvent);
+  const calendarButtonSx = {
+    textTransform: 'none',
+    borderColor: '#FFB84D',
+    color: '#FFB84D',
+    borderRadius: '8px',
+    '&:hover': { borderColor: '#FFA833', backgroundColor: 'rgba(255, 184, 77, 0.04)' }
+  };
 
   useEffect(() => {
     if (event) {
@@ -279,6 +301,36 @@ export default function EventDetailModal({ event, onClose, onEventUpdate }) {
                   >
                     Sign Up / 报名
                   </Button>
+                </Box>
+              )}
+
+              {gcalUrl && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                    Add to Calendar / 添加日历
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<CalendarMonthIcon />}
+                      href={gcalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={calendarButtonSx}
+                    >
+                      Google Calendar
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => downloadIcs(calendarEvent)}
+                      sx={calendarButtonSx}
+                    >
+                      Apple / .ics
+                    </Button>
+                  </Box>
                 </Box>
               )}
 

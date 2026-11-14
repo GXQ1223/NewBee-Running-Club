@@ -439,3 +439,33 @@ describe('EventDetailModal', () => {
     });
   });
 });
+
+describe('EventDetailModal — add to calendar', () => {
+  test('shows a Google Calendar link for the event window and an .ics button', () => {
+    renderModal();
+    expect(screen.getByText('Add to Calendar / 添加日历')).toBeInTheDocument();
+    const gcal = screen.getByRole('link', { name: /Google Calendar/ });
+    const href = gcal.getAttribute('href');
+    expect(href).toContain('calendar.google.com/calendar/render');
+    // 2026-04-01, 8:00 AM start + 2h default duration, New York timezone
+    expect(href).toContain('20260401T080000%2F20260401T100000');
+    expect(href).toContain('ctz=America%2FNew_York');
+    expect(screen.getByRole('button', { name: /Apple \/ .ics/ })).toBeInTheDocument();
+  });
+
+  test('clicking the .ics button triggers a file download', () => {
+    renderModal();
+    URL.createObjectURL = jest.fn(() => 'blob:fake');
+    URL.revokeObjectURL = jest.fn();
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    fireEvent.click(screen.getByRole('button', { name: /Apple \/ .ics/ }));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    clickSpy.mockRestore();
+  });
+
+  test('hides the calendar buttons when the event date is unusable', () => {
+    renderModal({ event: { ...EVENT, date: 'TBD' } });
+    expect(screen.queryByText('Add to Calendar / 添加日历')).not.toBeInTheDocument();
+  });
+});
