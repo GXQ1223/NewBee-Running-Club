@@ -114,6 +114,38 @@ def get_women_records(year: Optional[int] = None, db: Session = Depends(get_db))
 
     return {"women_records": records}
 
+@router.get("/distribution")
+def get_results_distribution(db: Session = Depends(get_db)):
+    """Best time per runner for every race distance (club-wide).
+
+    Powers the profile club-distribution chart: one entry per runner per
+    distance holding that runner's personal best, sorted fastest first.
+    Runners whose times cannot be parsed are skipped.
+    """
+    rows = db.query(Results).filter(Results.overall_time.isnot(None)).all()
+
+    best = {}
+    for result in rows:
+        seconds = time_to_seconds(result.overall_time)
+        if seconds == float('inf'):
+            continue
+        key = (result.race_distance, result.name)
+        if key not in best or seconds < best[key][0]:
+            best[key] = (seconds, result.overall_time)
+
+    distances = {}
+    for (distance, name), (seconds, time_str) in best.items():
+        distances.setdefault(distance, []).append({
+            "runner_name": name,
+            "time": time_str,
+            "seconds": seconds,
+        })
+    for entries in distances.values():
+        entries.sort(key=lambda e: e["seconds"])
+
+    return {"distances": distances}
+
+
 @router.get("/all-races")
 def get_all_races(db: Session = Depends(get_db)):
     """Get list of all races and distances"""

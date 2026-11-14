@@ -27,3 +27,9 @@ test('getMemberRaceResults URL-encodes names with spaces', async () => {
   await getMemberRaceResults('Jane Doe');
   expect(api.get).toHaveBeenCalledWith('/api/results/member/Jane%20Doe', {});
 });
+
+test('getResultsDistribution GETs the distribution endpoint', async () => {
+  const { getResultsDistribution } = require('./results');
+  await expect(getResultsDistribution()).resolves.toBe('GET');
+  expect(api.get).toHaveBeenCalledWith('/api/results/distribution', {});
+});

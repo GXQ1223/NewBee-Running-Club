@@ -60,6 +60,7 @@ import {
   updateRaceSubmission,
   upsertRacePhoto,
 } from '../api/raceSubmissions';
+import RaceAnalytics from '../components/RaceAnalytics';
 import RecordWall from '../components/RecordWall';
 import SubmissionsTracker from '../components/SubmissionsTracker';
 import AddRaceRecordDialog from '../components/AddRaceRecordDialog';
@@ -1053,6 +1054,16 @@ const ProfilePage = () => {
             </Table>
           </TableContainer>
         )}
+      </Paper>
+
+      {/* My Progress — race analytics (PB progression, pace timeline, year tiles, club distribution) */}
+      <Paper elevation={0} sx={{ ...panelSx, p: 3 }}>
+        <SectionHeader
+          icon={<TimerIcon sx={{ color: ORANGE }} />}
+          en="My Progress"
+          cn="数据分析"
+        />
+        <RaceAnalytics results={raceData.results} memberName={memberData?.display_name} />
       </Paper>
 
       {/* Edit Profile Dialog */}

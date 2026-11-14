@@ -19,3 +19,12 @@ export async function getMemberRaceResults(searchKey, options = {}) {
   return api.get(`/api/results/member/${encodeURIComponent(searchKey)}`, params);
 }
 
+/**
+ * Get the club-wide best-time distribution: for every race distance, one
+ * entry per runner holding that runner's personal best, fastest first.
+ * @returns {Promise<Object>} { distances: { [distance]: [{runner_name, time, seconds}] } }
+ */
+export async function getResultsDistribution() {
+  return api.get('/api/results/distribution', {});
+}
+
