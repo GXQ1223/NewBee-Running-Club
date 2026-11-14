@@ -932,6 +932,18 @@ const ProfilePage = () => {
         </Paper>
       )}
 
+      {/* My Progress — race analytics (PB progression, pace timeline, year tiles, club distribution).
+          Sits ABOVE Race History on purpose: the history table grows downward
+          forever, and the charts would get buried under it. */}
+      <Paper elevation={0} sx={{ ...panelSx, p: 3 }}>
+        <SectionHeader
+          icon={<TimerIcon sx={{ color: ORANGE }} />}
+          en="My Progress"
+          cn="数据分析"
+        />
+        <RaceAnalytics results={raceData.results} memberName={memberData?.display_name} />
+      </Paper>
+
       {/* Race History Section */}
       <Paper elevation={0} sx={{ ...panelSx, p: 3 }}>
         <SectionHeader
