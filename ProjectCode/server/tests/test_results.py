@@ -341,3 +341,41 @@ def test_member_search_gender_birth_year_filter(client, db_session):
     # Outside tolerance
     body = client.get('/api/results/member/Jane Doe?gender=F&birth_year=1992').json()
     assert body['stats']['total_races'] == 0
+
+
+# ---------------------------------------------------------------- distribution
+
+def test_distribution_empty(client):
+    resp = client.get('/api/results/distribution')
+    assert resp.status_code == 200
+    assert resp.json() == {'distances': {}}
+
+
+def test_distribution_best_per_runner_grouped_and_sorted(client, db_session):
+    # Alice has two 10K results; only her best (0:48:00) should appear.
+    make_result(db_session, name='Alice Runner', overall_time='0:50:00')
+    make_result(db_session, name='Alice Runner', overall_time='0:48:00',
+                race_time=datetime(2024, 9, 1))
+    make_result(db_session, name='Bob Runner', gender_age='M35',
+                overall_time='0:45:30')
+    # A different distance lands in its own group.
+    make_result(db_session, name='Alice Runner', overall_time='3:10:00',
+                race='Test Marathon', race_distance='Marathon')
+    # Unparseable and missing times are skipped.
+    make_result(db_session, name='No Time', overall_time='not-a-time')
+    make_result(db_session, name='Blank Time', overall_time=None)
+
+    resp = client.get('/api/results/distribution')
+    assert resp.status_code == 200
+    distances = resp.json()['distances']
+
+    ten_k = distances['10K']
+    assert [e['runner_name'] for e in ten_k] == ['Bob Runner', 'Alice Runner']
+    assert ten_k[0]['time'] == '0:45:30'
+    assert ten_k[0]['seconds'] == 45 * 60 + 30
+    assert ten_k[1]['time'] == '0:48:00'
+    assert ten_k[1]['seconds'] == 48 * 60
+
+    assert [e['runner_name'] for e in distances['Marathon']] == ['Alice Runner']
+    assert 'No Time' not in str(distances)
+    assert 'Blank Time' not in str(distances)
