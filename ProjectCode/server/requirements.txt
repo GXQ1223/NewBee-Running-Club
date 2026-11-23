@@ -3,7 +3,7 @@ uvicorn
 sqlalchemy
 pymysql
 cryptography
-pydantic
+pydantic>=2.14.2
 python-dotenv
 bcrypt
 pandas
